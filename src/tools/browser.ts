@@ -10,22 +10,28 @@ let client: CDPClient | null = null;
 let debugPort = 9222;
 const CHROME_DATA_DIR = path.join(os.homedir(), '.codebot', 'chrome-profile');
 
-/** Kill any Chrome using our debug port or data dir */
+/** Kill any Chrome using our debug port or data dir (but NEVER kill ourselves) */
 function killExistingChrome(): void {
+  // Close our own CDP connection first so we don't hold the port
+  if (client) {
+    try { client.close(); } catch { /* ignore */ }
+    client = null;
+  }
+
   const { execSync } = require('child_process');
+  const myPid = process.pid;
   try {
     if (process.platform === 'win32') {
       execSync(`for /f "tokens=5" %a in ('netstat -aon ^| findstr :${debugPort}') do taskkill /F /PID %a`, { stdio: 'ignore' });
     } else {
-      // Kill any process listening on our debug port
-      execSync(`lsof -ti:${debugPort} | xargs kill -9 2>/dev/null || true`, { stdio: 'ignore' });
+      // Kill Chrome/Chromium processes on our debug port — exclude our own PID
+      execSync(`lsof -ti:${debugPort} | grep -v "^${myPid}$" | xargs kill -9 2>/dev/null || true`, { stdio: 'ignore' });
       // Also kill any Chrome using our data dir
-      execSync(`pkill -f "${CHROME_DATA_DIR}" 2>/dev/null || true`, { stdio: 'ignore' });
+      execSync(`pkill -9 -f "chrome.*--user-data-dir=${CHROME_DATA_DIR}" 2>/dev/null || true`, { stdio: 'ignore' });
     }
   } catch {
     // ignore — nothing to kill
   }
-  // Give OS time to release the port
 }
 
 async function ensureConnected(): Promise<CDPClient> {
