@@ -73,6 +73,10 @@ export class Agent {
     }
 
     for (let i = 0; i < this.maxIterations; i++) {
+      // Validate message integrity: ensure every tool_call has a matching tool response
+      // This prevents cascading 400 errors from OpenAI when a previous call failed
+      this.repairToolCallMessages();
+
       const supportsTools = getModelInfo(this.model).supportsToolCalling;
       const toolSchemas = supportsTools ? this.tools.getSchemas() : undefined;
 
@@ -206,6 +210,41 @@ export class Agent {
 
   getMessages(): Message[] {
     return [...this.messages];
+  }
+
+  /** Ensure every assistant message with tool_calls has matching tool response messages.
+   *  OpenAI returns 400 if any tool_call_id lacks a response. This can happen if
+   *  a previous LLM call errored out mid-flow. */
+  private repairToolCallMessages(): void {
+    const toolResponseIds = new Set<string>();
+    for (const msg of this.messages) {
+      if (msg.role === 'tool' && msg.tool_call_id) {
+        toolResponseIds.add(msg.tool_call_id);
+      }
+    }
+
+    for (let i = 0; i < this.messages.length; i++) {
+      const msg = this.messages[i];
+      if (msg.role === 'assistant' && msg.tool_calls?.length) {
+        for (const tc of msg.tool_calls) {
+          if (!toolResponseIds.has(tc.id)) {
+            // Missing tool response — inject one right after the assistant message
+            const repairMsg: Message = {
+              role: 'tool',
+              content: 'Error: tool call was not executed (interrupted).',
+              tool_call_id: tc.id,
+            };
+            // Find the right position: after the assistant message and any existing tool responses
+            let insertAt = i + 1;
+            while (insertAt < this.messages.length && this.messages[insertAt].role === 'tool') {
+              insertAt++;
+            }
+            this.messages.splice(insertAt, 0, repairMsg);
+            toolResponseIds.add(tc.id);
+          }
+        }
+      }
+    }
   }
 
   private buildSystemPrompt(supportsTools: boolean): string {

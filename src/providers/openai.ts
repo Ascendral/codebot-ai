@@ -230,7 +230,13 @@ export class OpenAIProvider implements LLMProvider {
 
   private formatMessage(msg: Message): Record<string, unknown> {
     const formatted: Record<string, unknown> = { role: msg.role, content: msg.content };
-    if (msg.tool_calls) formatted.tool_calls = msg.tool_calls;
+
+    if (msg.tool_calls) {
+      formatted.tool_calls = msg.tool_calls;
+      // OpenAI (especially GPT-4.1) requires content: null when tool_calls are present
+      // and there's no actual text content. Empty string "" causes 400 errors.
+      if (!msg.content) formatted.content = null;
+    }
     if (msg.tool_call_id) formatted.tool_call_id = msg.tool_call_id;
     if (msg.name) formatted.name = msg.name;
     return formatted;
