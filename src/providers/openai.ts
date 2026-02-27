@@ -1,5 +1,6 @@
 import { LLMProvider, Message, ToolSchema, StreamEvent, ProviderConfig, ToolCall } from '../types';
 import { getModelInfo } from './registry';
+import { isRetryable, getRetryDelay, sleep } from '../retry';
 
 export class OpenAIProvider implements LLMProvider {
   name: string;
@@ -38,22 +39,45 @@ export class OpenAIProvider implements LLMProvider {
       headers['Authorization'] = `Bearer ${this.config.apiKey}`;
     }
 
-    let response: Response;
-    try {
-      response = await fetch(`${this.config.baseUrl}/v1/chat/completions`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      yield { type: 'error', error: `Connection failed: ${msg}. Is your LLM server running?` };
-      return;
+    const MAX_RETRIES = 3;
+    let response!: Response;
+    let lastError = '';
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        response = await fetch(`${this.config.baseUrl}/v1/chat/completions`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(60_000),
+        });
+
+        if (response.ok || !isRetryable(null, response.status)) {
+          break;
+        }
+
+        // Retryable HTTP status (429, 5xx)
+        lastError = `LLM error ${response.status}`;
+        if (attempt < MAX_RETRIES) {
+          const delay = getRetryDelay(attempt, response.headers.get('retry-after'));
+          await sleep(delay);
+          continue;
+        }
+      } catch (err: unknown) {
+        lastError = err instanceof Error ? err.message : String(err);
+        if (attempt < MAX_RETRIES && isRetryable(err)) {
+          const delay = getRetryDelay(attempt);
+          await sleep(delay);
+          continue;
+        }
+        yield { type: 'error', error: `Connection failed after ${attempt + 1} attempts: ${lastError}. Is your LLM server running?` };
+        return;
+      }
     }
 
-    if (!response.ok) {
-      const text = await response.text();
-      yield { type: 'error', error: `LLM error ${response.status}: ${text}` };
+    if (!response || !response.ok) {
+      const text = response ? await response.text().catch(() => '') : '';
+      yield { type: 'error', error: `LLM error after retries: ${lastError}${text ? ` — ${text}` : ''}` };
       return;
     }
 

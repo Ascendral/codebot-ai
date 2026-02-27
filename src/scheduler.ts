@@ -65,27 +65,18 @@ export class Scheduler {
 
   private async executeRoutine(routine: Routine, allRoutines: Routine[]): Promise<void> {
     this.running = true;
+    const ROUTINE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes max per routine
 
     try {
       this.onOutput?.(`\n⏰ Running routine: ${routine.name}\n   Task: ${routine.prompt}\n`);
 
-      // Run the agent with the routine's prompt
-      for await (const event of this.agent.run(routine.prompt) as AsyncGenerator<AgentEvent>) {
-        switch (event.type) {
-          case 'text':
-            this.onOutput?.(event.text || '');
-            break;
-          case 'tool_call':
-            this.onOutput?.(`\n⚡ ${event.toolCall?.name}(${Object.entries(event.toolCall?.args || {}).map(([k, v]) => `${k}: ${typeof v === 'string' ? v.substring(0, 40) : v}`).join(', ')})\n`);
-            break;
-          case 'tool_result':
-            this.onOutput?.(`  ✓ ${event.toolResult?.result?.substring(0, 100) || ''}\n`);
-            break;
-          case 'error':
-            this.onOutput?.(`  ✗ Error: ${event.error}\n`);
-            break;
-        }
-      }
+      // Race against a timeout so a hanging routine doesn't block the scheduler forever
+      await Promise.race([
+        this.runRoutineAgent(routine),
+        new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error(`Routine timed out after ${ROUTINE_TIMEOUT_MS / 1000}s`)), ROUTINE_TIMEOUT_MS)
+        ),
+      ]);
 
       // Update last run time
       routine.lastRun = new Date().toISOString();
@@ -97,6 +88,26 @@ export class Scheduler {
       this.onOutput?.(`\n✗ Routine "${routine.name}" failed: ${msg}\n`);
     } finally {
       this.running = false;
+    }
+  }
+
+  /** Run the agent loop for a routine — separated so it can be wrapped in Promise.race */
+  private async runRoutineAgent(routine: Routine): Promise<void> {
+    for await (const event of this.agent.run(routine.prompt) as AsyncGenerator<AgentEvent>) {
+      switch (event.type) {
+        case 'text':
+          this.onOutput?.(event.text || '');
+          break;
+        case 'tool_call':
+          this.onOutput?.(`\n⚡ ${event.toolCall?.name}(${Object.entries(event.toolCall?.args || {}).map(([k, v]) => `${k}: ${typeof v === 'string' ? v.substring(0, 40) : v}`).join(', ')})\n`);
+          break;
+        case 'tool_result':
+          this.onOutput?.(`  ✓ ${event.toolResult?.result?.substring(0, 100) || ''}\n`);
+          break;
+        case 'error':
+          this.onOutput?.(`  ✗ Error: ${event.error}\n`);
+          break;
+      }
     }
   }
 

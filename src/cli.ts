@@ -10,7 +10,7 @@ import { banner, randomGreeting, compactBanner } from './banner';
 import { EditFileTool } from './tools';
 import { Scheduler } from './scheduler';
 
-const VERSION = '1.2.3';
+const VERSION = '1.3.0';
 
 // Session-wide token tracking
 let sessionTokens = { input: 0, output: 0, total: 0 };
@@ -31,6 +31,19 @@ function c(text: string, style: keyof typeof C): string {
 }
 
 export async function main() {
+  // Process-level safety nets: prevent silent crashes
+  process.on('unhandledRejection', (reason: unknown) => {
+    const msg = reason instanceof Error ? reason.message : String(reason);
+    console.error(`\x1b[31m\nUnhandled error: ${msg}\x1b[0m`);
+  });
+
+  process.on('uncaughtException', (err: Error) => {
+    console.error(`\x1b[31m\nUncaught exception: ${err.message}\x1b[0m`);
+    if (err.message.includes('out of memory') || err.message.includes('ENOMEM')) {
+      process.exit(1);
+    }
+  });
+
   const args = parseArgs(process.argv.slice(2));
 
   if (args.help) {
@@ -351,7 +364,12 @@ function handleSlashCommand(input: string, agent: Agent, config: Config) {
     case '/routines': {
       const { RoutineTool } = require('./tools/routine');
       const rt = new RoutineTool();
-      rt.execute({ action: 'list' }).then((out: string) => console.log('\n' + out));
+      rt.execute({ action: 'list' })
+        .then((out: string) => console.log('\n' + out))
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(c(`Error listing routines: ${msg}`, 'red'));
+        });
       break;
     }
     case '/config':

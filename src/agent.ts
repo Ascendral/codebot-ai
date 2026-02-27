@@ -67,9 +67,14 @@ export class Agent {
     this.onMessage?.(userMsg);
 
     if (!this.context.fitsInBudget(this.messages)) {
-      const result = await this.context.compactWithSummary(this.messages);
-      this.messages = result.messages;
-      yield { type: 'compaction', text: result.summary || 'Context compacted to fit budget.' };
+      try {
+        const result = await this.context.compactWithSummary(this.messages);
+        this.messages = result.messages;
+        yield { type: 'compaction', text: result.summary || 'Context compacted to fit budget.' };
+      } catch {
+        this.messages = this.context.compact(this.messages, true);
+        yield { type: 'compaction', text: 'Context compacted (summary unavailable).' };
+      }
     }
 
     for (let i = 0; i < this.maxIterations; i++) {
@@ -82,29 +87,41 @@ export class Agent {
 
       let fullText = '';
       let toolCalls: ToolCall[] = [];
+      let streamError: string | null = null;
 
-      // Stream LLM response
-      for await (const event of this.provider.chat(this.messages, toolSchemas)) {
-        switch (event.type) {
-          case 'text':
-            fullText += event.text || '';
-            yield { type: 'text', text: event.text };
-            break;
-          case 'thinking':
-            yield { type: 'thinking', text: event.text };
-            break;
-          case 'tool_call_end':
-            if (event.toolCall) {
-              toolCalls.push(event.toolCall as ToolCall);
-            }
-            break;
-          case 'usage':
-            yield { type: 'usage', usage: event.usage };
-            break;
-          case 'error':
-            yield { type: 'error', error: event.error };
-            return;
+      // Stream LLM response — wrapped in try-catch for resilience
+      try {
+        for await (const event of this.provider.chat(this.messages, toolSchemas)) {
+          switch (event.type) {
+            case 'text':
+              fullText += event.text || '';
+              yield { type: 'text', text: event.text };
+              break;
+            case 'thinking':
+              yield { type: 'thinking', text: event.text };
+              break;
+            case 'tool_call_end':
+              if (event.toolCall) {
+                toolCalls.push(event.toolCall as ToolCall);
+              }
+              break;
+            case 'usage':
+              yield { type: 'usage', usage: event.usage };
+              break;
+            case 'error':
+              streamError = event.error || 'Unknown provider error';
+              break;
+          }
         }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        streamError = `Stream error: ${msg}`;
+      }
+
+      // On error: yield it to the UI but DON'T return — continue to next iteration
+      if (streamError) {
+        yield { type: 'error', error: streamError };
+        continue;
       }
 
       // If no native tool calls, try parsing from text
@@ -188,9 +205,14 @@ export class Agent {
 
       // Compact after tool results if needed
       if (!this.context.fitsInBudget(this.messages)) {
-        const result = await this.context.compactWithSummary(this.messages);
-        this.messages = result.messages;
-        yield { type: 'compaction', text: result.summary || 'Context compacted.' };
+        try {
+          const result = await this.context.compactWithSummary(this.messages);
+          this.messages = result.messages;
+          yield { type: 'compaction', text: result.summary || 'Context compacted.' };
+        } catch {
+          this.messages = this.context.compact(this.messages, true);
+          yield { type: 'compaction', text: 'Context compacted (summary unavailable).' };
+        }
       }
     }
 

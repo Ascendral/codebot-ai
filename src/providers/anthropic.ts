@@ -1,4 +1,5 @@
 import { LLMProvider, Message, ToolSchema, StreamEvent, ProviderConfig, ToolCall } from '../types';
+import { isRetryable, getRetryDelay, sleep } from '../retry';
 
 interface AnthropicMessage {
   role: 'user' | 'assistant';
@@ -37,26 +38,48 @@ export class AnthropicProvider implements LLMProvider {
     }
 
     const baseUrl = this.config.baseUrl.replace(/\/+$/, '');
-    let response: Response;
-    try {
-      response = await fetch(`${baseUrl}/v1/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.config.apiKey || '',
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify(body),
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      yield { type: 'error', error: `Connection failed: ${msg}` };
-      return;
+    const MAX_RETRIES = 3;
+    let response!: Response;
+    let lastError = '';
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        response = await fetch(`${baseUrl}/v1/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': this.config.apiKey || '',
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(60_000),
+        });
+
+        if (response.ok || !isRetryable(null, response.status)) {
+          break;
+        }
+
+        lastError = `Anthropic error ${response.status}`;
+        if (attempt < MAX_RETRIES) {
+          const delay = getRetryDelay(attempt, response.headers.get('retry-after'));
+          await sleep(delay);
+          continue;
+        }
+      } catch (err: unknown) {
+        lastError = err instanceof Error ? err.message : String(err);
+        if (attempt < MAX_RETRIES && isRetryable(err)) {
+          const delay = getRetryDelay(attempt);
+          await sleep(delay);
+          continue;
+        }
+        yield { type: 'error', error: `Connection failed after ${attempt + 1} attempts: ${lastError}` };
+        return;
+      }
     }
 
-    if (!response.ok) {
-      const text = await response.text();
-      yield { type: 'error', error: `Anthropic error ${response.status}: ${text}` };
+    if (!response || !response.ok) {
+      const text = response ? await response.text().catch(() => '') : '';
+      yield { type: 'error', error: `Anthropic error after retries: ${lastError}${text ? ` — ${text}` : ''}` };
       return;
     }
 

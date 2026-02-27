@@ -75,15 +75,24 @@ export class WebFetchTool implements Tool {
     }
 
     try {
+      // AbortController covers both connection AND body reading (res.text())
+      const controller = new AbortController();
+      const bodyTimeout = setTimeout(() => controller.abort(), 30_000);
+
       const res = await fetch(url, {
         method,
         headers,
         body,
-        signal: AbortSignal.timeout(30000),
+        signal: controller.signal,
       });
 
       const contentType = res.headers.get('content-type') || '';
-      const responseText = await res.text();
+      let responseText: string;
+      try {
+        responseText = await res.text();
+      } finally {
+        clearTimeout(bodyTimeout);
+      }
 
       // Truncate very large responses
       const maxLen = 50000;
