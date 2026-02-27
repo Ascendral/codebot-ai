@@ -17,9 +17,18 @@ export class EditFileTool implements Tool {
   };
 
   async execute(args: Record<string, unknown>): Promise<string> {
-    const filePath = path.resolve(args.path as string);
-    const oldStr = args.old_string as string;
-    const newStr = args.new_string as string;
+    if (!args.path || typeof args.path !== 'string') {
+      return 'Error: path is required';
+    }
+    if (args.old_string === undefined || args.old_string === null) {
+      return 'Error: old_string is required';
+    }
+    if (args.new_string === undefined || args.new_string === null) {
+      return 'Error: new_string is required';
+    }
+    const filePath = path.resolve(args.path);
+    const oldStr = String(args.old_string);
+    const newStr = String(args.new_string);
 
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath}`);

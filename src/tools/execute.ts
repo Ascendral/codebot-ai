@@ -27,7 +27,10 @@ export class ExecuteTool implements Tool {
   };
 
   async execute(args: Record<string, unknown>): Promise<string> {
-    const cmd = args.command as string;
+    if (!args.command || typeof args.command !== 'string') {
+      return 'Error: command is required';
+    }
+    const cmd = args.command;
 
     for (const pattern of BLOCKED_PATTERNS) {
       if (pattern.test(cmd)) {

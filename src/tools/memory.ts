@@ -79,17 +79,27 @@ export class MemoryTool implements Tool {
     }
   }
 
+  private getMemoryDir(scope: string): string {
+    const path = require('path');
+    const os = require('os');
+    if (scope === 'global') {
+      return path.join(os.homedir(), '.codebot', 'memory');
+    }
+    return path.join(process.cwd(), '.codebot', 'memory');
+  }
+
+  private sanitizeFileName(file: string): string {
+    const path = require('path');
+    // Strip path traversal — only allow the basename
+    const base = path.basename(file);
+    return base.endsWith('.md') ? base : `${base}.md`;
+  }
+
   private readTopicFile(scope: string, file: string): string {
     const fs = require('fs');
     const path = require('path');
-    const os = require('os');
-    const fileName = file.endsWith('.md') ? file : `${file}.md`;
-    let dir: string;
-    if (scope === 'global') {
-      dir = path.join(os.homedir(), '.codebot', 'memory');
-    } else {
-      dir = path.join(process.cwd(), '.codebot', 'memory');
-    }
+    const fileName = this.sanitizeFileName(file);
+    const dir = this.getMemoryDir(scope);
     const filePath = path.join(dir, fileName);
     if (fs.existsSync(filePath)) {
       return fs.readFileSync(filePath, 'utf-8');
@@ -100,14 +110,8 @@ export class MemoryTool implements Tool {
   private writeTopicFile(scope: string, file: string, content: string): string {
     const fs = require('fs');
     const path = require('path');
-    const os = require('os');
-    const fileName = file.endsWith('.md') ? file : `${file}.md`;
-    let dir: string;
-    if (scope === 'global') {
-      dir = path.join(os.homedir(), '.codebot', 'memory');
-    } else {
-      dir = path.join(process.cwd(), '.codebot', 'memory');
-    }
+    const fileName = this.sanitizeFileName(file);
+    const dir = this.getMemoryDir(scope);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, fileName), content);
     return `Wrote ${fileName} (${scope}).`;

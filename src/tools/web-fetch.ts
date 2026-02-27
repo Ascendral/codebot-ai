@@ -16,9 +16,52 @@ export class WebFetchTool implements Tool {
     required: ['url'],
   };
 
+  private validateUrl(url: string): string | null {
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return 'Invalid URL';
+    }
+
+    // Only allow http and https protocols
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return `Blocked protocol: ${parsed.protocol} — only http/https allowed`;
+    }
+
+    // Block requests to private/internal IPs
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Block localhost variants
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '0.0.0.0') {
+      return 'Blocked: requests to localhost are not allowed';
+    }
+
+    // Block cloud metadata endpoints
+    if (hostname === '169.254.169.254' || hostname === 'metadata.google.internal') {
+      return 'Blocked: requests to cloud metadata endpoints are not allowed';
+    }
+
+    // Block private IP ranges (10.x, 172.16-31.x, 192.168.x)
+    const ipMatch = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipMatch) {
+      const [, a, b] = ipMatch.map(Number);
+      if (a === 10) return 'Blocked: private IP range (10.x.x.x)';
+      if (a === 172 && b >= 16 && b <= 31) return 'Blocked: private IP range (172.16-31.x.x)';
+      if (a === 192 && b === 168) return 'Blocked: private IP range (192.168.x.x)';
+      if (a === 0) return 'Blocked: invalid IP (0.x.x.x)';
+    }
+
+    return null; // URL is safe
+  }
+
   async execute(args: Record<string, unknown>): Promise<string> {
     const url = args.url as string;
+    if (!url) return 'Error: url is required';
     const method = (args.method as string) || 'GET';
+
+    const urlError = this.validateUrl(url);
+    if (urlError) return `Error: ${urlError}`;
     const headers: Record<string, string> = (args.headers as Record<string, string>) || {};
 
     let body: string | undefined;

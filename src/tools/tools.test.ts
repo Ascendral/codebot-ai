@@ -237,3 +237,169 @@ describe('ThinkTool', () => {
     assert.strictEqual(result, 'Thought recorded.');
   });
 });
+
+// ============ Security Tests ============
+
+describe('GrepTool — security', () => {
+  it('handles invalid regex gracefully', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('grep')!;
+    const result = await tool.execute({ pattern: '[invalid(' });
+    assert.ok(result.includes('Error: invalid regex pattern'));
+  });
+
+  it('handles nonexistent path gracefully', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('grep')!;
+    const result = await tool.execute({ pattern: 'test', path: '/nonexistent/path/xyz' });
+    assert.ok(result.includes('Error: path not found'));
+  });
+
+  it('returns error when pattern is missing', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('grep')!;
+    const result = await tool.execute({});
+    assert.ok(result.includes('Error: pattern is required'));
+  });
+});
+
+describe('WebFetchTool — SSRF protection', () => {
+  it('blocks file:// protocol', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('web_fetch')!;
+    const result = await tool.execute({ url: 'file:///etc/passwd' });
+    assert.ok(result.includes('Blocked protocol'));
+  });
+
+  it('blocks ftp:// protocol', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('web_fetch')!;
+    const result = await tool.execute({ url: 'ftp://evil.com/file' });
+    assert.ok(result.includes('Blocked protocol'));
+  });
+
+  it('blocks localhost', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('web_fetch')!;
+    const result = await tool.execute({ url: 'http://localhost/admin' });
+    assert.ok(result.includes('Blocked'));
+  });
+
+  it('blocks 127.0.0.1', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('web_fetch')!;
+    const result = await tool.execute({ url: 'http://127.0.0.1:8080' });
+    assert.ok(result.includes('Blocked'));
+  });
+
+  it('blocks cloud metadata endpoint', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('web_fetch')!;
+    const result = await tool.execute({ url: 'http://169.254.169.254/latest/meta-data/' });
+    assert.ok(result.includes('Blocked'));
+  });
+
+  it('blocks private IP 10.x.x.x', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('web_fetch')!;
+    const result = await tool.execute({ url: 'http://10.0.0.1/internal' });
+    assert.ok(result.includes('Blocked'));
+  });
+
+  it('blocks private IP 192.168.x.x', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('web_fetch')!;
+    const result = await tool.execute({ url: 'http://192.168.1.1/admin' });
+    assert.ok(result.includes('Blocked'));
+  });
+
+  it('blocks private IP 172.16.x.x', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('web_fetch')!;
+    const result = await tool.execute({ url: 'http://172.16.0.1/internal' });
+    assert.ok(result.includes('Blocked'));
+  });
+
+  it('returns error for invalid URL', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('web_fetch')!;
+    const result = await tool.execute({ url: 'not-a-url' });
+    assert.ok(result.includes('Invalid URL'));
+  });
+
+  it('returns error when url is missing', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('web_fetch')!;
+    const result = await tool.execute({});
+    assert.ok(result.includes('Error: url is required'));
+  });
+});
+
+describe('MemoryTool — path traversal protection', () => {
+  it('strips path traversal from file names', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('memory')!;
+    // This should NOT be able to write outside the memory directory
+    const result = await tool.execute({
+      action: 'read',
+      file: '../../../etc/passwd',
+    });
+    // Should try to read "passwd.md" not traverse up
+    assert.ok(result.includes('passwd') || result.includes('no file'));
+    assert.ok(!result.includes('root:')); // Should NOT read /etc/passwd
+  });
+
+  it('strips path traversal with nested ../', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('memory')!;
+    const result = await tool.execute({
+      action: 'read',
+      file: '../../config.json',
+    });
+    assert.ok(result.includes('config.json') || result.includes('no file'));
+  });
+});
+
+describe('Input validation — missing required args', () => {
+  it('read_file: returns error for missing path', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('read_file')!;
+    const result = await tool.execute({});
+    assert.ok(result.includes('Error: path is required'));
+  });
+
+  it('write_file: returns error for missing path', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('write_file')!;
+    const result = await tool.execute({ content: 'test' });
+    assert.ok(result.includes('Error: path is required'));
+  });
+
+  it('write_file: returns error for missing content', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('write_file')!;
+    const result = await tool.execute({ path: '/tmp/test.txt' });
+    assert.ok(result.includes('Error: content is required'));
+  });
+
+  it('edit_file: returns error for missing path', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('edit_file')!;
+    const result = await tool.execute({ old_string: 'a', new_string: 'b' });
+    assert.ok(result.includes('Error: path is required'));
+  });
+
+  it('edit_file: returns error for missing old_string', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('edit_file')!;
+    const result = await tool.execute({ path: '/tmp/test.txt', new_string: 'b' });
+    assert.ok(result.includes('Error: old_string is required'));
+  });
+
+  it('execute: returns error for missing command', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('execute')!;
+    const result = await tool.execute({});
+    assert.ok(result.includes('Error: command is required'));
+  });
+});

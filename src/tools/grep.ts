@@ -18,11 +18,24 @@ export class GrepTool implements Tool {
 
   async execute(args: Record<string, unknown>): Promise<string> {
     const searchPath = (args.path as string) || process.cwd();
-    const regex = new RegExp(args.pattern as string, 'gi');
+    if (!args.pattern) return 'Error: pattern is required';
+
+    let regex: RegExp;
+    try {
+      regex = new RegExp(args.pattern as string, 'gi');
+    } catch (e) {
+      return `Error: invalid regex pattern: ${(e as Error).message}`;
+    }
+
     const results: string[] = [];
     const maxResults = 50;
 
-    const stat = fs.statSync(searchPath);
+    let stat: fs.Stats;
+    try {
+      stat = fs.statSync(searchPath);
+    } catch {
+      return `Error: path not found: ${searchPath}`;
+    }
     if (stat.isFile()) {
       this.searchFile(searchPath, regex, results, maxResults);
     } else {

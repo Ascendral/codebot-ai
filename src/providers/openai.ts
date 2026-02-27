@@ -182,7 +182,13 @@ export class OpenAIProvider implements LLMProvider {
       reader.releaseLock();
     }
 
-    // If we reach here without [DONE], emit remaining tool calls
+    // If we reach here without [DONE], flush remaining content buffer
+    if (contentBuffer && !insideThink) {
+      yield { type: 'text', text: contentBuffer };
+      contentBuffer = '';
+    }
+
+    // Emit remaining tool calls
     for (const [, tc] of toolCalls) {
       yield {
         type: 'tool_call_end',

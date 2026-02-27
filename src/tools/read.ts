@@ -17,7 +17,10 @@ export class ReadFileTool implements Tool {
   };
 
   async execute(args: Record<string, unknown>): Promise<string> {
-    const filePath = path.resolve(args.path as string);
+    if (!args.path || typeof args.path !== 'string') {
+      return 'Error: path is required';
+    }
+    const filePath = path.resolve(args.path);
 
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath}`);

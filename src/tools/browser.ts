@@ -254,7 +254,7 @@ export class BrowserTool implements Tool {
       expression: `
         (function() {
           const el = document.querySelector(${JSON.stringify(selector)});
-          if (!el) return 'Element not found: ${selector}';
+          if (!el) return 'Element not found: ' + ${JSON.stringify(selector)};
           el.click();
           return 'Clicked: ' + (el.tagName || '') + ' ' + (el.textContent || '').substring(0, 50).trim();
         })()

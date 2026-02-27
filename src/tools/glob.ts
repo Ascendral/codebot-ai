@@ -31,8 +31,22 @@ export class GlobTool implements Tool {
     const results: string[] = [];
     const regex = this.patternToRegex(pattern);
     const skip = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '__pycache__', '.next']);
+    const maxDepth = 20;
+    const visited = new Set<string>();
 
-    const walk = (currentDir: string, rel: string) => {
+    const walk = (currentDir: string, rel: string, depth: number) => {
+      if (depth > maxDepth) return;
+
+      // Resolve real path to detect symlink loops
+      let realDir: string;
+      try {
+        realDir = fs.realpathSync(currentDir);
+      } catch {
+        return;
+      }
+      if (visited.has(realDir)) return;
+      visited.add(realDir);
+
       let entries: fs.Dirent[];
       try {
         entries = fs.readdirSync(currentDir, { withFileTypes: true });
@@ -45,15 +59,25 @@ export class GlobTool implements Tool {
         if (skip.has(entry.name)) continue;
 
         const relPath = rel ? `${rel}/${entry.name}` : entry.name;
-        if (entry.isDirectory()) {
-          walk(path.join(currentDir, entry.name), relPath);
+        if (entry.isDirectory() || entry.isSymbolicLink()) {
+          const fullPath = path.join(currentDir, entry.name);
+          try {
+            const stat = fs.statSync(fullPath);
+            if (stat.isDirectory()) {
+              walk(fullPath, relPath, depth + 1);
+            } else if (regex.test(relPath)) {
+              results.push(relPath);
+            }
+          } catch {
+            continue; // broken symlink
+          }
         } else if (regex.test(relPath)) {
           results.push(relPath);
         }
       }
     };
 
-    walk(dir, '');
+    walk(dir, '', 0);
     return results.sort();
   }
 

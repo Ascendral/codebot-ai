@@ -16,8 +16,14 @@ export class WriteFileTool implements Tool {
   };
 
   async execute(args: Record<string, unknown>): Promise<string> {
-    const filePath = path.resolve(args.path as string);
-    const content = args.content as string;
+    if (!args.path || typeof args.path !== 'string') {
+      return 'Error: path is required';
+    }
+    if (args.content === undefined || args.content === null) {
+      return 'Error: content is required';
+    }
+    const filePath = path.resolve(args.path);
+    const content = String(args.content);
     const dir = path.dirname(filePath);
 
     if (!fs.existsSync(dir)) {
