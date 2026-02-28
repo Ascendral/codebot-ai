@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import { Tool } from './types';
 
 /**
@@ -15,7 +16,16 @@ import { Tool } from './types';
  *   parameters: { type: 'object', properties: { ... }, required: [...] },
  *   execute: async (args) => { return 'result'; }
  * };
+ *
+ * Security: Each plugin MUST have an accompanying plugin.json manifest with a SHA-256 hash.
+ * Plugins without a valid manifest or with a hash mismatch are skipped.
  */
+
+interface PluginManifest {
+  name: string;
+  version: string;
+  hash: string; // "sha256:abc123..."
+}
 
 export function loadPlugins(projectRoot?: string): Tool[] {
   const plugins: Tool[] = [];
@@ -44,6 +54,37 @@ export function loadPlugins(projectRoot?: string): Tool[] {
 
       try {
         const pluginPath = path.join(dir, entry.name);
+
+        // Security: verify plugin against manifest hash
+        const manifestPath = path.join(dir, 'plugin.json');
+        if (!fs.existsSync(manifestPath)) {
+          console.error(`Plugin skipped (${entry.name}): no plugin.json manifest found. Create one with: { "name": "...", "version": "...", "hash": "sha256:..." }`);
+          continue;
+        }
+
+        let manifest: PluginManifest;
+        try {
+          manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+        } catch {
+          console.error(`Plugin skipped (${entry.name}): invalid plugin.json manifest`);
+          continue;
+        }
+
+        if (!manifest.hash || !manifest.hash.startsWith('sha256:')) {
+          console.error(`Plugin skipped (${entry.name}): manifest missing valid sha256 hash`);
+          continue;
+        }
+
+        // Compute SHA-256 of the plugin file
+        const pluginContent = fs.readFileSync(pluginPath);
+        const computedHash = 'sha256:' + crypto.createHash('sha256').update(pluginContent).digest('hex');
+
+        if (computedHash !== manifest.hash) {
+          console.error(`Plugin skipped (${entry.name}): hash mismatch. Expected ${manifest.hash}, got ${computedHash}. Plugin may have been tampered with.`);
+          continue;
+        }
+
+        // Hash verified — safe to load
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const mod = require(pluginPath);
         const plugin = mod.default || mod;

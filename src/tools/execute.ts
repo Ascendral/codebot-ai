@@ -1,5 +1,6 @@
 import { execSync } from 'child_process';
 import { Tool } from '../types';
+import { isCwdSafe } from '../security';
 
 const BLOCKED_PATTERNS = [
   // Destructive filesystem operations
@@ -38,6 +39,47 @@ const BLOCKED_PATTERNS = [
   /insmod\b/,
   /rmmod\b/,
   /modprobe\s+-r/,
+
+  // ── v1.6.0 security hardening: evasion-resistant patterns ──
+
+  // Base64 decode pipes (obfuscated command execution)
+  /base64\s+(-d|--decode)\s*\|/,
+  // Hex escape sequences (obfuscation)
+  /\\x[0-9a-fA-F]{2}.*\\x[0-9a-fA-F]{2}/,
+  // Variable-based obfuscation
+  /\$\{[^}]*rm\s/,
+  /eval\s+.*\$/,
+  // Backtick-based command injection
+  /`[^`]*rm\s+-rf/,
+  // Process substitution with dangerous commands
+  /<\(.*curl/,
+  /<\(.*wget/,
+  // Python/perl inline execution of destructive commands
+  /python[23]?\s+-c\s+.*import\s+os.*remove/,
+  /perl\s+-e\s+.*unlink/,
+  // Encoded shell commands
+  /echo\s+.*\|\s*base64\s+(-d|--decode)\s*\|\s*(ba)?sh/,
+  // Crontab manipulation
+  /crontab\s+-r/,
+  // Systemctl destructive operations
+  /systemctl\s+(disable|mask|stop)\s+(sshd|firewalld|iptables)/,
+];
+
+/** Sensitive environment variables to strip before passing to child process */
+const FILTERED_ENV_VARS = [
+  'AWS_SECRET_ACCESS_KEY',
+  'AWS_SESSION_TOKEN',
+  'GITHUB_TOKEN',
+  'GH_TOKEN',
+  'NPM_TOKEN',
+  'DATABASE_URL',
+  'OPENAI_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'GOOGLE_API_KEY',
+  'STRIPE_SECRET_KEY',
+  'SENDGRID_API_KEY',
+  'SLACK_TOKEN',
+  'SLACK_BOT_TOKEN',
 ];
 
 export class ExecuteTool implements Tool {
@@ -66,13 +108,28 @@ export class ExecuteTool implements Tool {
       }
     }
 
+    // Security: validate CWD
+    const cwd = (args.cwd as string) || process.cwd();
+    const projectRoot = process.cwd();
+    const cwdSafety = isCwdSafe(cwd, projectRoot);
+    if (!cwdSafety.safe) {
+      return `Error: ${cwdSafety.reason}`;
+    }
+
+    // Security: filter sensitive env vars
+    const safeEnv = { ...process.env };
+    for (const key of FILTERED_ENV_VARS) {
+      delete safeEnv[key];
+    }
+
     try {
       const output = execSync(cmd, {
-        cwd: (args.cwd as string) || process.cwd(),
+        cwd,
         timeout: (args.timeout as number) || 30000,
         maxBuffer: 1024 * 1024,
         encoding: 'utf-8',
         stdio: ['pipe', 'pipe', 'pipe'],
+        env: safeEnv,
       });
       return output || '(no output)';
     } catch (err: unknown) {

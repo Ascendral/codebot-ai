@@ -1,5 +1,5 @@
 import { Tool } from './types';
-import { execSync, spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -22,6 +22,21 @@ import * as os from 'os';
  *
  * Each server is launched as a subprocess communicating via JSON-RPC over stdio.
  */
+
+/** Allowlist of commands that MCP servers are permitted to run */
+const ALLOWED_MCP_COMMANDS = new Set([
+  'npx', 'node', 'python', 'python3', 'deno', 'bun', 'docker', 'uvx',
+]);
+
+/** Safe environment variables to pass to MCP subprocesses */
+const SAFE_ENV_VARS = new Set([
+  'PATH', 'HOME', 'USER', 'SHELL', 'LANG', 'TERM', 'TMPDIR', 'TMP', 'TEMP',
+  'LC_ALL', 'LC_CTYPE', 'DISPLAY', 'XDG_RUNTIME_DIR',
+  // Node.js
+  'NODE_ENV', 'NODE_PATH',
+  // Python
+  'PYTHONPATH', 'VIRTUAL_ENV',
+]);
 
 interface MCPServerConfig {
   name: string;
@@ -49,9 +64,28 @@ class MCPConnection {
 
   constructor(config: MCPServerConfig) {
     this.name = config.name;
+
+    // Security: validate command against allowlist
+    const command = path.basename(config.command);
+    if (!ALLOWED_MCP_COMMANDS.has(command)) {
+      throw new Error(`Blocked MCP command: "${config.command}". Allowed: ${[...ALLOWED_MCP_COMMANDS].join(', ')}`);
+    }
+
+    // Security: build safe environment — only pass safe vars + config-defined vars
+    const safeEnv: Record<string, string> = {};
+    for (const key of SAFE_ENV_VARS) {
+      if (process.env[key]) {
+        safeEnv[key] = process.env[key]!;
+      }
+    }
+    // Config-defined env vars override safe defaults
+    if (config.env) {
+      Object.assign(safeEnv, config.env);
+    }
+
     this.process = spawn(config.command, config.args || [], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, ...config.env },
+      env: safeEnv,
     });
 
     this.process.stdout?.on('data', (chunk: Buffer) => {
@@ -105,7 +139,7 @@ class MCPConnection {
     await this.request('initialize', {
       protocolVersion: '2024-11-05',
       capabilities: {},
-      clientInfo: { name: 'codebot-ai', version: '1.1.0' },
+      clientInfo: { name: 'codebot-ai', version: '1.6.0' },
     });
     await this.request('notifications/initialized');
   }
@@ -135,9 +169,14 @@ class MCPConnection {
 
 /** Create Tool wrappers from an MCP server's tools */
 function mcpToolToTool(connection: MCPConnection, def: MCPToolDef): Tool {
+  // Security: sanitize tool description (limit length, strip control chars)
+  const safeDescription = (def.description || '')
+    .substring(0, 500)
+    .replace(/[\x00-\x1F\x7F]/g, '');
+
   return {
     name: `mcp_${connection.name}_${def.name}`,
-    description: `[MCP:${connection.name}] ${def.description}`,
+    description: `[MCP:${connection.name}] ${safeDescription}`,
     permission: 'prompt' as const,
     parameters: def.inputSchema || { type: 'object', properties: {} },
     execute: async (args: Record<string, unknown>) => {

@@ -33,7 +33,7 @@ export class WebFetchTool implements Tool {
     const hostname = parsed.hostname.toLowerCase();
 
     // Block localhost variants
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '0.0.0.0') {
+    if (hostname === 'localhost' || hostname === '::1' || hostname === '0.0.0.0') {
       return 'Blocked: requests to localhost are not allowed';
     }
 
@@ -42,14 +42,53 @@ export class WebFetchTool implements Tool {
       return 'Blocked: requests to cloud metadata endpoints are not allowed';
     }
 
-    // Block private IP ranges (10.x, 172.16-31.x, 192.168.x)
+    // Block private IPv4 ranges
     const ipMatch = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
     if (ipMatch) {
       const [, a, b] = ipMatch.map(Number);
+      if (a === 127) return 'Blocked: loopback IP range (127.x.x.x)'; // Full 127.0.0.0/8
       if (a === 10) return 'Blocked: private IP range (10.x.x.x)';
       if (a === 172 && b >= 16 && b <= 31) return 'Blocked: private IP range (172.16-31.x.x)';
       if (a === 192 && b === 168) return 'Blocked: private IP range (192.168.x.x)';
       if (a === 0) return 'Blocked: invalid IP (0.x.x.x)';
+      if (a === 169 && b === 254) return 'Blocked: link-local IP (169.254.x.x)';
+    }
+
+    // ── v1.6.0 security hardening: IPv6 private range blocking ──
+
+    // Remove brackets for IPv6 addresses
+    const bare = hostname.replace(/^\[/, '').replace(/\]$/, '').toLowerCase();
+
+    // IPv6 loopback
+    if (bare === '::1' || bare === '0:0:0:0:0:0:0:1') {
+      return 'Blocked: IPv6 loopback (::1)';
+    }
+
+    // IPv6 link-local (fe80::/10)
+    if (/^fe[89ab][0-9a-f]:/i.test(bare)) {
+      return 'Blocked: IPv6 link-local address (fe80::/10)';
+    }
+
+    // IPv6 unique local address (fc00::/7 — includes fd00::/8)
+    if (/^f[cd][0-9a-f]{2}:/i.test(bare)) {
+      return 'Blocked: IPv6 unique local address (fc00::/7)';
+    }
+
+    // IPv6 multicast (ff00::/8)
+    if (/^ff[0-9a-f]{2}:/i.test(bare)) {
+      return 'Blocked: IPv6 multicast address (ff00::/8)';
+    }
+
+    // IPv6-mapped IPv4 addresses (::ffff:x.x.x.x)
+    const mappedMatch = bare.match(/^::ffff:(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (mappedMatch) {
+      const [, a, b] = mappedMatch.map(Number);
+      if (a === 127) return 'Blocked: IPv4-mapped loopback';
+      if (a === 10) return 'Blocked: IPv4-mapped private IP';
+      if (a === 172 && b >= 16 && b <= 31) return 'Blocked: IPv4-mapped private IP';
+      if (a === 192 && b === 168) return 'Blocked: IPv4-mapped private IP';
+      if (a === 0) return 'Blocked: IPv4-mapped invalid IP';
+      if (a === 169 && b === 254) return 'Blocked: IPv4-mapped link-local';
     }
 
     return null; // URL is safe

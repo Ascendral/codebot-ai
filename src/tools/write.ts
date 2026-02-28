@@ -2,6 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { Tool } from '../types';
+import { isPathSafe } from '../security';
+import { scanForSecrets } from '../secrets';
 
 const UNDO_DIR = path.join(os.homedir(), '.codebot', 'undo');
 
@@ -29,6 +31,22 @@ export class WriteFileTool implements Tool {
     const content = String(args.content);
     const dir = path.dirname(filePath);
 
+    // Security: path safety check
+    const projectRoot = process.cwd();
+    const safety = isPathSafe(filePath, projectRoot);
+    if (!safety.safe) {
+      return `Error: ${safety.reason}`;
+    }
+
+    // Security: secret detection (warn but don't block)
+    const secrets = scanForSecrets(content);
+    let warning = '';
+    if (secrets.length > 0) {
+      warning = `\n\n⚠️  WARNING: ${secrets.length} potential secret(s) detected:\n` +
+        secrets.map(s => `  Line ${s.line}: ${s.type} — ${s.snippet}`).join('\n') +
+        '\nConsider using environment variables instead of hardcoding secrets.';
+    }
+
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
@@ -46,7 +64,7 @@ export class WriteFileTool implements Tool {
     fs.writeFileSync(filePath, content, 'utf-8');
 
     const lines = content.split('\n').length;
-    return `${existed ? 'Overwrote' : 'Created'} ${filePath} (${lines} lines, ${content.length} bytes)`;
+    return `${existed ? 'Overwrote' : 'Created'} ${filePath} (${lines} lines, ${content.length} bytes)${warning}`;
   }
 
   private saveSnapshot(filePath: string, content: string) {

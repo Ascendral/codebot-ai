@@ -5,6 +5,47 @@ import * as os from 'os';
 const MEMORY_DIR = path.join(os.homedir(), '.codebot', 'memory');
 const GLOBAL_MEMORY = path.join(MEMORY_DIR, 'MEMORY.md');
 
+/** Maximum size per memory file (2KB) */
+const MAX_FILE_SIZE = 2048;
+/** Maximum total memory size across all files (10KB) */
+const MAX_TOTAL_SIZE = 10240;
+
+/** Patterns that indicate potential prompt injection in memory content */
+const INJECTION_PATTERNS = [
+  /^(system|assistant|user):\s/i,
+  /ignore (previous|all|above) instructions/i,
+  /you are now/i,
+  /new instructions:/i,
+  /override:/i,
+  /<\/?system>/i,
+  /\bforget (all|everything|your)\b/i,
+  /\bact as\b/i,
+  /\brole:\s*(system|admin)/i,
+  /\bpretend (you are|to be)\b/i,
+];
+
+/**
+ * Sanitize memory content by stripping lines that look like prompt injection.
+ */
+export function sanitizeMemory(content: string): string {
+  return content.split('\n')
+    .filter(line => !INJECTION_PATTERNS.some(p => p.test(line)))
+    .join('\n');
+}
+
+/**
+ * Truncate content to a maximum byte size.
+ */
+function truncateToSize(content: string, maxSize: number): string {
+  if (Buffer.byteLength(content, 'utf-8') <= maxSize) return content;
+  // Truncate by chars (approximation — will be close to byte limit)
+  let truncated = content;
+  while (Buffer.byteLength(truncated, 'utf-8') > maxSize - 50) { // leave room for marker
+    truncated = truncated.substring(0, Math.floor(truncated.length * 0.9));
+  }
+  return truncated.trimEnd() + '\n[truncated — exceeded size limit]';
+}
+
 export interface MemoryEntry {
   key: string;
   value: string;
@@ -16,6 +57,9 @@ export interface MemoryEntry {
  * Persistent memory system for CodeBot.
  * Stores project-level and global notes that survive across sessions.
  * Memory is injected into the system prompt so the model always has context.
+ *
+ * Security: content is sanitized before injection to prevent prompt injection.
+ * Size limits: 2KB per file, 10KB total.
  */
 export class MemoryManager {
   private projectDir: string;
@@ -52,14 +96,16 @@ export class MemoryManager {
 
   /** Write to global memory */
   writeGlobal(content: string): void {
-    fs.writeFileSync(GLOBAL_MEMORY, content);
+    const safe = truncateToSize(content, MAX_FILE_SIZE);
+    fs.writeFileSync(GLOBAL_MEMORY, safe);
   }
 
   /** Write to project memory */
   writeProject(content: string): void {
     if (!this.projectDir) return;
     const memFile = path.join(this.projectDir, 'MEMORY.md');
-    fs.writeFileSync(memFile, content);
+    const safe = truncateToSize(content, MAX_FILE_SIZE);
+    fs.writeFileSync(memFile, safe);
   }
 
   /** Append an entry to global memory */
@@ -81,6 +127,7 @@ export class MemoryManager {
   private readDir(dir: string): Record<string, string> {
     const files: Record<string, string> = {};
     if (!fs.existsSync(dir)) return files;
+
     for (const name of fs.readdirSync(dir)) {
       if (!name.endsWith('.md')) continue;
       files[name] = fs.readFileSync(path.join(dir, name), 'utf-8');
@@ -91,22 +138,36 @@ export class MemoryManager {
   /** Get all memory content formatted for system prompt injection */
   getContextBlock(): string {
     const parts: string[] = [];
+    let totalSize = 0;
 
     const global = this.readGlobal();
     if (global.trim()) {
-      parts.push(`## Global Memory\n${global.trim()}`);
+      const sanitized = sanitizeMemory(global.trim());
+      const truncated = truncateToSize(sanitized, MAX_FILE_SIZE);
+      totalSize += Buffer.byteLength(truncated, 'utf-8');
+      parts.push(`## Global Memory\n${truncated}`);
     }
 
     // Read additional global topic files
     const globalFiles = this.readDir(this.globalDir);
     for (const [name, content] of Object.entries(globalFiles)) {
       if (name === 'MEMORY.md' || !content.trim()) continue;
-      parts.push(`## ${name.replace('.md', '')}\n${content.trim()}`);
+      if (totalSize >= MAX_TOTAL_SIZE) break;
+
+      const sanitized = sanitizeMemory(content.trim());
+      const remaining = MAX_TOTAL_SIZE - totalSize;
+      const truncated = truncateToSize(sanitized, Math.min(MAX_FILE_SIZE, remaining));
+      totalSize += Buffer.byteLength(truncated, 'utf-8');
+      parts.push(`## ${name.replace('.md', '')}\n${truncated}`);
     }
 
     const project = this.readProject();
-    if (project.trim()) {
-      parts.push(`## Project Memory\n${project.trim()}`);
+    if (project.trim() && totalSize < MAX_TOTAL_SIZE) {
+      const sanitized = sanitizeMemory(project.trim());
+      const remaining = MAX_TOTAL_SIZE - totalSize;
+      const truncated = truncateToSize(sanitized, Math.min(MAX_FILE_SIZE, remaining));
+      totalSize += Buffer.byteLength(truncated, 'utf-8');
+      parts.push(`## Project Memory\n${truncated}`);
     }
 
     // Read additional project topic files
@@ -114,7 +175,13 @@ export class MemoryManager {
       const projFiles = this.readDir(this.projectDir);
       for (const [name, content] of Object.entries(projFiles)) {
         if (name === 'MEMORY.md' || !content.trim()) continue;
-        parts.push(`## Project: ${name.replace('.md', '')}\n${content.trim()}`);
+        if (totalSize >= MAX_TOTAL_SIZE) break;
+
+        const sanitized = sanitizeMemory(content.trim());
+        const remaining = MAX_TOTAL_SIZE - totalSize;
+        const truncated = truncateToSize(sanitized, Math.min(MAX_FILE_SIZE, remaining));
+        totalSize += Buffer.byteLength(truncated, 'utf-8');
+        parts.push(`## Project: ${name.replace('.md', '')}\n${truncated}`);
       }
     }
 

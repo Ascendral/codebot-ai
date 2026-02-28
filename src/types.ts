@@ -82,4 +82,5 @@ export interface Config {
   maxIterations: number;
   autoApprove: boolean;
   contextBudget?: number;
+  projectRoot?: string;
 }

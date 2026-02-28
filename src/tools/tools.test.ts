@@ -105,7 +105,8 @@ describe('ReadFileTool', () => {
 });
 
 describe('WriteFileTool', () => {
-  const tmpDir = path.join(os.tmpdir(), 'codebot-test-write-' + Date.now());
+  // Use a directory under user home so path safety checks pass
+  const tmpDir = path.join(os.homedir(), '.codebot', 'test-write-' + Date.now());
 
   before(() => {
     fs.mkdirSync(tmpDir, { recursive: true });
@@ -136,7 +137,8 @@ describe('WriteFileTool', () => {
 });
 
 describe('EditFileTool', () => {
-  const tmpDir = path.join(os.tmpdir(), 'codebot-test-edit-' + Date.now());
+  // Use a directory under user home so path safety checks pass
+  const tmpDir = path.join(os.homedir(), '.codebot', 'test-edit-' + Date.now());
 
   before(() => {
     fs.mkdirSync(tmpDir, { recursive: true });

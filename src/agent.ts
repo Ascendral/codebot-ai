@@ -10,6 +10,7 @@ import { getModelInfo } from './providers/registry';
 import { loadPlugins } from './plugins';
 import { ToolCache } from './cache';
 import { RateLimiter } from './rate-limiter';
+import { AuditLogger } from './audit';
 
 /** Lightweight schema validation — returns error string or null if valid */
 function validateToolArgs(args: Record<string, unknown>, schema: Record<string, unknown>): string | null {
@@ -70,6 +71,7 @@ export class Agent {
   private model: string;
   private cache: ToolCache;
   private rateLimiter: RateLimiter;
+  private auditLogger: AuditLogger;
   private askPermission: (tool: string, args: Record<string, unknown>) => Promise<boolean>;
   private onMessage?: (message: Message) => void;
 
@@ -91,6 +93,7 @@ export class Agent {
     this.onMessage = opts.onMessage;
     this.cache = new ToolCache();
     this.rateLimiter = new RateLimiter();
+    this.auditLogger = new AuditLogger();
 
     // Load plugins
     try {
@@ -271,6 +274,7 @@ export class Agent {
           const approved = await this.askPermission(toolName, args);
           if (!approved) {
             denied = true;
+            this.auditLogger.log({ tool: toolName, action: 'deny', args, reason: 'User denied permission' });
           }
         }
 
@@ -324,6 +328,9 @@ export class Agent {
         try {
           const output = await prep.tool.execute(prep.args);
 
+          // Audit log: successful execution
+          this.auditLogger.log({ tool: toolName, action: 'execute', args: prep.args, result: 'success' });
+
           // Store in cache for cacheable tools
           if (prep.tool.cacheable) {
             const ttl = ToolCache.TTL[toolName] || 30_000;
@@ -336,9 +343,16 @@ export class Agent {
             if (filePath) this.cache.invalidate(filePath);
           }
 
+          // Audit log: check if tool returned a security block
+          if (output.startsWith('Error: Blocked:') || output.startsWith('Error: CWD')) {
+            this.auditLogger.log({ tool: toolName, action: 'security_block', args: prep.args, reason: output });
+          }
+
           return { content: output };
         } catch (err: unknown) {
           const errMsg = err instanceof Error ? err.message : String(err);
+          // Audit log: error
+          this.auditLogger.log({ tool: toolName, action: 'error', args: prep.args, result: 'error', reason: errMsg });
           return { content: `Error: ${errMsg}`, is_error: true };
         }
       };

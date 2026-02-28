@@ -2,6 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { Tool } from '../types';
+import { isPathSafe } from '../security';
+import { scanForSecrets } from '../secrets';
 
 // Undo snapshot directory
 const UNDO_DIR = path.join(os.homedir(), '.codebot', 'undo');
@@ -35,11 +37,35 @@ export class EditFileTool implements Tool {
     const oldStr = String(args.old_string);
     const newStr = String(args.new_string);
 
-    if (!fs.existsSync(filePath)) {
+    // Security: path safety check
+    const projectRoot = process.cwd();
+    const safety = isPathSafe(filePath, projectRoot);
+    if (!safety.safe) {
+      return `Error: ${safety.reason}`;
+    }
+
+    // Security: resolve symlinks before reading
+    let realPath: string;
+    try {
+      realPath = fs.realpathSync(filePath);
+    } catch {
       throw new Error(`File not found: ${filePath}`);
     }
 
-    const content = fs.readFileSync(filePath, 'utf-8');
+    if (!fs.existsSync(realPath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    // Security: secret detection on new content (warn but don't block)
+    const secrets = scanForSecrets(newStr);
+    let warning = '';
+    if (secrets.length > 0) {
+      warning = `\n\n⚠️  WARNING: ${secrets.length} potential secret(s) in new content:\n` +
+        secrets.map(s => `  ${s.type} — ${s.snippet}`).join('\n') +
+        '\nConsider using environment variables instead of hardcoding secrets.';
+    }
+
+    const content = fs.readFileSync(realPath, 'utf-8');
     const count = content.split(oldStr).length - 1;
 
     if (count === 0) {
@@ -50,14 +76,14 @@ export class EditFileTool implements Tool {
     }
 
     // Save undo snapshot
-    this.saveSnapshot(filePath, content);
+    this.saveSnapshot(realPath, content);
 
     const updated = content.replace(oldStr, newStr);
-    fs.writeFileSync(filePath, updated, 'utf-8');
+    fs.writeFileSync(realPath, updated, 'utf-8');
 
     // Generate diff preview
     const diff = this.generateDiff(oldStr, newStr, content, filePath);
-    return diff;
+    return diff + warning;
   }
 
   private generateDiff(oldStr: string, newStr: string, content: string, filePath: string): string {

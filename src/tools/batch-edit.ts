@@ -1,6 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Tool } from '../types';
+import { isPathSafe } from '../security';
+import { scanForSecrets } from '../secrets';
 
 interface EditOperation {
   path: string;
@@ -38,8 +40,11 @@ export class BatchEditTool implements Tool {
       return 'Error: edits array is required and must not be empty';
     }
 
+    const projectRoot = process.cwd();
+
     // Phase 1: Validate all edits before applying any
     const errors: string[] = [];
+    const warnings: string[] = [];
     const validated: Array<{ filePath: string; content: string; updated: string; edit: EditOperation }> = [];
 
     // Group edits by file so we can chain them
@@ -50,6 +55,14 @@ export class BatchEditTool implements Tool {
         continue;
       }
       const filePath = path.resolve(edit.path);
+
+      // Security: path safety check
+      const safety = isPathSafe(filePath, projectRoot);
+      if (!safety.safe) {
+        errors.push(`${safety.reason}`);
+        continue;
+      }
+
       if (!byFile.has(filePath)) byFile.set(filePath, []);
       byFile.get(filePath)!.push(edit);
     }
@@ -77,6 +90,12 @@ export class BatchEditTool implements Tool {
           continue;
         }
 
+        // Security: secret detection on new content
+        const secrets = scanForSecrets(newStr);
+        if (secrets.length > 0) {
+          warnings.push(`Secrets detected in edit for ${filePath}: ${secrets.map(s => `${s.type} (${s.snippet})`).join(', ')}`);
+        }
+
         content = content.replace(oldStr, newStr);
       }
 
@@ -98,6 +117,12 @@ export class BatchEditTool implements Tool {
 
     const fileCount = validated.length;
     const editCount = edits.length;
-    return `Applied ${editCount} edit${editCount > 1 ? 's' : ''} across ${fileCount} file${fileCount > 1 ? 's' : ''}:\n${results.map(f => `  ✓ ${f}`).join('\n')}`;
+    let output = `Applied ${editCount} edit${editCount > 1 ? 's' : ''} across ${fileCount} file${fileCount > 1 ? 's' : ''}:\n${results.map(f => `  ✓ ${f}`).join('\n')}`;
+
+    if (warnings.length > 0) {
+      output += `\n\n⚠️  Security warnings:\n${warnings.map(w => `  - ${w}`).join('\n')}`;
+    }
+
+    return output;
   }
 }

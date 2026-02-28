@@ -40,6 +40,35 @@ const MANAGERS: Record<string, PkgManager> = {
   },
 };
 
+/**
+ * Package name validation patterns by ecosystem.
+ * Rejects names containing shell metacharacters or injection attempts.
+ */
+const SAFE_PKG_PATTERNS: Record<string, RegExp> = {
+  // npm: @scope/pkg@version or pkg@version
+  npm:   /^(@[a-z0-9\-~][a-z0-9\-._~]*\/)?[a-z0-9\-~][a-z0-9\-._~]*(@[a-z0-9^~>=<.*\-]+)?$/,
+  yarn:  /^(@[a-z0-9\-~][a-z0-9\-._~]*\/)?[a-z0-9\-~][a-z0-9\-._~]*(@[a-z0-9^~>=<.*\-]+)?$/,
+  pnpm:  /^(@[a-z0-9\-~][a-z0-9\-._~]*\/)?[a-z0-9\-~][a-z0-9\-._~]*(@[a-z0-9^~>=<.*\-]+)?$/,
+  // pip: allows hyphens, underscores, dots, optional version spec
+  pip:   /^[a-zA-Z0-9][a-zA-Z0-9._\-]*(\[[a-zA-Z0-9,._\-]+\])?(([>=<!=~]+)[a-zA-Z0-9.*]+)?$/,
+  // cargo: lowercase alphanumeric + hyphens + underscores
+  cargo: /^[a-zA-Z][a-zA-Z0-9_\-]*(@[a-zA-Z0-9.^~>=<*\-]+)?$/,
+  // go: module paths
+  go:    /^[a-zA-Z0-9][a-zA-Z0-9._\-/]*(@[a-zA-Z0-9.^~>=<*\-]+)?$/,
+};
+
+function isPackageNameSafe(pkgName: string, manager: string): boolean {
+  // Split by spaces to handle multiple package args
+  const packages = pkgName.trim().split(/\s+/);
+  const pattern = SAFE_PKG_PATTERNS[manager];
+  if (!pattern) return false;
+
+  for (const pkg of packages) {
+    if (!pattern.test(pkg)) return false;
+  }
+  return true;
+}
+
 export class PackageManagerTool implements Tool {
   name = 'package_manager';
   description = 'Manage dependencies. Auto-detects npm/yarn/pnpm/pip/cargo/go. Actions: install, add, remove, list, outdated, audit, detect.';
@@ -75,12 +104,24 @@ export class PackageManagerTool implements Tool {
       case 'add': {
         const pkg = args.package as string;
         if (!pkg) return 'Error: package name is required for add';
+
+        // Security: validate package name
+        if (!isPackageNameSafe(pkg, mgr.name)) {
+          return `Error: invalid package name "${pkg}". Package names must be alphanumeric with hyphens/underscores/dots only. Shell metacharacters are not allowed.`;
+        }
+
         cmd = `${mgr.add} ${pkg}`;
         break;
       }
       case 'remove': {
         const pkg = args.package as string;
         if (!pkg) return 'Error: package name is required for remove';
+
+        // Security: validate package name
+        if (!isPackageNameSafe(pkg, mgr.name)) {
+          return `Error: invalid package name "${pkg}". Package names must be alphanumeric with hyphens/underscores/dots only. Shell metacharacters are not allowed.`;
+        }
+
         cmd = `${mgr.remove} ${pkg}`;
         break;
       }
