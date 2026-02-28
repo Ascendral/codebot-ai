@@ -38,6 +38,7 @@ export interface ProviderConfig {
 
 export interface LLMProvider {
   name: string;
+  temperature?: number;
   chat(messages: Message[], tools?: ToolSchema[]): AsyncGenerator<StreamEvent>;
   listModels?(): Promise<string[]>;
 }

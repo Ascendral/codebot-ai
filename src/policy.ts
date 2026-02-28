@@ -9,6 +9,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { ToolCapabilities, CapabilityChecker } from './capabilities';
 
 // ── Policy Schema ──
 
@@ -34,6 +35,7 @@ export interface PolicyTools {
   enabled?: string[];
   disabled?: string[];
   permissions?: PolicyToolPermission;
+  capabilities?: Record<string, ToolCapabilities>;
 }
 
 export interface PolicySecrets {
@@ -78,7 +80,7 @@ export const DEFAULT_POLICY: Required<Policy> = {
   version: '1.0',
   execution: {
     sandbox: 'auto',
-    network: true,
+    network: false,             // safe default: no network in sandbox
     timeout_seconds: 120,
     max_memory_mb: 512,
   },
@@ -94,12 +96,12 @@ export const DEFAULT_POLICY: Required<Policy> = {
     permissions: {},
   },
   secrets: {
-    block_on_detect: false,
+    block_on_detect: true,      // safe default: block writes containing secrets
     scan_on_write: true,
     allowed_patterns: [],
   },
   git: {
-    always_branch: false,
+    always_branch: true,        // safe default: auto-branch on first write
     branch_prefix: 'codebot/',
     require_tests_before_commit: false,
     never_push_main: true,
@@ -388,6 +390,25 @@ export class PolicyEnforcer {
     return this.policy.limits?.cost_limit_usd || 0;
   }
 
+  // ── Capabilities (v1.8.0) ──
+
+  /** Get capability restrictions for a tool. undefined = unrestricted. */
+  getToolCapabilities(toolName: string): ToolCapabilities | undefined {
+    return this.policy.tools?.capabilities?.[toolName];
+  }
+
+  /** Check a specific capability for a tool. Returns { allowed, reason }. */
+  checkCapability(
+    toolName: string,
+    capabilityType: keyof ToolCapabilities,
+    value: string | number,
+  ): { allowed: boolean; reason?: string } {
+    const caps = this.policy.tools?.capabilities;
+    if (!caps) return { allowed: true };
+    const checker = new CapabilityChecker(caps, this.projectRoot);
+    return checker.checkCapability(toolName, capabilityType, value);
+  }
+
   // ── Helpers ──
 
   /**
@@ -438,7 +459,7 @@ export function generateDefaultPolicyFile(): string {
     version: '1.0',
     execution: {
       sandbox: 'auto',
-      network: true,
+      network: false,
       timeout_seconds: 120,
       max_memory_mb: 512,
     },
@@ -456,13 +477,25 @@ export function generateDefaultPolicyFile(): string {
         write_file: 'prompt',
         edit_file: 'prompt',
       },
+      capabilities: {
+        execute: {
+          shell_commands: [
+            'npm', 'npx', 'node', 'git', 'tsc', 'eslint', 'prettier',
+            'jest', 'vitest', 'pytest', 'make', 'cargo', 'go', 'python',
+            'python3', 'ruby', 'php', 'java', 'javac', 'mvn', 'gradle',
+            'docker', 'ls', 'cat', 'head', 'tail', 'wc', 'sort', 'uniq',
+            'find', 'which', 'echo', 'pwd', 'env', 'date',
+          ],
+          max_output_kb: 500,
+        },
+      },
     },
     secrets: {
-      block_on_detect: false,
+      block_on_detect: true,
       scan_on_write: true,
     },
     git: {
-      always_branch: false,
+      always_branch: true,
       branch_prefix: 'codebot/',
       require_tests_before_commit: false,
       never_push_main: true,

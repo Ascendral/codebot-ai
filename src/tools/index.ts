@@ -28,18 +28,19 @@ import { NotificationTool } from './notification';
 import { PdfExtractTool } from './pdf-extract';
 import { PackageManagerTool } from './package-manager';
 import { CodeReviewTool } from './code-review';
+import { PolicyEnforcer } from '../policy';
 
 export { EditFileTool } from './edit';
 
 export class ToolRegistry {
   private tools: Map<string, Tool> = new Map();
 
-  constructor(projectRoot?: string) {
-    // Core file tools
+  constructor(projectRoot?: string, policyEnforcer?: PolicyEnforcer) {
+    // Core file tools — policy-enforced tools receive the enforcer
     this.register(new ReadFileTool());
-    this.register(new WriteFileTool());
-    this.register(new EditFileTool());
-    this.register(new BatchEditTool());
+    this.register(new WriteFileTool(policyEnforcer));
+    this.register(new EditFileTool(policyEnforcer));
+    this.register(new BatchEditTool(policyEnforcer));
     this.register(new ExecuteTool());
     this.register(new GlobTool());
     this.register(new GrepTool());
@@ -51,7 +52,7 @@ export class ToolRegistry {
     this.register(new BrowserTool());
     this.register(new RoutineTool());
     // v1.4.0 — intelligence & dev tools
-    this.register(new GitTool());
+    this.register(new GitTool(policyEnforcer));
     this.register(new CodeAnalysisTool());
     this.register(new MultiSearchTool());
     this.register(new TaskPlannerTool());

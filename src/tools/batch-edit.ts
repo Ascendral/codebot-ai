@@ -3,6 +3,7 @@ import * as path from 'path';
 import { Tool } from '../types';
 import { isPathSafe } from '../security';
 import { scanForSecrets } from '../secrets';
+import { PolicyEnforcer } from '../policy';
 
 interface EditOperation {
   path: string;
@@ -14,6 +15,11 @@ export class BatchEditTool implements Tool {
   name = 'batch_edit';
   description = 'Apply multiple find-and-replace edits across one or more files atomically. All edits are validated before any are applied. Useful for renaming, refactoring, and coordinated multi-file changes.';
   permission: Tool['permission'] = 'prompt';
+  private policyEnforcer?: PolicyEnforcer;
+
+  constructor(policyEnforcer?: PolicyEnforcer) {
+    this.policyEnforcer = policyEnforcer;
+  }
   parameters = {
     type: 'object',
     properties: {
@@ -61,6 +67,15 @@ export class BatchEditTool implements Tool {
       if (!safety.safe) {
         errors.push(`${safety.reason}`);
         continue;
+      }
+
+      // Policy: filesystem restrictions
+      if (this.policyEnforcer) {
+        const policyCheck = this.policyEnforcer.isPathWritable(filePath);
+        if (!policyCheck.allowed) {
+          errors.push(`Blocked by policy — ${policyCheck.reason}`);
+          continue;
+        }
       }
 
       if (!byFile.has(filePath)) byFile.set(filePath, []);

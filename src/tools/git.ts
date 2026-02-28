@@ -1,5 +1,6 @@
 import { execSync } from 'child_process';
 import { Tool } from '../types';
+import { PolicyEnforcer } from '../policy';
 
 const ALLOWED_ACTIONS = [
   'status', 'diff', 'log', 'commit', 'branch', 'checkout',
@@ -10,6 +11,7 @@ export class GitTool implements Tool {
   name = 'git';
   description = 'Run git operations. Actions: status, diff, log, commit, branch, checkout, stash, push, pull, merge, blame, tag, add, reset.';
   permission: Tool['permission'] = 'prompt';
+  private policyEnforcer?: PolicyEnforcer;
   parameters = {
     type: 'object',
     properties: {
@@ -19,6 +21,10 @@ export class GitTool implements Tool {
     },
     required: ['action'],
   };
+
+  constructor(policyEnforcer?: PolicyEnforcer) {
+    this.policyEnforcer = policyEnforcer;
+  }
 
   async execute(args: Record<string, unknown>): Promise<string> {
     const action = args.action as string;
@@ -40,6 +46,22 @@ export class GitTool implements Tool {
       return 'Error: git clean -f is blocked for safety.';
     }
 
+    // Policy: block push to main/master when never_push_main=true
+    if (action === 'push' && this.policyEnforcer?.isMainPushBlocked()) {
+      const currentBranch = this.getCurrentBranch(cwd);
+      if (currentBranch === 'main' || currentBranch === 'master') {
+        return 'Error: Pushing to main/master is blocked by policy (git.never_push_main=true). Create a feature branch first.';
+      }
+    }
+
+    // Policy: block commit on main/master when always_branch=true
+    if (action === 'commit' && this.policyEnforcer?.shouldAlwaysBranch()) {
+      const currentBranch = this.getCurrentBranch(cwd);
+      if (currentBranch === 'main' || currentBranch === 'master') {
+        return 'Error: Committing to main/master is blocked by policy (git.always_branch=true). Create a feature branch first.';
+      }
+    }
+
     try {
       const output = execSync(fullCmd, {
         cwd,
@@ -54,6 +76,19 @@ export class GitTool implements Tool {
       const stderr = (e.stderr || '').trim();
       const stdout = (e.stdout || '').trim();
       return `Exit ${e.status || 1}${stdout ? `\n${stdout}` : ''}${stderr ? `\nError: ${stderr}` : ''}`;
+    }
+  }
+
+  /** Get current git branch name. */
+  private getCurrentBranch(cwd: string): string {
+    try {
+      return execSync('git rev-parse --abbrev-ref HEAD', {
+        cwd,
+        encoding: 'utf-8',
+        timeout: 5000,
+      }).trim();
+    } catch {
+      return '';
     }
   }
 }

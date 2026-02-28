@@ -76,6 +76,7 @@ export class Agent {
   private auditLogger: AuditLogger;
   private policyEnforcer: PolicyEnforcer;
   private tokenTracker: TokenTracker;
+  private branchCreated: boolean = false;
   private askPermission: (tool: string, args: Record<string, unknown>) => Promise<boolean>;
   private onMessage?: (message: Message) => void;
 
@@ -90,11 +91,12 @@ export class Agent {
   }) {
     this.provider = opts.provider;
     this.model = opts.model;
-    this.tools = new ToolRegistry(process.cwd());
-    this.context = new ContextManager(opts.model, opts.provider);
 
-    // Load policy
+    // Load policy FIRST — tools need it for filesystem/git enforcement
     this.policyEnforcer = new PolicyEnforcer(loadPolicy(process.cwd()), process.cwd());
+
+    this.tools = new ToolRegistry(process.cwd(), this.policyEnforcer);
+    this.context = new ContextManager(opts.model, opts.provider);
 
     // Use policy-defined max iterations as default, CLI overrides
     this.maxIterations = opts.maxIterations || this.policyEnforcer.getMaxIterations();
@@ -351,6 +353,21 @@ export class Agent {
       const executeTool = async (prep: PreparedCall): Promise<ToolOutput> => {
         const toolName = prep.tc.function.name;
 
+        // Auto-branch on first write/edit when always_branch is enabled (v1.8.0)
+        if (toolName === 'write_file' || toolName === 'edit_file' || toolName === 'batch_edit') {
+          const branchName = await this.ensureBranch();
+          if (branchName) {
+            this.auditLogger.log({ tool: 'git', action: 'execute', args: { branch: branchName }, result: 'auto-branch' });
+          }
+        }
+
+        // Capability check: fine-grained resource restrictions (v1.8.0)
+        const capBlock = this.checkToolCapabilities(toolName, prep.args);
+        if (capBlock) {
+          this.auditLogger.log({ tool: toolName, action: 'capability_block', args: prep.args, reason: capBlock });
+          return { content: `Error: ${capBlock}`, is_error: true };
+        }
+
         // Check cache first
         if (prep.tool.cacheable) {
           const cacheKey = ToolCache.key(toolName, prep.args);
@@ -547,6 +564,83 @@ export class Agent {
         }
       }
     }
+  }
+
+  /**
+   * Auto-create a feature branch when always_branch is enabled and on main/master.
+   * Called before the first write/edit operation. Fail-open: if branching fails, continue.
+   */
+  private async ensureBranch(): Promise<string | null> {
+    if (this.branchCreated) return null;
+    if (!this.policyEnforcer.shouldAlwaysBranch()) return null;
+
+    try {
+      const { execSync } = require('child_process');
+      const cwd = process.cwd();
+
+      const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', {
+        cwd, encoding: 'utf-8', timeout: 5000,
+      }).trim();
+
+      if (currentBranch !== 'main' && currentBranch !== 'master') {
+        this.branchCreated = true;
+        return null; // Already on a feature branch
+      }
+
+      // Generate branch name from first user message
+      const firstUserMsg = this.messages.find(m => m.role === 'user');
+      const prefix = this.policyEnforcer.getBranchPrefix();
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+      const slug = this.sanitizeSlug(firstUserMsg?.content || 'task');
+      const branchName = `${prefix}${timestamp}-${slug}`;
+
+      execSync(`git checkout -b "${branchName}"`, {
+        cwd, encoding: 'utf-8', timeout: 10000,
+      });
+
+      this.branchCreated = true;
+      return branchName;
+    } catch {
+      // Don't block the operation if branching fails (not in a git repo, etc.)
+      this.branchCreated = true; // Don't retry
+      return null;
+    }
+  }
+
+  /** Sanitize user message into a branch-safe slug. */
+  private sanitizeSlug(message: string): string {
+    return message
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .substring(0, 30)
+      .replace(/-+$/, '') || 'task';
+  }
+
+  /** Check capability-based restrictions before tool execution. Returns reason string or null. */
+  private checkToolCapabilities(toolName: string, args: Record<string, unknown>): string | null {
+    // fs_write check for write/edit tools
+    if ((toolName === 'write_file' || toolName === 'edit_file' || toolName === 'batch_edit') && args.path) {
+      const check = this.policyEnforcer.checkCapability(toolName, 'fs_write', args.path as string);
+      if (!check.allowed) return check.reason || 'Capability blocked';
+    }
+
+    // shell_commands check for execute tool
+    if (toolName === 'execute' && args.command) {
+      const check = this.policyEnforcer.checkCapability(toolName, 'shell_commands', args.command as string);
+      if (!check.allowed) return check.reason || 'Capability blocked';
+    }
+
+    // net_access check for web tools
+    if ((toolName === 'web_fetch' || toolName === 'http_client') && args.url) {
+      try {
+        const domain = new URL(args.url as string).hostname;
+        const check = this.policyEnforcer.checkCapability(toolName, 'net_access', domain);
+        if (!check.allowed) return check.reason || 'Capability blocked';
+      } catch { /* invalid URL handled by the tool itself */ }
+    }
+
+    return null;
   }
 
   private buildSystemPrompt(supportsTools: boolean): string {

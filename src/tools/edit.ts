@@ -4,6 +4,7 @@ import * as os from 'os';
 import { Tool } from '../types';
 import { isPathSafe } from '../security';
 import { scanForSecrets } from '../secrets';
+import { PolicyEnforcer } from '../policy';
 
 // Undo snapshot directory
 const UNDO_DIR = path.join(os.homedir(), '.codebot', 'undo');
@@ -13,6 +14,11 @@ export class EditFileTool implements Tool {
   name = 'edit_file';
   description = 'Edit a file by replacing an exact string match with new content. The old_string must appear exactly once in the file. Shows a diff preview and creates an undo snapshot.';
   permission: Tool['permission'] = 'prompt';
+  private policyEnforcer?: PolicyEnforcer;
+
+  constructor(policyEnforcer?: PolicyEnforcer) {
+    this.policyEnforcer = policyEnforcer;
+  }
   parameters = {
     type: 'object',
     properties: {
@@ -42,6 +48,14 @@ export class EditFileTool implements Tool {
     const safety = isPathSafe(filePath, projectRoot);
     if (!safety.safe) {
       return `Error: ${safety.reason}`;
+    }
+
+    // Policy: filesystem restrictions (denied paths, read-only, writable scope)
+    if (this.policyEnforcer) {
+      const policyCheck = this.policyEnforcer.isPathWritable(filePath);
+      if (!policyCheck.allowed) {
+        return `Error: Blocked by policy — ${policyCheck.reason}`;
+      }
     }
 
     // Security: resolve symlinks before reading

@@ -4,6 +4,7 @@ import * as os from 'os';
 import { Tool } from '../types';
 import { isPathSafe } from '../security';
 import { scanForSecrets } from '../secrets';
+import { PolicyEnforcer } from '../policy';
 
 const UNDO_DIR = path.join(os.homedir(), '.codebot', 'undo');
 
@@ -11,6 +12,11 @@ export class WriteFileTool implements Tool {
   name = 'write_file';
   description = 'Create a new file or overwrite an existing file with the given content. Automatically saves an undo snapshot for existing files.';
   permission: Tool['permission'] = 'prompt';
+  private policyEnforcer?: PolicyEnforcer;
+
+  constructor(policyEnforcer?: PolicyEnforcer) {
+    this.policyEnforcer = policyEnforcer;
+  }
   parameters = {
     type: 'object',
     properties: {
@@ -36,6 +42,14 @@ export class WriteFileTool implements Tool {
     const safety = isPathSafe(filePath, projectRoot);
     if (!safety.safe) {
       return `Error: ${safety.reason}`;
+    }
+
+    // Policy: filesystem restrictions (denied paths, read-only, writable scope)
+    if (this.policyEnforcer) {
+      const policyCheck = this.policyEnforcer.isPathWritable(filePath);
+      if (!policyCheck.allowed) {
+        return `Error: Blocked by policy — ${policyCheck.reason}`;
+      }
     }
 
     // Security: secret detection (warn but don't block)

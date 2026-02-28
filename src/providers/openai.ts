@@ -4,6 +4,7 @@ import { isRetryable, getRetryDelay, sleep } from '../retry';
 
 export class OpenAIProvider implements LLMProvider {
   name: string;
+  temperature?: number;
   private config: ProviderConfig;
   private supportsTools: boolean;
 
@@ -28,6 +29,10 @@ export class OpenAIProvider implements LLMProvider {
       messages: messages.map(m => this.formatMessage(m)),
       stream: true,
     };
+
+    if (this.temperature !== undefined) {
+      body.temperature = this.temperature;
+    }
 
     if (tools?.length && this.supportsTools) {
       body.tools = tools;

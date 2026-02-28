@@ -14,8 +14,9 @@ import { Scheduler } from './scheduler';
 import { AuditLogger } from './audit';
 import { generateDefaultPolicyFile } from './policy';
 import { getSandboxInfo } from './sandbox';
+import { ReplayProvider, loadSessionForReplay, compareOutputs, listReplayableSessions } from './replay';
 
-const VERSION = '1.7.0';
+const VERSION = '1.8.0';
 
 const C = {
   reset: '\x1b[0m',
@@ -141,6 +142,71 @@ export async function main() {
     return;
   }
 
+  // --replay: Replay a saved session
+  if (args.replay) {
+    const replayId = typeof args.replay === 'string'
+      ? args.replay as string
+      : SessionManager.latest();
+
+    if (!replayId) {
+      console.log(c('No session to replay. Specify an ID or ensure a previous session exists.', 'yellow'));
+      return;
+    }
+
+    const data = loadSessionForReplay(replayId);
+    if (!data) {
+      console.log(c(`Session ${replayId} not found or empty.`, 'red'));
+      return;
+    }
+
+    console.log(c(`\nReplaying session ${replayId.substring(0, 12)}...`, 'cyan'));
+    console.log(c(`  ${data.messages.length} messages (${data.userMessages.length} user, ${data.assistantMessages.length} assistant)`, 'dim'));
+
+    const replayProvider = new ReplayProvider(data.assistantMessages);
+    const config = await resolveConfig(args);
+    const agent = new Agent({
+      provider: replayProvider,
+      model: config.model,
+      providerName: 'replay',
+      autoApprove: true,
+    });
+
+    // Collect recorded tool results in order for sequential comparison
+    const recordedResults = Array.from(data.toolResults.values());
+    let resultIndex = 0;
+    let divergences = 0;
+
+    for (const userMsg of data.userMessages) {
+      console.log(c(`\n> ${truncate(userMsg.content, 100)}`, 'cyan'));
+
+      for await (const event of agent.run(userMsg.content)) {
+        if (event.type === 'tool_result' && event.toolResult && !event.toolResult.is_error) {
+          const recorded = recordedResults[resultIndex++];
+          if (recorded !== undefined) {
+            const diff = compareOutputs(recorded, event.toolResult.result);
+            if (diff) {
+              divergences++;
+              console.log(c(`  ⚠ Divergence in ${event.toolResult.name || 'tool'}:`, 'yellow'));
+              console.log(c(`    ${diff.split('\n').join('\n    ')}`, 'dim'));
+            } else {
+              console.log(c(`  ✓ ${event.toolResult.name || 'tool'} — output matches`, 'green'));
+            }
+          }
+        } else if (event.type === 'text') {
+          process.stdout.write(c('.', 'dim'));
+        }
+      }
+    }
+
+    console.log(c(`\n\nReplay complete.`, 'bold'));
+    if (divergences === 0) {
+      console.log(c('  All tool outputs match — session is reproducible.', 'green'));
+    } else {
+      console.log(c(`  ${divergences} divergence(s) detected — environment may have changed.`, 'yellow'));
+    }
+    return;
+  }
+
   // First run: auto-launch setup if nothing is configured
   if (isFirstRun() && process.stdin.isTTY && !args.message) {
     console.log(c('Welcome! No configuration found — launching setup...', 'cyan'));
@@ -150,6 +216,12 @@ export async function main() {
 
   const config = await resolveConfig(args);
   const provider = createProvider(config);
+
+  // Deterministic mode: set temperature=0
+  if (args.deterministic) {
+    provider.temperature = 0;
+    console.log(c('  Deterministic mode: temperature=0', 'dim'));
+  }
 
   // Session management
   let resumeId: string | undefined;
@@ -636,6 +708,20 @@ function parseArgs(argv: string[]): Record<string, string | boolean> {
       }
       continue;
     }
+    if (arg === '--replay') {
+      const next = argv[i + 1];
+      if (next && !next.startsWith('--')) {
+        result['replay'] = next;
+        i++;
+      } else {
+        result['replay'] = true; // replay latest
+      }
+      continue;
+    }
+    if (arg === '--deterministic') {
+      result['deterministic'] = true;
+      continue;
+    }
     if (arg.startsWith('--')) {
       const key = arg.slice(2);
       const next = argv[i + 1];
@@ -693,6 +779,10 @@ ${c('Security & Policy:', 'bold')}
   --init-policy        Generate default .codebot/policy.json
   --verify-audit [id]  Verify audit log hash chain integrity
   --sandbox-info       Show Docker sandbox status
+
+${c('Debugging & Replay:', 'bold')}
+  --replay [id]        Replay a session, re-execute tools, compare outputs
+  --deterministic      Set temperature=0 for reproducible outputs
 
 ${c('Supported Providers:', 'bold')}
   Local:      Ollama, LM Studio, vLLM (auto-detected)

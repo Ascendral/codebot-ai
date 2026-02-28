@@ -8,6 +8,7 @@ interface AnthropicMessage {
 
 export class AnthropicProvider implements LLMProvider {
   name: string;
+  temperature?: number;
   private config: ProviderConfig;
 
   constructor(config: ProviderConfig) {
@@ -30,6 +31,10 @@ export class AnthropicProvider implements LLMProvider {
       max_tokens: 8192,
       stream: true,
     };
+
+    if (this.temperature !== undefined) {
+      body.temperature = this.temperature;
+    }
 
     if (systemPrompt) {
       body.system = systemPrompt;

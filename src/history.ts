@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
 import { Message } from './types';
+import { deriveSessionKey, signMessage, verifyMessage, verifyMessages, IntegrityResult } from './integrity';
 
 const SESSIONS_DIR = path.join(os.homedir(), '.codebot', 'sessions');
 
@@ -19,10 +20,12 @@ export class SessionManager {
   private sessionId: string;
   private filePath: string;
   private model: string;
+  private integrityKey: Buffer;
 
   constructor(model: string, sessionId?: string) {
     this.model = model;
     this.sessionId = sessionId || crypto.randomUUID();
+    this.integrityKey = deriveSessionKey(this.sessionId);
     fs.mkdirSync(SESSIONS_DIR, { recursive: true });
     this.filePath = path.join(SESSIONS_DIR, `${this.sessionId}.jsonl`);
   }
@@ -31,26 +34,33 @@ export class SessionManager {
     return this.sessionId;
   }
 
-  /** Append a message to the session file */
+  /** Append a message to the session file (HMAC signed) */
   save(message: Message): void {
     try {
-      const line = JSON.stringify({
+      const record: Record<string, unknown> = {
         ...message,
         _ts: new Date().toISOString(),
         _model: this.model,
-      });
-      fs.appendFileSync(this.filePath, line + '\n');
+      };
+      record._sig = signMessage(record, this.integrityKey);
+      fs.appendFileSync(this.filePath, JSON.stringify(record) + '\n');
     } catch {
       // Don't crash on write failure — session persistence is best-effort
     }
   }
 
-  /** Save all messages (atomic overwrite via temp file + rename) */
+  /** Save all messages (atomic overwrite, HMAC signed) */
   saveAll(messages: Message[]): void {
     try {
-      const lines = messages.map(m =>
-        JSON.stringify({ ...m, _ts: new Date().toISOString(), _model: this.model })
-      );
+      const lines = messages.map(m => {
+        const record: Record<string, unknown> = {
+          ...m,
+          _ts: new Date().toISOString(),
+          _model: this.model,
+        };
+        record._sig = signMessage(record, this.integrityKey);
+        return JSON.stringify(record);
+      });
       const tmpPath = this.filePath + '.tmp';
       fs.writeFileSync(tmpPath, lines.join('\n') + '\n');
       fs.renameSync(tmpPath, this.filePath);
@@ -59,7 +69,7 @@ export class SessionManager {
     }
   }
 
-  /** Load messages from a session file (skips malformed lines) */
+  /** Load messages from a session file (verifies HMAC, drops tampered) */
   load(): Message[] {
     if (!fs.existsSync(this.filePath)) return [];
     let content: string;
@@ -70,18 +80,49 @@ export class SessionManager {
     }
     if (!content) return [];
     const messages: Message[] = [];
+    let dropped = 0;
     for (const line of content.split('\n')) {
       try {
         const obj = JSON.parse(line);
+
+        // Verify integrity if signature present (backward compat: unsigned messages pass)
+        if (obj._sig) {
+          if (!verifyMessage(obj, this.integrityKey)) {
+            dropped++;
+            continue; // Drop tampered message
+          }
+        }
+
         delete obj._ts;
         delete obj._model;
+        delete obj._sig;
         messages.push(obj as Message);
       } catch {
-        // Skip malformed line — don't crash the whole load
         continue;
       }
     }
+    if (dropped > 0) {
+      console.warn(`Warning: Dropped ${dropped} tampered message(s) from session ${this.sessionId.substring(0, 8)}.`);
+    }
     return messages;
+  }
+
+  /** Verify integrity of all messages in this session. */
+  verifyIntegrity(): IntegrityResult {
+    if (!fs.existsSync(this.filePath)) {
+      return { valid: 0, tampered: 0, unsigned: 0, tamperedIndices: [] };
+    }
+    try {
+      const content = fs.readFileSync(this.filePath, 'utf-8').trim();
+      if (!content) return { valid: 0, tampered: 0, unsigned: 0, tamperedIndices: [] };
+      const records: Array<Record<string, unknown>> = [];
+      for (const line of content.split('\n')) {
+        try { records.push(JSON.parse(line)); } catch { continue; }
+      }
+      return verifyMessages(records, this.integrityKey);
+    } catch {
+      return { valid: 0, tampered: 0, unsigned: 0, tamperedIndices: [] };
+    }
   }
 
   /** List recent sessions */

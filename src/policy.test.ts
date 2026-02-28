@@ -77,12 +77,13 @@ describe('PolicyEnforcer — execution', () => {
   });
 
   it('returns network policy', () => {
-    const policyNoNet = { ...DEFAULT_POLICY, execution: { network: false } };
-    const enforcerNoNet = new PolicyEnforcer(policyNoNet);
-    assert.strictEqual(enforcerNoNet.isNetworkAllowed(), false);
+    const policyWithNet = { ...DEFAULT_POLICY, execution: { ...DEFAULT_POLICY.execution, network: true } };
+    const enforcerWithNet = new PolicyEnforcer(policyWithNet);
+    assert.strictEqual(enforcerWithNet.isNetworkAllowed(), true);
 
+    // Default is now safe: network disabled
     const enforcerDefault = new PolicyEnforcer(DEFAULT_POLICY);
-    assert.strictEqual(enforcerDefault.isNetworkAllowed(), true);
+    assert.strictEqual(enforcerDefault.isNetworkAllowed(), false);
   });
 
   it('returns timeout in ms', () => {
@@ -93,9 +94,9 @@ describe('PolicyEnforcer — execution', () => {
 });
 
 describe('PolicyEnforcer — git', () => {
-  it('defaults to not always branching', () => {
+  it('defaults to always branching (safe default)', () => {
     const enforcer = new PolicyEnforcer(DEFAULT_POLICY);
-    assert.strictEqual(enforcer.shouldAlwaysBranch(), false);
+    assert.strictEqual(enforcer.shouldAlwaysBranch(), true);
   });
 
   it('respects always_branch setting', () => {
@@ -112,9 +113,9 @@ describe('PolicyEnforcer — git', () => {
 });
 
 describe('PolicyEnforcer — secrets', () => {
-  it('does not block secrets by default', () => {
+  it('blocks secrets by default (safe default)', () => {
     const enforcer = new PolicyEnforcer(DEFAULT_POLICY);
-    assert.strictEqual(enforcer.shouldBlockSecrets(), false);
+    assert.strictEqual(enforcer.shouldBlockSecrets(), true);
   });
 
   it('scans secrets by default', () => {
