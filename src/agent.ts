@@ -260,10 +260,48 @@ export class Agent {
     return [...this.messages];
   }
 
-  /** Ensure every assistant message with tool_calls has matching tool response messages.
-   *  OpenAI returns 400 if any tool_call_id lacks a response. This can happen if
-   *  a previous LLM call errored out mid-flow. */
+  /**
+   * Validate and repair message history to prevent OpenAI 400 errors.
+   * Handles three types of corruption:
+   *  1. Orphaned tool messages — tool_call_id doesn't match any preceding assistant's tool_calls
+   *  2. Duplicate tool responses — multiple tool messages for the same tool_call_id
+   *  3. Missing tool responses — assistant has tool_calls but no matching tool response
+   *
+   * This runs before every LLM call to self-heal from stream errors, compaction artifacts,
+   * or session resume corruption.
+   */
   private repairToolCallMessages(): void {
+    // Phase 1: Collect all valid tool_call_ids from assistant messages (in order)
+    const validToolCallIds = new Set<string>();
+    for (const msg of this.messages) {
+      if (msg.role === 'assistant' && msg.tool_calls?.length) {
+        for (const tc of msg.tool_calls) {
+          validToolCallIds.add(tc.id);
+        }
+      }
+    }
+
+    // Phase 2: Remove orphaned tool messages and duplicates
+    const seenToolResponseIds = new Set<string>();
+    this.messages = this.messages.filter(msg => {
+      if (msg.role !== 'tool') return true;
+
+      const tcId = msg.tool_call_id;
+
+      // No tool_call_id at all — malformed, remove
+      if (!tcId) return false;
+
+      // Orphaned: tool_call_id doesn't match any assistant's tool_calls
+      if (!validToolCallIds.has(tcId)) return false;
+
+      // Duplicate: already have a response for this tool_call_id
+      if (seenToolResponseIds.has(tcId)) return false;
+
+      seenToolResponseIds.add(tcId);
+      return true;
+    });
+
+    // Phase 3: Add missing tool responses (assistant has tool_calls but no tool response)
     const toolResponseIds = new Set<string>();
     for (const msg of this.messages) {
       if (msg.role === 'tool' && msg.tool_call_id) {
@@ -276,13 +314,12 @@ export class Agent {
       if (msg.role === 'assistant' && msg.tool_calls?.length) {
         for (const tc of msg.tool_calls) {
           if (!toolResponseIds.has(tc.id)) {
-            // Missing tool response — inject one right after the assistant message
             const repairMsg: Message = {
               role: 'tool',
               content: 'Error: tool call was not executed (interrupted).',
               tool_call_id: tc.id,
             };
-            // Find the right position: after the assistant message and any existing tool responses
+            // Insert after the assistant message and any existing tool responses
             let insertAt = i + 1;
             while (insertAt < this.messages.length && this.messages[insertAt].role === 'tool') {
               insertAt++;

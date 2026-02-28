@@ -403,4 +403,194 @@ describe('Agent message repair', () => {
     assert.ok(errorResult, 'Should have error result for bad JSON');
     assert.ok(events.some(e => e.type === 'done'), 'Should still complete');
   });
+
+  it('removes orphaned tool messages that lack a matching assistant tool_call', async () => {
+    // Provider that inspects messages on each call.
+    // We'll inject orphaned tool messages into the agent's message history.
+    let receivedMessages: Message[] = [];
+    class InspectingProvider implements LLMProvider {
+      name = 'inspecting-mock';
+      private callIndex = 0;
+
+      async *chat(messages: Message[], _tools?: ToolSchema[]): AsyncGenerator<StreamEvent> {
+        this.callIndex++;
+        receivedMessages = messages;
+        yield { type: 'text', text: 'Done.' };
+        yield { type: 'done' };
+      }
+    }
+
+    const agent = new Agent({
+      provider: new InspectingProvider(),
+      model: 'mock-model',
+      maxIterations: 3,
+      autoApprove: true,
+    });
+
+    // Inject corrupted message history: orphaned tool message with no matching assistant tool_call
+    agent.loadMessages([
+      { role: 'system', content: 'You are a test agent.' },
+      { role: 'user', content: 'Hello' },
+      { role: 'assistant', content: 'Let me help.' },
+      // Orphaned tool message — no preceding assistant has tool_calls with this id
+      { role: 'tool', content: 'some result', tool_call_id: 'orphan_call_99' },
+      { role: 'user', content: 'Continue' },
+    ]);
+
+    const events = [];
+    for await (const event of agent.run('Test orphan repair')) {
+      events.push(event);
+    }
+
+    // The orphaned tool message should have been removed before sending to LLM
+    const toolMsgs = receivedMessages.filter(m => m.role === 'tool');
+    assert.strictEqual(toolMsgs.length, 0, `Should have removed orphaned tool message, found ${toolMsgs.length}`);
+    assert.ok(events.some(e => e.type === 'done'), 'Should complete successfully');
+  });
+
+  it('removes duplicate tool responses keeping only the first', async () => {
+    let receivedMessages: Message[] = [];
+    class InspectingProvider implements LLMProvider {
+      name = 'inspecting-mock';
+
+      async *chat(messages: Message[], _tools?: ToolSchema[]): AsyncGenerator<StreamEvent> {
+        receivedMessages = messages;
+        yield { type: 'text', text: 'Done.' };
+        yield { type: 'done' };
+      }
+    }
+
+    const agent = new Agent({
+      provider: new InspectingProvider(),
+      model: 'mock-model',
+      maxIterations: 3,
+      autoApprove: true,
+    });
+
+    // Inject message history with duplicate tool responses
+    agent.loadMessages([
+      { role: 'system', content: 'You are a test agent.' },
+      { role: 'user', content: 'Hello' },
+      {
+        role: 'assistant', content: '',
+        tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'think', arguments: '{}' } }],
+      },
+      { role: 'tool', content: 'first response', tool_call_id: 'call_1' },
+      { role: 'tool', content: 'duplicate response', tool_call_id: 'call_1' },
+    ]);
+
+    const events = [];
+    for await (const event of agent.run('Test duplicate repair')) {
+      events.push(event);
+    }
+
+    const toolMsgs = receivedMessages.filter(m => m.role === 'tool');
+    assert.strictEqual(toolMsgs.length, 1, `Should keep only one tool response, found ${toolMsgs.length}`);
+    assert.strictEqual(toolMsgs[0].content, 'first response', 'Should keep the first response');
+    assert.ok(events.some(e => e.type === 'done'), 'Should complete');
+  });
+
+  it('injects missing tool responses for incomplete tool_calls', async () => {
+    let receivedMessages: Message[] = [];
+    class InspectingProvider implements LLMProvider {
+      name = 'inspecting-mock';
+
+      async *chat(messages: Message[], _tools?: ToolSchema[]): AsyncGenerator<StreamEvent> {
+        receivedMessages = messages;
+        yield { type: 'text', text: 'Done.' };
+        yield { type: 'done' };
+      }
+    }
+
+    const agent = new Agent({
+      provider: new InspectingProvider(),
+      model: 'mock-model',
+      maxIterations: 3,
+      autoApprove: true,
+    });
+
+    // Inject message with tool_calls but NO tool responses (interrupted session)
+    agent.loadMessages([
+      { role: 'system', content: 'You are a test agent.' },
+      { role: 'user', content: 'Hello' },
+      {
+        role: 'assistant', content: '',
+        tool_calls: [
+          { id: 'call_a', type: 'function', function: { name: 'execute', arguments: '{"command":"ls"}' } },
+          { id: 'call_b', type: 'function', function: { name: 'think', arguments: '{}' } },
+        ],
+      },
+    ]);
+
+    const events = [];
+    for await (const event of agent.run('Test missing repair')) {
+      events.push(event);
+    }
+
+    const toolMsgs = receivedMessages.filter(m => m.role === 'tool');
+    assert.strictEqual(toolMsgs.length, 2, `Should inject 2 missing tool responses, found ${toolMsgs.length}`);
+    assert.ok(toolMsgs.every(m => m.content.includes('interrupted')), 'Injected responses should mention interrupted');
+    assert.ok(events.some(e => e.type === 'done'), 'Should complete');
+  });
+
+  it('handles combined corruption: orphans + duplicates + missing responses', async () => {
+    let receivedMessages: Message[] = [];
+    class InspectingProvider implements LLMProvider {
+      name = 'inspecting-mock';
+
+      async *chat(messages: Message[], _tools?: ToolSchema[]): AsyncGenerator<StreamEvent> {
+        receivedMessages = messages;
+        yield { type: 'text', text: 'Done.' };
+        yield { type: 'done' };
+      }
+    }
+
+    const agent = new Agent({
+      provider: new InspectingProvider(),
+      model: 'mock-model',
+      maxIterations: 3,
+      autoApprove: true,
+    });
+
+    // Complex corruption scenario
+    agent.loadMessages([
+      { role: 'system', content: 'You are a test agent.' },
+      { role: 'user', content: 'Hello' },
+      // Valid assistant with tool_calls
+      {
+        role: 'assistant', content: '',
+        tool_calls: [
+          { id: 'call_1', type: 'function', function: { name: 'think', arguments: '{}' } },
+          { id: 'call_2', type: 'function', function: { name: 'execute', arguments: '{}' } },
+        ],
+      },
+      { role: 'tool', content: 'result 1', tool_call_id: 'call_1' },
+      // call_2 is MISSING a response
+      // Orphaned tool message from unknown source
+      { role: 'tool', content: 'ghost result', tool_call_id: 'orphan_xyz' },
+      // Duplicate of call_1
+      { role: 'tool', content: 'dup result', tool_call_id: 'call_1' },
+      { role: 'user', content: 'Continue' },
+    ]);
+
+    const events = [];
+    for await (const event of agent.run('Test combined repair')) {
+      events.push(event);
+    }
+
+    const toolMsgs = receivedMessages.filter(m => m.role === 'tool');
+    // Should have: call_1 (original), call_2 (injected) — orphan and duplicate removed
+    assert.strictEqual(toolMsgs.length, 2, `Should have exactly 2 tool messages, found ${toolMsgs.length}`);
+
+    const ids = toolMsgs.map(m => m.tool_call_id).sort();
+    assert.deepStrictEqual(ids, ['call_1', 'call_2'], 'Should have exactly call_1 and call_2');
+
+    const call1Msg = toolMsgs.find(m => m.tool_call_id === 'call_1');
+    assert.strictEqual(call1Msg?.content, 'result 1', 'call_1 should keep original (first) response');
+
+    const call2Msg = toolMsgs.find(m => m.tool_call_id === 'call_2');
+    assert.ok(call2Msg?.content.includes('interrupted'), 'call_2 should have injected response');
+
+    assert.ok(events.some(e => e.type === 'done'), 'Should complete');
+  });
 });
