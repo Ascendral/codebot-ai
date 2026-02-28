@@ -107,7 +107,7 @@ echo "explain this error" | codebot            # Pipe mode
 
 ## Tools
 
-CodeBot has 13 built-in tools:
+CodeBot has 28 built-in tools:
 
 | Tool | Description | Permission |
 |------|-------------|-----------|
@@ -124,6 +124,21 @@ CodeBot has 13 built-in tools:
 | `web_search` | Internet search with result summaries | prompt |
 | `browser` | Chrome automation via CDP | prompt |
 | `routine` | Schedule recurring tasks with cron | prompt |
+| `git` | Git operations (status, diff, log, commit, branch, etc.) | prompt |
+| `code_analysis` | Symbol extraction, find references, imports, outline | auto |
+| `multi_search` | Fuzzy search across filenames, content, and symbols | auto |
+| `task_planner` | Hierarchical task tracking with priorities | auto |
+| `diff_viewer` | File comparison and git diffs | auto |
+| `docker` | Container management (ps, run, build, compose) | prompt |
+| `database` | Query SQLite databases (blocks destructive SQL) | prompt |
+| `test_runner` | Auto-detect and run tests (jest, vitest, pytest, go, cargo) | prompt |
+| `http_client` | Advanced HTTP requests with auth and headers | prompt |
+| `image_info` | Image dimensions and metadata (PNG, JPEG, GIF, SVG) | auto |
+| `ssh_remote` | Remote command execution and file transfer via SSH | always-ask |
+| `notification` | Webhook notifications (Slack, Discord, generic) | prompt |
+| `pdf_extract` | Extract text and metadata from PDF files | auto |
+| `package_manager` | Dependency management (npm, yarn, pip, cargo, go) | prompt |
+| `code_review` | Security scanning and complexity analysis | auto |
 
 ### Permission Levels
 

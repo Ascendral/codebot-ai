@@ -5,16 +5,26 @@ import * as path from 'path';
 import * as os from 'os';
 import { ToolRegistry } from './index';
 
+const TOTAL_TOOLS = 28;
+
 describe('ToolRegistry', () => {
-  it('registers all 13 tools', () => {
+  it(`registers all ${TOTAL_TOOLS} tools`, () => {
     const registry = new ToolRegistry();
     const tools = registry.all();
-    assert.strictEqual(tools.length, 13);
+    assert.strictEqual(tools.length, TOTAL_TOOLS);
   });
 
-  it('can get tools by name', () => {
+  it('can get all tools by name', () => {
     const registry = new ToolRegistry();
-    const names = ['read_file', 'write_file', 'edit_file', 'batch_edit', 'execute', 'glob', 'grep', 'think', 'memory', 'web_fetch', 'web_search', 'browser', 'routine'];
+    const names = [
+      // Original 13
+      'read_file', 'write_file', 'edit_file', 'batch_edit', 'execute', 'glob', 'grep',
+      'think', 'memory', 'web_fetch', 'web_search', 'browser', 'routine',
+      // v1.4.0 — 15 new
+      'git', 'code_analysis', 'multi_search', 'task_planner', 'diff_viewer',
+      'docker', 'database', 'test_runner', 'http_client', 'image_info',
+      'ssh_remote', 'notification', 'pdf_extract', 'package_manager', 'code_review',
+    ];
     for (const name of names) {
       assert.ok(registry.get(name), `Tool "${name}" not found`);
     }
@@ -28,7 +38,7 @@ describe('ToolRegistry', () => {
   it('generates valid tool schemas', () => {
     const registry = new ToolRegistry();
     const schemas = registry.getSchemas();
-    assert.strictEqual(schemas.length, 13);
+    assert.strictEqual(schemas.length, TOTAL_TOOLS);
     for (const schema of schemas) {
       assert.strictEqual(schema.type, 'function');
       assert.ok(schema.function.name, 'schema missing name');
@@ -39,9 +49,9 @@ describe('ToolRegistry', () => {
 
   it('all tools have correct permission levels', () => {
     const registry = new ToolRegistry();
-    const auto = ['read_file', 'glob', 'grep', 'think', 'memory'];
-    const prompt = ['write_file', 'edit_file', 'batch_edit', 'web_fetch', 'browser'];
-    const alwaysAsk = ['execute'];
+    const auto = ['read_file', 'glob', 'grep', 'think', 'memory', 'routine', 'code_analysis', 'multi_search', 'task_planner', 'diff_viewer', 'image_info', 'pdf_extract', 'code_review'];
+    const prompt = ['write_file', 'edit_file', 'batch_edit', 'web_fetch', 'browser', 'web_search', 'git', 'docker', 'database', 'test_runner', 'http_client', 'notification', 'package_manager'];
+    const alwaysAsk = ['execute', 'ssh_remote'];
 
     for (const name of auto) {
       assert.strictEqual(registry.get(name)!.permission, 'auto', `${name} should be auto`);
@@ -238,6 +248,337 @@ describe('ThinkTool', () => {
   });
 });
 
+// ============ v1.4.0 New Tool Tests ============
+
+describe('GitTool', () => {
+  it('returns error for unknown action', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('git')!;
+    const result = await tool.execute({ action: 'rebase_force_push_destroy' });
+    assert.ok(result.includes('Error: unknown action'));
+  });
+
+  it('blocks force push to main', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('git')!;
+    const result = await tool.execute({ action: 'push', args: '--force main' });
+    assert.ok(result.includes('blocked'));
+  });
+
+  it('runs git status successfully', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('git')!;
+    const result = await tool.execute({ action: 'status' });
+    assert.ok(result.includes('branch') || result.includes('On branch') || result.includes('nothing'));
+  });
+});
+
+describe('CodeAnalysisTool', () => {
+  const tmpDir = path.join(os.tmpdir(), 'codebot-test-analysis-' + Date.now());
+
+  before(() => {
+    fs.mkdirSync(tmpDir, { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'sample.ts'), 'export class Foo {\n  bar(): string { return "hi"; }\n}\nfunction baz() {}\n');
+  });
+
+  after(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+
+  it('extracts symbols from a file', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('code_analysis')!;
+    const result = await tool.execute({ action: 'symbols', path: path.join(tmpDir, 'sample.ts') });
+    assert.ok(result.includes('class Foo'));
+    assert.ok(result.includes('function baz'));
+  });
+
+  it('extracts imports', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('code_analysis')!;
+    const tmpFile = path.join(tmpDir, 'imports.ts');
+    fs.writeFileSync(tmpFile, "import { foo } from './foo';\nimport * as path from 'path';\n");
+    const result = await tool.execute({ action: 'imports', path: tmpFile });
+    assert.ok(result.includes('./foo'));
+    assert.ok(result.includes('path'));
+  });
+
+  it('returns error for unknown action', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('code_analysis')!;
+    const result = await tool.execute({ action: 'explode', path: tmpDir });
+    assert.ok(result.includes('Error: unknown action'));
+  });
+});
+
+describe('MultiSearchTool', () => {
+  const tmpDir = path.join(os.tmpdir(), 'codebot-test-msearch-' + Date.now());
+
+  before(() => {
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'src', 'auth.ts'), 'export function authenticateUser() {}\n');
+    fs.writeFileSync(path.join(tmpDir, 'src', 'db.ts'), 'export class DatabaseClient {}\n');
+  });
+
+  after(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+
+  it('finds files by query', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('multi_search')!;
+    const result = await tool.execute({ query: 'auth', path: tmpDir });
+    assert.ok(result.includes('auth'));
+  });
+
+  it('returns no results for gibberish', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('multi_search')!;
+    const result = await tool.execute({ query: 'xyzqwertyuiop99887766', path: tmpDir });
+    assert.ok(result.includes('No results'));
+  });
+});
+
+describe('TaskPlannerTool', () => {
+  it('adds and lists tasks', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('task_planner')!;
+
+    const addResult = await tool.execute({ action: 'add', title: 'Test task', priority: 'high' });
+    assert.ok(addResult.includes('Added task'));
+
+    const listResult = await tool.execute({ action: 'list' });
+    assert.ok(listResult.includes('Test task'));
+    assert.ok(listResult.includes('pending'));
+
+    // Clean up
+    await tool.execute({ action: 'clear' });
+  });
+
+  it('returns error for unknown action', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('task_planner')!;
+    const result = await tool.execute({ action: 'explode' });
+    assert.ok(result.includes('Error: unknown action'));
+  });
+});
+
+describe('DiffViewerTool', () => {
+  const tmpDir = path.join(os.tmpdir(), 'codebot-test-diff-' + Date.now());
+
+  before(() => {
+    fs.mkdirSync(tmpDir, { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'a.txt'), 'line1\nline2\nline3\n');
+    fs.writeFileSync(path.join(tmpDir, 'b.txt'), 'line1\nchanged\nline3\n');
+  });
+
+  after(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+
+  it('diffs two files', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('diff_viewer')!;
+    const result = await tool.execute({ action: 'files', file_a: path.join(tmpDir, 'a.txt'), file_b: path.join(tmpDir, 'b.txt') });
+    assert.ok(result.includes('line2'));
+    assert.ok(result.includes('changed'));
+    assert.ok(result.includes('differ'));
+  });
+
+  it('reports identical files', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('diff_viewer')!;
+    const result = await tool.execute({ action: 'files', file_a: path.join(tmpDir, 'a.txt'), file_b: path.join(tmpDir, 'a.txt') });
+    assert.ok(result.includes('identical'));
+  });
+});
+
+describe('DatabaseTool', () => {
+  const tmpDb = path.join(os.tmpdir(), `codebot-test-${Date.now()}.db`);
+
+  before(() => {
+    // Create an empty file to pass existence check
+    fs.writeFileSync(tmpDb, '');
+  });
+
+  after(() => {
+    try { fs.unlinkSync(tmpDb); } catch { /* ok */ }
+  });
+
+  it('blocks destructive SQL', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('database')!;
+    const result = await tool.execute({ action: 'query', db: tmpDb, sql: 'DROP TABLE users' });
+    assert.ok(result.includes('blocked'), `Expected "blocked" in: ${result}`);
+  });
+
+  it('blocks DELETE FROM', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('database')!;
+    const result = await tool.execute({ action: 'query', db: tmpDb, sql: 'DELETE FROM users WHERE id=1' });
+    assert.ok(result.includes('blocked'), `Expected "blocked" in: ${result}`);
+  });
+
+  it('returns error for missing db', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('database')!;
+    const result = await tool.execute({ action: 'tables', db: '/nonexistent/db.sqlite' });
+    assert.ok(result.includes('Error: database not found'));
+  });
+});
+
+describe('TestRunnerTool', () => {
+  it('detects framework in current project', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('test_runner')!;
+    const result = await tool.execute({ action: 'detect' });
+    assert.ok(result.includes('node:test') || result.includes('npm test') || result.includes('Detected'));
+  });
+
+  it('returns error for unknown action', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('test_runner')!;
+    const result = await tool.execute({ action: 'destroy' });
+    assert.ok(result.includes('Error: unknown action'));
+  });
+});
+
+describe('HttpClientTool', () => {
+  it('blocks localhost requests', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('http_client')!;
+    const result = await tool.execute({ url: 'http://localhost:8080/admin' });
+    assert.ok(result.includes('blocked'));
+  });
+
+  it('blocks private IP requests', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('http_client')!;
+    const result = await tool.execute({ url: 'http://10.0.0.1/internal' });
+    assert.ok(result.includes('blocked'));
+  });
+
+  it('returns error for invalid URL', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('http_client')!;
+    const result = await tool.execute({ url: 'not-a-url' });
+    assert.ok(result.includes('Error: invalid URL'));
+  });
+});
+
+describe('ImageInfoTool', () => {
+  it('returns error for missing file', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('image_info')!;
+    const result = await tool.execute({ path: '/nonexistent/image.png' });
+    assert.ok(result.includes('Error: file not found'));
+  });
+
+  it('reads a PNG file header', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('image_info')!;
+    // Create a minimal PNG
+    const tmpFile = path.join(os.tmpdir(), `test-${Date.now()}.png`);
+    const pngHeader = Buffer.from([
+      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+      0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+      0x00, 0x00, 0x00, 0x10, // width: 16
+      0x00, 0x00, 0x00, 0x08, // height: 8
+      0x08, 0x02, 0x00, 0x00, 0x00,
+    ]);
+    fs.writeFileSync(tmpFile, pngHeader);
+    const result = await tool.execute({ path: tmpFile });
+    assert.ok(result.includes('PNG'));
+    assert.ok(result.includes('16'));
+    assert.ok(result.includes('8'));
+    fs.unlinkSync(tmpFile);
+  });
+});
+
+describe('CodeReviewTool', () => {
+  const tmpDir = path.join(os.tmpdir(), 'codebot-test-review-' + Date.now());
+
+  before(() => {
+    fs.mkdirSync(tmpDir, { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'bad.ts'), 'eval("danger");\nconst secret = "abc123456789";\n// TODO fix this\n');
+  });
+
+  after(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+
+  it('finds security issues', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('code_review')!;
+    const result = await tool.execute({ action: 'security', path: path.join(tmpDir, 'bad.ts'), severity: 'info' });
+    assert.ok(result.includes('eval'));
+    assert.ok(result.includes('issue'));
+  });
+
+  it('returns error for unknown action', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('code_review')!;
+    const result = await tool.execute({ action: 'destroy', path: tmpDir });
+    assert.ok(result.includes('Error: unknown action'));
+  });
+});
+
+describe('PackageManagerTool', () => {
+  it('detects package manager', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('package_manager')!;
+    const result = await tool.execute({ action: 'detect' });
+    assert.ok(result.includes('npm') || result.includes('yarn') || result.includes('pnpm') || result.includes('Detected'));
+  });
+
+  it('returns error for unknown action', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('package_manager')!;
+    const result = await tool.execute({ action: 'explode' });
+    assert.ok(result.includes('Error: unknown action'));
+  });
+});
+
+describe('SshRemoteTool', () => {
+  it('blocks injection in host', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('ssh_remote')!;
+    const result = await tool.execute({ action: 'exec', host: 'user@host; rm -rf /', command: 'ls' });
+    assert.ok(result.includes('invalid characters'));
+  });
+
+  it('returns error for missing host', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('ssh_remote')!;
+    const result = await tool.execute({ action: 'exec' });
+    assert.ok(result.includes('Error: host is required'));
+  });
+});
+
+describe('NotificationTool', () => {
+  it('returns error for invalid URL', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('notification')!;
+    const result = await tool.execute({ action: 'webhook', url: 'not-a-url', message: 'test' });
+    assert.ok(result.includes('Error: invalid URL'));
+  });
+
+  it('returns error for unknown action', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('notification')!;
+    const result = await tool.execute({ action: 'telegram', url: 'https://example.com', message: 'test' });
+    assert.ok(result.includes('Error: unknown action'));
+  });
+});
+
+describe('DockerTool', () => {
+  it('blocks --privileged flag', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('docker')!;
+    const result = await tool.execute({ action: 'run', args: '--privileged ubuntu' });
+    assert.ok(result.includes('blocked'));
+  });
+
+  it('returns error for unknown action', async () => {
+    const registry = new ToolRegistry();
+    const tool = registry.get('docker')!;
+    const result = await tool.execute({ action: 'nuke' });
+    assert.ok(result.includes('Error: unknown action'));
+  });
+});
+
 // ============ Security Tests ============
 
 describe('GrepTool — security', () => {
@@ -339,14 +680,12 @@ describe('MemoryTool — path traversal protection', () => {
   it('strips path traversal from file names', async () => {
     const registry = new ToolRegistry();
     const tool = registry.get('memory')!;
-    // This should NOT be able to write outside the memory directory
     const result = await tool.execute({
       action: 'read',
       file: '../../../etc/passwd',
     });
-    // Should try to read "passwd.md" not traverse up
     assert.ok(result.includes('passwd') || result.includes('no file'));
-    assert.ok(!result.includes('root:')); // Should NOT read /etc/passwd
+    assert.ok(!result.includes('root:'));
   });
 
   it('strips path traversal with nested ../', async () => {
