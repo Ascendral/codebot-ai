@@ -231,3 +231,74 @@ describe('Encryption — encryptContent/decryptContent', () => {
     assert.strictEqual(encryptContent(content), content);
   });
 });
+
+// ── v2.1.5 round-trip wiring tests ──
+
+describe('Encryption — round-trip through storage layers (v2.1.5)', () => {
+  const originalEnv = process.env.CODEBOT_ENCRYPTION_KEY;
+
+  beforeEach(() => {
+    process.env.CODEBOT_ENCRYPTION_KEY = 'v2.1.5-round-trip-key';
+  });
+
+  afterEach(() => {
+    if (originalEnv !== undefined) {
+      process.env.CODEBOT_ENCRYPTION_KEY = originalEnv;
+    } else {
+      delete process.env.CODEBOT_ENCRYPTION_KEY;
+    }
+  });
+
+  it('encrypted JSONL line round-trips correctly', () => {
+    const jsonStr = '{"tool":"read_file","path":"/src/index.ts","timestamp":"2025-01-15T10:00:00Z"}';
+    const encrypted = encryptLine(jsonStr);
+    // Encrypted form must differ from original
+    assert.notStrictEqual(encrypted, jsonStr);
+    // Decrypt must recover original
+    const decrypted = decryptLine(encrypted);
+    assert.strictEqual(decrypted, jsonStr);
+    // Must still be valid JSON after round-trip
+    const parsed = JSON.parse(decrypted);
+    assert.strictEqual(parsed.tool, 'read_file');
+  });
+
+  it('decryptLine handles mixed encrypted/plaintext lines', () => {
+    const line1 = '{"type":"plaintext","value":1}';
+    const line2 = '{"type":"will_encrypt","value":2}';
+    const encryptedLine2 = encryptLine(line2);
+
+    // Plaintext JSON line should pass through decryptLine unchanged
+    const dec1 = decryptLine(line1);
+    assert.strictEqual(dec1, line1);
+
+    // Encrypted line should decrypt correctly
+    const dec2 = decryptLine(encryptedLine2);
+    assert.strictEqual(dec2, line2);
+
+    // Both are valid JSON after decryption
+    assert.strictEqual(JSON.parse(dec1).type, 'plaintext');
+    assert.strictEqual(JSON.parse(dec2).type, 'will_encrypt');
+  });
+
+  it('encryptContent round-trips markdown', () => {
+    const markdown = '# Project Notes\n\n- Uses TypeScript\n- Zero runtime dependencies\n- v2.1.5 encryption layer';
+    const encrypted = encryptContent(markdown);
+    // Encrypted content should not look like markdown
+    assert.ok(!encrypted.startsWith('#'));
+    // Round-trip must recover original
+    const decrypted = decryptContent(encrypted);
+    assert.strictEqual(decrypted, markdown);
+  });
+
+  it('encryption is transparent when no key set', () => {
+    delete process.env.CODEBOT_ENCRYPTION_KEY;
+
+    const jsonLine = '{"action":"test"}';
+    assert.strictEqual(encryptLine(jsonLine), jsonLine);
+    assert.strictEqual(decryptLine(jsonLine), jsonLine);
+
+    const mdContent = '# Heading\nSome content';
+    assert.strictEqual(encryptContent(mdContent), mdContent);
+    assert.strictEqual(decryptContent(mdContent), mdContent);
+  });
+});

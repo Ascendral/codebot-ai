@@ -325,3 +325,84 @@ describe('PolicyEnforcer — RBAC enabled', () => {
     assert.strictEqual(enforcer.isToolAllowed('execute').allowed, true);
   });
 });
+
+// ── v2.1.5 RBAC sweep tests ──
+
+describe('PolicyEnforcer — RBAC applies to all methods (v2.1.5)', () => {
+  const fullRbacPolicy = {
+    ...DEFAULT_POLICY,
+    execution: { sandbox: 'auto' as const, network: false, timeout_seconds: 120, max_memory_mb: 512 },
+    git: { always_branch: true, branch_prefix: 'codebot/', never_push_main: true, require_tests_before_commit: false },
+    secrets: { block_on_detect: true, scan_on_write: true },
+    limits: { max_iterations: 50, max_file_size_kb: 500, cost_limit_usd: 0 },
+    rbac: {
+      enabled: true,
+      default_role: 'developer',
+      user_roles: { alice: 'admin', bob: 'restricted' },
+      roles: {
+        admin: {
+          limits: { max_iterations: 200, cost_limit_usd: 100.0 },
+        },
+        restricted: {
+          tools: { disabled: ['execute', 'browser'] },
+          filesystem: { writable_paths: ['./src'] as string[], denied_paths: ['.env'] as string[] },
+          limits: { max_iterations: 5, max_file_size_kb: 50, cost_limit_usd: 1.0 },
+        },
+      },
+    },
+  };
+
+  it('restricted user gets reduced max iterations via getMaxIterations()', () => {
+    const enforcer = new PolicyEnforcer(fullRbacPolicy);
+    enforcer.setUser('bob');
+    assert.strictEqual(enforcer.getMaxIterations(), 5);
+  });
+
+  it('restricted user gets reduced file size via getMaxFileSizeBytes()', () => {
+    const enforcer = new PolicyEnforcer(fullRbacPolicy);
+    enforcer.setUser('bob');
+    assert.strictEqual(enforcer.getMaxFileSizeBytes(), 50 * 1024);
+  });
+
+  it('restricted user gets reduced cost limit via getCostLimitUsd()', () => {
+    const enforcer = new PolicyEnforcer(fullRbacPolicy);
+    enforcer.setUser('bob');
+    assert.strictEqual(enforcer.getCostLimitUsd(), 1.0);
+  });
+
+  it('admin user gets elevated limits via getMaxIterations()', () => {
+    const enforcer = new PolicyEnforcer(fullRbacPolicy);
+    enforcer.setUser('alice');
+    assert.strictEqual(enforcer.getMaxIterations(), 200);
+  });
+
+  it('admin user gets elevated cost via getCostLimitUsd()', () => {
+    const enforcer = new PolicyEnforcer(fullRbacPolicy);
+    enforcer.setUser('alice');
+    assert.strictEqual(enforcer.getCostLimitUsd(), 100.0);
+  });
+
+  it('restricted user filesystem is scoped via isPathWritable()', () => {
+    const enforcer = new PolicyEnforcer(fullRbacPolicy, '/project');
+    enforcer.setUser('bob');
+    assert.strictEqual(enforcer.isPathWritable('/project/src/foo.ts').allowed, true);
+    assert.strictEqual(enforcer.isPathWritable('/project/config/app.json').allowed, false);
+  });
+
+  it('restricted user has tools blocked via isToolAllowed()', () => {
+    const enforcer = new PolicyEnforcer(fullRbacPolicy);
+    enforcer.setUser('bob');
+    assert.strictEqual(enforcer.isToolAllowed('execute').allowed, false);
+    assert.strictEqual(enforcer.isToolAllowed('read_file').allowed, true);
+  });
+
+  it('default user (charlie) gets developer role limits', () => {
+    const enforcer = new PolicyEnforcer(fullRbacPolicy);
+    enforcer.setUser('charlie');
+    // charlie has no explicit role → falls back to default_role 'developer'
+    assert.strictEqual(enforcer.resolveRole(), 'developer');
+    // developer role has no overrides defined, so base policy limits apply
+    assert.strictEqual(enforcer.getMaxIterations(), 50);
+    assert.strictEqual(enforcer.getCostLimitUsd(), 0);
+  });
+});

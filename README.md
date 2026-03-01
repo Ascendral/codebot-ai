@@ -5,7 +5,7 @@
 [![license](https://img.shields.io/npm/l/codebot-ai.svg)](https://github.com/zanderone1980/codebot-ai/blob/main/LICENSE)
 [![node](https://img.shields.io/node/v/codebot-ai.svg)](https://nodejs.org)
 
-**Zero-dependency autonomous AI coding agent with enterprise security.** Works with any LLM — local or cloud. Code, browse the web, run commands, search, automate routines, and more. Includes VS Code extension, GitHub Action, policy engine, risk scoring, and hash-chained audit trail.
+**Zero-dependency autonomous AI coding agent with enterprise security.** Works with any LLM — local or cloud. Code, browse the web, run commands, search, automate routines, and more. Includes VS Code extension, GitHub Action, policy engine with RBAC, risk scoring, encryption at rest, and hash-chained audit trail.
 
 Built by [Ascendral Software Development & Innovation](https://github.com/AscendralSoftware).
 
@@ -43,6 +43,10 @@ Features: sidebar chat panel, inline diff preview, status bar (tokens, cost, ris
 ```
 
 Tasks: `review` (PR code review), `fix` (auto-fix CI failures), `scan` (security scan with SARIF upload).
+
+### Release Pipeline
+
+The release pipeline runs CI, builds artifacts, publishes to npm, and produces GitHub Releases with changelogs. Badge status reflects the latest pipeline result.
 
 ## What Can It Do?
 
@@ -108,6 +112,7 @@ echo "explain this error" | codebot            # Pipe mode
 --resume <id>        Resume a session by ID
 --continue, -c       Resume the most recent session
 --max-iterations <n> Max agent loop iterations (default: 50)
+--no-animate         Disable mascot and banner animations
 ```
 
 ### Interactive Commands
@@ -243,16 +248,19 @@ MCP tools appear automatically with the `mcp_<server>_<tool>` prefix.
 
 ## Security
 
-CodeBot v2.0.0 is built with security as a core architectural principle:
+CodeBot v2.1.5 is built with security as a core architectural principle:
 
-- **Policy engine** — declarative JSON policies control tool access, filesystem scope, and execution limits
+- **Policy engine with RBAC** — declarative JSON policies control tool access, filesystem scope, execution limits, and role-based access control for multi-user environments
+- **Encryption at rest** — AES-256-GCM encryption for sensitive data stored on disk, including session history and audit logs
 - **Risk scoring** — every tool call receives a 0-100 risk score based on 6 weighted factors
 - **Secret detection** — scans for AWS keys, GitHub tokens, JWTs, private keys before writing
 - **Sandbox execution** — Docker-based sandboxing with network, CPU, and memory limits
-- **Audit trail** — hash-chained JSONL log with `--verify-audit` integrity check
+- **Hash-chained audit trail** — JSONL log with `--verify-audit` integrity check; each entry is chained to the previous via SHA-256
 - **SARIF export** — `--export-audit sarif` for GitHub Code Scanning integration
 - **SSRF protection** — blocks localhost, private IPs, cloud metadata endpoints
 - **Path safety** — blocks writes to system directories, detects path traversal
+- **Session integrity** — HMAC-based session integrity verification to detect tampering
+- **Browser kill safety** — graceful browser process shutdown to prevent orphaned Chrome instances
 
 See [SECURITY.md](SECURITY.md), [docs/HARDENING.md](docs/HARDENING.md), and [docs/SOC2_COMPLIANCE.md](docs/SOC2_COMPLIANCE.md) for the full security model and compliance readiness.
 
@@ -265,7 +273,7 @@ CodeBot is hardened for continuous operation:
 - **Context compaction** — when the conversation exceeds the model's context window, messages are intelligently summarized
 - **Process resilience** — unhandled exceptions and rejections are caught, logged, and the REPL keeps running
 - **Routine timeouts** — scheduled tasks are capped at 5 minutes to prevent the scheduler from hanging
-- **483 tests** — comprehensive suite covering core agent, security, extension, and action
+- **469+ tests** — comprehensive suite covering core agent, security, extension, and action
 
 ## Programmatic API
 
@@ -305,6 +313,16 @@ src/
   setup.ts              Interactive setup wizard (model-first UX)
   scheduler.ts          Cron-based routine scheduler
   retry.ts              Exponential backoff with jitter
+  audit.ts              Hash-chained audit trail (SHA-256 chaining)
+  policy.ts             Policy engine with RBAC
+  encryption.ts         AES-256-GCM encryption at rest
+  risk.ts               Risk scoring engine
+  metrics.ts            Structured metrics collection
+  sarif.ts              SARIF export for code scanning integration
+  integrity.ts          HMAC-based session integrity
+  replay.ts             Session replay
+  capabilities.ts       Per-tool capability restrictions
+  banner.ts             Mascot and banner animation system
   context/
     manager.ts          Context window management, LLM-powered compaction
     repo-map.ts         Project structure scanner
