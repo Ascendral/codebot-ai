@@ -74,6 +74,40 @@ Auto-GPT pioneered the autonomous agent concept but takes a fundamentally differ
 
 **When to use CodeBot:** Software development workflows where security, auditability, and enterprise integration matter — code review, bug fixing, security scanning, CI/CD automation.
 
+### CodeBot vs. GitHub Copilot: In Depth
+
+GitHub Copilot is the most widely adopted AI coding tool but serves a fundamentally different use case:
+
+**Architecture:**
+- Copilot: Cloud-hosted SaaS service — all code is sent to GitHub/Microsoft servers for processing. Requires a paid subscription ($10-39/month per user).
+- CodeBot: Self-hosted CLI/library — runs entirely on your machine. Zero cloud dependency. Use any LLM including fully local models (Ollama). Free and open source (MIT).
+
+**Capabilities:**
+- Copilot: Inline code completion, chat in IDE, code review suggestions. Cannot run shell commands, browse the web, manage git, or automate workflows.
+- CodeBot: Full autonomous agent — writes/edits code, runs tests, executes shell commands, browses the web, searches the internet, manages git, schedules cron tasks, calls APIs, and more. 28 built-in tools.
+
+**Security & Compliance:**
+- Copilot: Code transmitted to Microsoft cloud. No user-side audit trail, no policy engine, no risk scoring. Enterprise tier adds IP indemnity and content exclusions but no local enforcement.
+- CodeBot: All data stays local. 8-layer security stack with declarative policy engine, risk scoring, hash-chained audit logs, SARIF export, secret detection, Docker sandbox, SSRF protection. Full SOC 2 control mapping (see `docs/SOC2_COMPLIANCE.md`).
+
+**LLM Flexibility:**
+- Copilot: Locked to OpenAI models via GitHub. No model choice beyond what GitHub offers.
+- CodeBot: Works with 8+ providers — Ollama, Claude, GPT, Gemini, DeepSeek, Groq, Mistral, Grok — plus any OpenAI-compatible API. Switch with a single flag. Use fully local models for air-gapped environments.
+
+**Extensibility:**
+- Copilot: Limited extension model. No plugin system, no custom tools, no MCP support.
+- CodeBot: Plugin system (drop-in JavaScript), MCP server support, custom providers, policy-as-code, GitHub Action, VS Code extension.
+
+**Cost:**
+- Copilot: $10/month (Individual), $19/month (Business), $39/month (Enterprise) per user. Ongoing subscription.
+- CodeBot: Free (MIT). You only pay for LLM API calls (or $0 with local models). No per-seat licensing.
+
+**When to use GitHub Copilot:** Inline code completion in the IDE, quick chat suggestions, teams already in the GitHub ecosystem who want zero-setup AI assistance.
+
+**When to use CodeBot:** Autonomous multi-step workflows (code review, bug fixing, security scanning), environments requiring data sovereignty, compliance-driven organizations, teams needing policy-controlled AI with audit trails, or anyone wanting full LLM flexibility without vendor lock-in.
+
+---
+
 ## Key Differentiators
 
 ### Security-First

@@ -84,6 +84,10 @@ If you discover a security vulnerability, please report it responsibly:
 4. We will respond within 72 hours
 5. We will coordinate disclosure after a fix is available
 
+## Compliance
+
+For SOC 2 Trust Services Criteria mapping, readiness checklists, sample policies, and auditor evidence guides, see [docs/SOC2_COMPLIANCE.md](docs/SOC2_COMPLIANCE.md).
+
 ## Scope
 
 This security policy covers the `codebot-ai` npm package, the VS Code extension (`codebot-ai-vscode`), and the GitHub Action (`@codebot-ai/action`).

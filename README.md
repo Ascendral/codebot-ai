@@ -254,7 +254,7 @@ CodeBot v2.0.0 is built with security as a core architectural principle:
 - **SSRF protection** — blocks localhost, private IPs, cloud metadata endpoints
 - **Path safety** — blocks writes to system directories, detects path traversal
 
-See [SECURITY.md](SECURITY.md) and [docs/HARDENING.md](docs/HARDENING.md) for the full security model.
+See [SECURITY.md](SECURITY.md), [docs/HARDENING.md](docs/HARDENING.md), and [docs/SOC2_COMPLIANCE.md](docs/SOC2_COMPLIANCE.md) for the full security model and compliance readiness.
 
 ## Stability
 
