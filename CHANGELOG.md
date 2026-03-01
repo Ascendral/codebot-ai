@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.0.1] — 2026-03-01
+
+### Added
+- **SOC 2 compliance guide** (`docs/SOC2_COMPLIANCE.md`) — full Trust Services Criteria mapping, readiness checklists, sample policies, auditor evidence guide
+- **GitHub Copilot comparison** — in-depth head-to-head in `docs/COMPARISON.md` covering architecture, security, cost, extensibility
+- **Auto-GPT comparison** — feature matrix and analysis vs CrewAI, LangChain, MetaGPT
+- **Examples directory** — 6 runnable TypeScript demos (basic chat, code review, security scan, multi-model, event stream, policy enforcement)
+- `.editorconfig` for consistent formatting across editors
+- CI badge in README
+- 13 new npm keywords for discoverability
+
+### Changed
+- Enhanced CI workflow with npm caching and extension/action test job
+- Updated ROADMAP with completed milestones and v2.1/v2.2 plans
+- Excluded `src/games/` from TypeScript compilation
+
+### Fixed
+- VERSION export in `src/index.ts` now matches `package.json`
+- CONTRIBUTING.md test count updated from 376 to 483
+
 ## [2.0.0] — 2026-02-28
 
 ### Added
