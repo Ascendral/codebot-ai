@@ -38,4 +38,5 @@ export type { CodiMood, CodiReaction, AnimationSpeed, AnimationWriter, Animation
 export { box, riskBar, permissionCard, spinner, progressStep, diffPreview, sessionHeader, summaryBox, UI, BOX } from './ui';
 export { TokenTracker, estimateRunCost } from './telemetry';
 export type { UsageRecord, SessionSummary, CostEstimate } from './telemetry';
+export { BrowserSession } from './tools/browser';
 export * from './types';

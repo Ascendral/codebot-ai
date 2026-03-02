@@ -21,6 +21,7 @@ export class CDPClient {
   private eventWaiters: Array<{ method: string; resolve: (params: Record<string, unknown>) => void; reject: (err: Error) => void }> = [];
   private buffer = Buffer.alloc(0);
   private connected = false;
+  private onDisconnectCb: (() => void) | null = null;
 
   /** Connect to Chrome's debugging WebSocket */
   async connect(wsUrl: string): Promise<void> {
@@ -49,6 +50,7 @@ export class CDPClient {
         socket.on('close', () => {
           this.connected = false;
           this.socket = null;
+          if (this.onDisconnectCb) this.onDisconnectCb();
         });
         socket.on('error', (err) => {
           this.connected = false;
@@ -120,6 +122,11 @@ export class CDPClient {
 
   isConnected(): boolean {
     return this.connected;
+  }
+
+  /** Register a callback for when the connection drops unexpectedly */
+  onDisconnect(cb: () => void): void {
+    this.onDisconnectCb = cb;
   }
 
   /** Wait for a specific CDP event (e.g. Page.loadEventFired) with timeout */

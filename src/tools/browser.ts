@@ -16,6 +16,55 @@ const CHROME_DATA_DIR = path.join(os.homedir(), '.codebot', 'chrome-profile');
 export let lastScreenshotData: string | null = null;
 
 /**
+ * BrowserSession — encapsulates browser connection state.
+ * Tracks connection status, reconnect attempts, and provides
+ * the screenshot data for vision-capable LLMs.
+ */
+export class BrowserSession {
+  private static instance: BrowserSession | null = null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 3;
+  private fallbackMode = false;
+
+  static getInstance(): BrowserSession {
+    if (!BrowserSession.instance) {
+      BrowserSession.instance = new BrowserSession();
+    }
+    return BrowserSession.instance;
+  }
+
+  /** Whether we're in fetch-only fallback mode (Chrome unavailable) */
+  isFallbackMode(): boolean { return this.fallbackMode; }
+
+  /** Enable fallback mode (fetch-only, no CDP) */
+  enableFallback(): void { this.fallbackMode = true; }
+
+  /** Reset to normal mode */
+  resetFallback(): void { this.fallbackMode = false; this.reconnectAttempts = 0; }
+
+  /** Get current screenshot data */
+  getScreenshot(): string | null { return lastScreenshotData; }
+
+  /** Clear screenshot data after it's been consumed */
+  clearScreenshot(): void { lastScreenshotData = null; }
+
+  /** Record a reconnect attempt, return true if should keep trying */
+  shouldReconnect(): boolean {
+    this.reconnectAttempts++;
+    return this.reconnectAttempts <= this.maxReconnectAttempts;
+  }
+
+  /** Get connection status summary */
+  getStatus(): { connected: boolean; fallback: boolean; reconnectAttempts: number } {
+    return {
+      connected: client?.isConnected() ?? false,
+      fallback: this.fallbackMode,
+      reconnectAttempts: this.reconnectAttempts,
+    };
+  }
+}
+
+/**
  * Kill any Chrome using our debug port or data dir (but NEVER kill ourselves).
  * Uses SIGTERM first (graceful shutdown), falls back to SIGKILL only for
  * processes on our specific debug port with our data dir.
@@ -58,12 +107,35 @@ async function ensureConnected(): Promise<CDPClient> {
   // Fast path: already connected
   if (client?.isConnected()) return client;
 
+  // Check if we're in fallback mode
+  const session = BrowserSession.getInstance();
+  if (session.isFallbackMode()) {
+    throw new Error('Browser unavailable — running in fetch-only fallback mode. Use web_search or http_client tools instead.');
+  }
+
   // Mutex: if another call is already connecting, reuse that promise
   if (connectingPromise) return connectingPromise;
 
   connectingPromise = doConnect();
   try {
-    return await connectingPromise;
+    const cdp = await connectingPromise;
+    // Auto-reconnect: register disconnect handler
+    cdp.onDisconnect(() => {
+      client = null;
+    });
+    return cdp;
+  } catch (err) {
+    // Auto-reconnect: retry up to 3 times with backoff
+    if (session.shouldReconnect()) {
+      const attempt = session.getStatus().reconnectAttempts;
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+      await new Promise(r => setTimeout(r, delay));
+      connectingPromise = null;
+      return ensureConnected();
+    }
+    // All retries exhausted — switch to fallback mode
+    session.enableFallback();
+    throw err;
   } finally {
     connectingPromise = null;
   }
@@ -97,6 +169,8 @@ async function doConnect(): Promise<CDPClient> {
   }
 
   // Launch Chrome with debugging
+  // Check CHROME_PATH env var first
+  const envChrome = process.env.CHROME_PATH;
   const chromePaths = process.platform === 'win32'
     ? [
         'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -157,6 +231,19 @@ async function doConnect(): Promise<CDPClient> {
     }
   }
 
+  // Try CHROME_PATH env var first (cross-platform)
+  if (!launched && envChrome) {
+    try {
+      if (fs.existsSync(envChrome)) {
+        const child = spawn(envChrome, chromeArgs, { stdio: 'ignore', detached: true });
+        child.unref();
+        launched = true;
+      }
+    } catch {
+      // CHROME_PATH didn't work, fall through to auto-detection
+    }
+  }
+
   if (!launched) {
     for (const chromePath of chromePaths) {
       try {
@@ -172,9 +259,12 @@ async function doConnect(): Promise<CDPClient> {
 
   if (!launched) {
     throw new Error(
-      'Could not launch Chrome. Start Chrome manually with:\n' +
-      `  chrome --remote-debugging-port=${debugPort}\n` +
-      'Or on macOS:\n' +
+      'Could not launch Chrome. Tried common paths but none found.\n\n' +
+      'Options:\n' +
+      '  1. Install Google Chrome\n' +
+      `  2. Set CHROME_PATH env var: export CHROME_PATH=/path/to/chrome\n` +
+      `  3. Start Chrome manually: chrome --remote-debugging-port=${debugPort}\n` +
+      '\nOn macOS:\n' +
       `  /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --remote-debugging-port=${debugPort}`
     );
   }
@@ -291,12 +381,19 @@ export class BrowserTool implements Tool {
 
   private async navigate(url: string): Promise<string> {
     if (!url) return 'Error: url is required';
-    const cdp = await ensureConnected();
 
-    // Auto-add protocol
+    // Auto-add protocol before anything else
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
+
+    // Fallback mode: use HTTP fetch instead of CDP
+    const session = BrowserSession.getInstance();
+    if (session.isFallbackMode()) {
+      return this.fetchFallback(url);
+    }
+
+    const cdp = await ensureConnected();
 
     // Set up load event listener BEFORE navigating
     const loadPromise = cdp.waitForEvent('Page.loadEventFired', 15000);
@@ -727,6 +824,34 @@ export class BrowserTool implements Tool {
     await client.send('Runtime.enable');
 
     return `Switched to tab: ${target.title || '(no title)'}\n  ${target.url}`;
+  }
+
+  /** Fetch-only fallback: get page content without Chrome using Node's http/https */
+  private async fetchFallback(url: string): Promise<string> {
+    const mod = url.startsWith('https') ? require('https') : require('http');
+    return new Promise((resolve) => {
+      const req = mod.get(url, { headers: { 'User-Agent': 'CodeBot-AI/2.1.6' }, timeout: 10000 }, (res: any) => {
+        let data = '';
+        res.on('data', (chunk: string) => data += chunk);
+        res.on('end', () => {
+          // Strip HTML tags for basic content extraction
+          const text = data
+            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .substring(0, 30000);
+          resolve(`[Fallback mode — Chrome unavailable, using HTTP fetch]\n\nURL: ${url}\nContent (text only):\n${text}`);
+        });
+      });
+      req.on('error', () => resolve(`Error: Could not fetch ${url}. Check the URL and your network connection.`));
+      req.on('timeout', () => { req.destroy(); resolve(`Error: Request to ${url} timed out after 10s.`); });
+    });
   }
 
   private async newTab(url?: string): Promise<string> {
