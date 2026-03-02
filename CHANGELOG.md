@@ -1,5 +1,39 @@
 # Changelog
 
+## [2.2.0] — 2026-03-02
+
+### Added
+- **907 comprehensive tests** — every tool has dedicated test file, 0 failures
+- **UI component library** (`src/ui.ts`) — `box()`, `riskBar()`, `permissionCard()`, `spinner()`, `progressStep()`, `diffPreview()`, `sessionHeader()`, `summaryBox()` for premium CLI output
+- **Permission cards** — bordered cards with tool name, risk bar, risk factors, sandbox/network status, approve/deny action bar
+- **`--verbose` flag** — detailed output for tool results, usage events, and debugging
+- **`--dry-run` / `--estimate` flags** — preview estimated cost before running a task
+- **Cost estimation** — `estimateRunCost()` with heuristic task complexity classification (simple/medium/complex), model pricing lookup, confidence levels
+- **`CostEstimate` interface** — `estimatedInputTokens`, `estimatedOutputTokens`, `estimatedCost`, `estimatedToolCalls`, `estimatedIterations`, `confidence`
+- **`BrowserSession` class** — encapsulates browser connection state, replaces module-level globals
+- **Browser auto-reconnect** — 3 retries with exponential backoff on WebSocket disconnect
+- **Fetch-only fallback** — automatic HTTP fetch mode when Chrome is unavailable
+- **`CHROME_PATH` env var** — custom Chrome installation path support
+- **`onDisconnect` callback** — CDPClient connection monitoring
+- **`TokenTracker` export** — `TokenTracker`, `UsageRecord`, `SessionSummary`, `CostEstimate` types exported from index
+- **`BrowserSession` export** — browser session state accessible from library API
+- **Multi-agent orchestration** — parent/child task delegation with `Orchestrator` and `DelegateTool`
+
+### Changed
+- CLI tool results: color-coded risk indicators (green/yellow/orange/red), multi-line args display, compact output with `--verbose` hint
+- Session summary: boxed output with `summaryBox()`, risk average display
+- Permission prompts: full permission cards with risk scoring and sandbox status
+- Chrome error messages: actionable suggestions with installation options and `CHROME_PATH` hint
+- Browser navigate: fallback to HTTP fetch when in fallback mode
+- README: badges (907 tests, 0 deps, 28 tools), comparison table, Quick Local Start, Security at a Glance, Troubleshooting
+- ROADMAP: all milestones through v2.1.6 marked as shipped
+- Tests: 586 → 907 (321 new tests across 20 test files)
+
+### Security
+- Permission cards display risk score, exact arguments, sandbox status before tool execution
+- Browser tool respects `CHROME_PATH` env var for reproducible CI environments
+
+
 ## [2.1.6] — 2026-03-01
 
 ### Added

@@ -20,7 +20,7 @@ import { exportSarif, sarifToString } from './sarif';
 import { UI, permissionCard, summaryBox, box } from './ui';
 import { estimateRunCost } from './telemetry';
 
-const VERSION = '2.1.6';
+const VERSION = '2.2.0';
 
 let verbose = false;
 

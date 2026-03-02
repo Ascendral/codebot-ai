@@ -8,8 +8,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Version | 2.1.6 |
-| Tests | 880 passing |
+| Version | 2.2.0 |
+| Tests | 907 passing |
 | Tools | 28 built-in + MCP + plugins |
 | Security | 8-layer stack: policy, RBAC, capabilities, risk scoring, path safety, secret detection, SSRF, sandbox |
 | Platforms | CLI, VS Code extension, GitHub Action |
@@ -31,11 +31,11 @@
 | v2.1.3 | Animation | Terminal animation system, mascot, boot sequence | 491 | Shipped |
 | v2.1.5 | Hardened II | RBAC consistency, browser safety, encryption wiring | 559 | Shipped |
 | v2.1.6 | Intelligence | Prompt caching, vision/multimodal, model routing, JSON mode | 586 | Shipped |
-| v2.2.0-alpha | Quality | 880 tests, CLI UI polish, permission cards, tool coverage | 880 | In Progress |
+| v2.2.0 | Quality | 907 tests, CLI UI polish, permission cards, cost estimation, browser resilience | 907 | Shipped |
 
 ---
 
-## In Progress: v2.2.0 — Quality and UX
+## Shipped: v2.2.0 — Quality and UX
 
 **Theme:** Make it feel production-grade.
 
@@ -50,15 +50,15 @@
 - README overhaul: comparison table, badges, troubleshooting, security summary
 - Multi-agent orchestration (parent/child delegation)
 
-### Remaining (v2.2.0-beta)
-- Cost transparency: --dry-run / --estimate flags for cost prediction
-- Per-tool cost breakdown in session metrics
-- Browser resilience: auto-reconnect on WebSocket drop, fetch-only fallback
-- codebot doctor: environment health check command
-- CHANGELOG update for v2.2.0 release
+### Completed (v2.2.0)
+- ✅ Cost transparency: --dry-run / --estimate flags for cost prediction
+- ✅ Browser resilience: auto-reconnect on WebSocket drop, fetch-only fallback
+- ✅ CHANGELOG update for v2.2.0 release
+- ⏳ Per-tool cost breakdown in session metrics (deferred to v2.3.0)
+- ⏳ codebot doctor: environment health check (deferred to v2.3.0)
 
 ### Gate Criteria
-- 880+ tests, 0 failures
+- 907 tests, 0 failures ✅
 - Clean npm run build
 - All tools have dedicated test files
 - README renders correctly on GitHub

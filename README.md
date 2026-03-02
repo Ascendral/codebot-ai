@@ -4,7 +4,7 @@
 [![npm version](https://img.shields.io/npm/v/codebot-ai.svg)](https://www.npmjs.com/package/codebot-ai)
 [![license](https://img.shields.io/npm/l/codebot-ai.svg)](https://github.com/zanderone1980/codebot-ai/blob/main/LICENSE)
 [![node](https://img.shields.io/node/v/codebot-ai.svg)](https://nodejs.org)
-![tests](https://img.shields.io/badge/tests-880%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-907%20passing-brightgreen)
 ![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![tools](https://img.shields.io/badge/tools-28-blue)
 
@@ -315,7 +315,7 @@ CodeBot is hardened for continuous operation:
 - **Context compaction** — when the conversation exceeds the model's context window, messages are intelligently summarized
 - **Process resilience** — unhandled exceptions and rejections are caught, logged, and the REPL keeps running
 - **Routine timeouts** — scheduled tasks are capped at 5 minutes to prevent the scheduler from hanging
-- **880+ tests** — comprehensive suite covering core agent, security, extension, and action
+- **907+ tests** — comprehensive suite covering core agent, security, extension, and action
 
 ## Programmatic API
 
