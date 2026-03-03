@@ -23,6 +23,7 @@ import { runDoctor, formatDoctorReport } from './doctor';
 import { loadTheme, setTheme, getTheme, getThemeNames } from './theme';
 import { TuiMode } from './tui/tui-mode';
 import { DashboardServer } from './dashboard/server';
+import { registerApiRoutes } from './dashboard/api';
 
 const VERSION = '2.2.0';
 
