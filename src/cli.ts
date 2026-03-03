@@ -21,6 +21,7 @@ import { UI, permissionCard, summaryBox, box, budgetBar, streamingIndicator, cos
 import { estimateRunCost } from './telemetry';
 import { runDoctor, formatDoctorReport } from './doctor';
 import { loadTheme, setTheme, getTheme, getThemeNames } from './theme';
+import { TuiMode } from './tui/tui-mode';
 
 const VERSION = '2.2.0';
 
@@ -930,6 +931,10 @@ function parseArgs(argv: string[]): Record<string, string | boolean> {
       }
       continue;
     }
+    if (arg === '--tui') {
+      result.tui = true;
+      continue;
+    }
     if (arg === '--no-stream') {
       result.noStream = true;
       continue;
@@ -1000,6 +1005,7 @@ ${c('Options:', 'bold')}
   --provider <name>    Provider: openai, anthropic, gemini, deepseek, groq, mistral, xai
   --base-url <url>     LLM API base URL (auto-detects Ollama/LM Studio/vLLM + cloud)
   --api-key <key>      API key (or set provider-specific env var)
+  --tui                Full-screen TUI mode with panels
   --no-stream          Suppress streaming progress indicators
   --theme <name>       Theme: dark, light, mono (default: auto)
   --autonomous         Skip ALL permission prompts — full auto mode
