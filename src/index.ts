@@ -48,6 +48,8 @@ export { parseKeypress, keyToAction, createKeyboardListener } from './tui/keyboa
 export type { KeyEvent, TuiAction } from './tui/keyboard';
 export { Screen } from './tui/screen';
 export { TuiMode } from './tui/tui-mode';
+export { DashboardServer } from './dashboard/server';
+export type { RouteHandler } from './dashboard/server';
 export type { TuiStep, TuiConfig } from './tui/tui-mode';
 export type { ProviderRateConfig } from './provider-rate-limiter';
 export type { Theme } from './theme';
