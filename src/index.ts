@@ -41,6 +41,8 @@ export type { UsageRecord, SessionSummary, CostEstimate } from './telemetry';
 export { BrowserSession } from './tools/browser';
 export { runDoctor, formatDoctorReport } from './doctor';
 export { DARK_THEME, LIGHT_THEME, MONO_THEME, loadTheme, setTheme, getTheme, applyColor, getThemeNames } from './theme';
+export { ProviderRateLimiter, PROVIDER_RATE_DEFAULTS } from './provider-rate-limiter';
+export type { ProviderRateConfig } from './provider-rate-limiter';
 export type { Theme } from './theme';
 export type { HealthCheck, DoctorReport } from './doctor';
 export * from './types';

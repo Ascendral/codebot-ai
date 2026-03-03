@@ -602,6 +602,7 @@ function handleSlashCommand(input: string, agent: Agent, config: Config) {
   /risk      Show risk assessment summary
   /policy    Show current security policy
   /audit     Verify audit chain for this session
+  /rate      Show provider rate limit utilization
   /theme     Show or change theme (/theme dark|light|mono)
   /doctor    Run environment health check
   /toolcost  Show per-tool cost breakdown
@@ -723,6 +724,17 @@ function handleSlashCommand(input: string, agent: Agent, config: Config) {
           const msg = err instanceof Error ? err.message : String(err);
           console.error(c(`Error listing routines: ${msg}`, 'red'));
         });
+      break;
+    }
+    case '/rate': {
+      const rl2 = agent.getProviderRateLimiter();
+      const util = rl2.getUtilization();
+      const cfg = rl2.getConfig();
+      console.log(c('\nProvider Rate Limits:', 'bold'));
+      console.log(`  Provider:    ${cfg.provider}`);
+      console.log(`  RPM:         ${util.rpmPercent}% (limit: ${cfg.requestsPerMinute}/min)`);
+      console.log(`  TPM:         ${util.tpmPercent}% (limit: ${cfg.tokensPerMinute.toLocaleString()}/min)`);
+      console.log(`  Concurrent:  ${util.concurrentPercent}% (limit: ${cfg.concurrentRequests})`);
       break;
     }
     case '/theme': {
@@ -1034,6 +1046,7 @@ ${c('Interactive Commands:', 'bold')}
   /risk      Show risk assessment summary
   /policy    Show security policy
   /audit     Verify session audit chain
+  /rate      Show provider rate limits
   /theme     Show or change theme
   /doctor    Run environment health check
   /toolcost  Show per-tool cost breakdown

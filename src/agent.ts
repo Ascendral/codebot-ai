@@ -11,6 +11,7 @@ import { lastScreenshotData } from './tools/browser';
 import { loadPlugins } from './plugins';
 import { ToolCache } from './cache';
 import { RateLimiter } from './rate-limiter';
+import { ProviderRateLimiter } from './provider-rate-limiter';
 import { AuditLogger } from './audit';
 import { PolicyEnforcer, loadPolicy } from './policy';
 import { TokenTracker } from './telemetry';
@@ -85,6 +86,7 @@ export class Agent {
   private model: string;
   private cache: ToolCache;
   private rateLimiter: RateLimiter;
+  private providerRateLimiter: ProviderRateLimiter;
   private auditLogger: AuditLogger;
   private policyEnforcer: PolicyEnforcer;
   private tokenTracker: TokenTracker;
@@ -123,6 +125,7 @@ export class Agent {
     this.onMessage = opts.onMessage;
     this.cache = new ToolCache();
     this.rateLimiter = new RateLimiter();
+    this.providerRateLimiter = new ProviderRateLimiter(opts.providerName || 'local');
     this.auditLogger = new AuditLogger();
 
     // Token & cost tracking
@@ -196,6 +199,7 @@ export class Agent {
 
       // Stream LLM response — wrapped in try-catch for resilience
       try {
+        await this.providerRateLimiter.acquire();
         for await (const event of this.provider.chat(this.messages, toolSchemas)) {
           switch (event.type) {
             case 'text':
@@ -226,6 +230,7 @@ export class Agent {
                   }
                   this.lastExecutedTools = [];
                 }
+                this.providerRateLimiter.recordTokens((event.usage.inputTokens || 0) + (event.usage.outputTokens || 0));
                 this.metricsCollector.increment('llm_requests_total');
                 this.metricsCollector.increment('llm_tokens_total', { direction: 'input' }, event.usage.inputTokens || 0);
                 this.metricsCollector.increment('llm_tokens_total', { direction: 'output' }, event.usage.outputTokens || 0);
@@ -246,7 +251,9 @@ export class Agent {
               break;
           }
         }
+        this.providerRateLimiter.release();
       } catch (err: unknown) {
+        this.providerRateLimiter.release();
         const msg = err instanceof Error ? err.message : String(err);
         streamError = `Stream error: ${msg}`;
       }
@@ -257,6 +264,11 @@ export class Agent {
         // Fatal errors (missing API key, auth failure, billing, etc.) — stop immediately
         if (isFatalError(streamError)) {
           return;
+        }
+
+        // Provider rate limit backoff on 429
+        if (streamError.includes('429') || streamError.includes('rate limit') || streamError.includes('Rate limit')) {
+          this.providerRateLimiter.backoff();
         }
 
         // Circuit breaker: stop after 3 consecutive identical errors
@@ -585,6 +597,11 @@ export class Agent {
   /** Get the metrics collector for session metrics */
   getMetrics(): MetricsCollector {
     return this.metricsCollector;
+  }
+
+  /** Get the provider rate limiter for utilization display */
+  getProviderRateLimiter(): ProviderRateLimiter {
+    return this.providerRateLimiter;
   }
 
   /** Get the risk scorer for risk assessment history */
