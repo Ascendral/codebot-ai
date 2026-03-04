@@ -652,6 +652,8 @@ function handleSlashCommand(input: string, agent: Agent, config: Config) {
   /theme     Show or change theme (/theme dark|light|mono)
   /doctor    Run environment health check
   /toolcost  Show per-tool cost breakdown
+  /apps      Show connected apps & available connectors
+  /connect   Connect an app (/connect <app>)
   /config    Show current config
   /quit      Exit`);
       break;
@@ -818,6 +820,45 @@ function handleSlashCommand(input: string, agent: Agent, config: Config) {
     case '/quit':
     case '/exit':
       process.exit(0);
+    case '/apps': {
+      try {
+        const { VaultManager } = require('./vault');
+        const { ConnectorRegistry } = require('./connectors/registry');
+        const { GitHubConnector } = require('./connectors/github');
+        const { SlackConnector } = require('./connectors/slack');
+        const { JiraConnector } = require('./connectors/jira');
+        const { LinearConnector } = require('./connectors/linear');
+        const vault = new VaultManager();
+        const reg = new ConnectorRegistry(vault);
+        reg.register(new GitHubConnector());
+        reg.register(new SlackConnector());
+        reg.register(new JiraConnector());
+        reg.register(new LinearConnector());
+        console.log(c('\nApp Connectors:', 'bold'));
+        for (const conn of reg.all()) {
+          const connected = reg.isConnected(conn.name);
+          const status = connected ? c('connected', 'green') : c('not connected', 'dim');
+          const envHint = conn.envKey ? c(` (${conn.envKey})`, 'dim') : '';
+          console.log(`  ${conn.displayName} [${conn.name}]: ${status}${envHint}`);
+          console.log(`    Actions: ${conn.actions.map((a: {name: string}) => a.name).join(', ')}`);
+        }
+        console.log(c('\nConnect with: /connect <app> or set env var', 'dim'));
+      } catch (err) {
+        console.log(c('App connectors not available.', 'dim'));
+      }
+      break;
+    }
+    case '/connect': {
+      const appName = rest[0];
+      if (!appName) {
+        console.log(c('Usage: /connect <app> (e.g., /connect github)', 'yellow'));
+        break;
+      }
+      console.log(c(`To connect ${appName}, set the appropriate env var or use the app tool:`, 'dim'));
+      console.log(c(`  In chat: "connect my ${appName} account"`, 'cyan'));
+      console.log(c(`  Or set: export GITHUB_TOKEN=... (for GitHub)`, 'dim'));
+      break;
+    }
     default:
       console.log(c(`Unknown command: ${cmd}. Type /help`, 'yellow'));
   }

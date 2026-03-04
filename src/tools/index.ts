@@ -29,6 +29,13 @@ import { PdfExtractTool } from './pdf-extract';
 import { PackageManagerTool } from './package-manager';
 import { CodeReviewTool } from './code-review';
 import { PolicyEnforcer } from '../policy';
+import { AppConnectorTool } from './app-connector';
+import { VaultManager } from '../vault';
+import { ConnectorRegistry } from '../connectors/registry';
+import { GitHubConnector } from '../connectors/github';
+import { SlackConnector } from '../connectors/slack';
+import { JiraConnector } from '../connectors/jira';
+import { LinearConnector } from '../connectors/linear';
 
 export { EditFileTool } from './edit';
 
@@ -67,6 +74,16 @@ export class ToolRegistry {
     this.register(new PdfExtractTool());
     this.register(new PackageManagerTool());
     this.register(new CodeReviewTool());
+    // v2.5.0 — App Connectors
+    try {
+      const vault = new VaultManager();
+      const connectorRegistry = new ConnectorRegistry(vault);
+      connectorRegistry.register(new GitHubConnector());
+      connectorRegistry.register(new SlackConnector());
+      connectorRegistry.register(new JiraConnector());
+      connectorRegistry.register(new LinearConnector());
+      this.register(new AppConnectorTool(vault, connectorRegistry));
+    } catch { /* connectors unavailable */ }
   }
 
   register(tool: Tool) {

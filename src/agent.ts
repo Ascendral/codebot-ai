@@ -143,6 +143,38 @@ export class Agent {
       }
     } catch { /* plugins unavailable */ }
 
+    // Load app connectors and skills
+    try {
+      const { VaultManager } = require('./vault');
+      const { ConnectorRegistry } = require('./connectors/registry');
+      const { GitHubConnector } = require('./connectors/github');
+      const { SlackConnector } = require('./connectors/slack');
+      const { JiraConnector } = require('./connectors/jira');
+      const { LinearConnector } = require('./connectors/linear');
+      const { AppConnectorTool } = require('./tools/app-connector');
+      const { loadSkills, skillToTool } = require('./skills');
+
+      const vault = new VaultManager();
+      const connectorRegistry = new ConnectorRegistry(vault);
+      connectorRegistry.register(new GitHubConnector());
+      connectorRegistry.register(new SlackConnector());
+      connectorRegistry.register(new JiraConnector());
+      connectorRegistry.register(new LinearConnector());
+
+      this.tools.register(new AppConnectorTool(vault, connectorRegistry));
+
+      // Register skills as tools
+      const skills = loadSkills();
+      for (const skill of skills) {
+        const toolExec = async (name: string, args: Record<string, unknown>) => {
+          const t = this.tools.get(name);
+          if (!t) return `Error: tool "${name}" not found`;
+          return t.execute(args);
+        };
+        this.tools.register(skillToTool(skill, toolExec));
+      }
+    } catch { /* connectors/skills unavailable */ }
+
     const supportsTools = getModelInfo(opts.model).supportsToolCalling;
     this.messages.push({
       role: 'system',

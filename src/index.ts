@@ -1,4 +1,4 @@
-export const VERSION = '2.3.0';
+export const VERSION = '2.5.0';
 export { Agent } from './agent';
 export { OpenAIProvider } from './providers/openai';
 export { AnthropicProvider } from './providers/anthropic';
@@ -58,4 +58,16 @@ export type { TuiStep, TuiConfig } from './tui/tui-mode';
 export type { ProviderRateConfig } from './provider-rate-limiter';
 export type { Theme } from './theme';
 export type { HealthCheck, DoctorReport } from './doctor';
+// v2.5.0 — App Connectors, Vault & Skills
+export { VaultManager } from './vault';
+export type { VaultCredential } from './vault';
+export { ConnectorRegistry } from './connectors/registry';
+export type { Connector, ConnectorAction } from './connectors/base';
+export { GitHubConnector } from './connectors/github';
+export { SlackConnector } from './connectors/slack';
+export { JiraConnector } from './connectors/jira';
+export { LinearConnector } from './connectors/linear';
+export { AppConnectorTool } from './tools/app-connector';
+export { loadSkills, skillToTool } from './skills';
+export type { SkillDefinition, SkillStep } from './skills';
 export * from './types';
