@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="CodeBot logo">
+  <defs>
+    <linearGradient id="cb-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2F6BFF"/>
+      <stop offset="100%" stop-color="#00D2FF"/>
+    </linearGradient>
+    <filter id="cb-softShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <g transform="translate(0,0)" filter="url(#cb-softShadow)">
+    <rect x="332" y="232" width="360" height="220" rx="72" fill="none" stroke="url(#cb-grad)" stroke-width="22"/>
+    <rect x="304" y="298" width="44" height="88" rx="18" fill="none" stroke="url(#cb-grad)" stroke-width="22"/>
+    <rect x="676" y="298" width="44" height="88" rx="18" fill="none" stroke="url(#cb-grad)" stroke-width="22"/>
+    <g fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M452 302 L520 342 L452 382"/>
+      <path d="M556 384 H612"/>
+    </g>
+  </g>
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-weight="700" font-size="132">
+    <text x="512" y="650" text-anchor="middle">
+      <tspan fill="#FFFFFF">Code</tspan><tspan fill="url(#cb-grad)">Bot</tspan>
+    </text>
+  </g>
+  <rect x="456" y="704" width="112" height="10" rx="5" fill="url(#cb-grad)" opacity="0.9"/>
+</svg>
