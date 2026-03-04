@@ -60,6 +60,12 @@
               Metrics
             </a>
           </li>
+          <li>
+            <a href="#command" class="nav-link" data-section="command">
+              <span class="nav-icon">&#x2318;</span>
+              Command
+            </a>
+          </li>
         </ul>
       </div>
 
@@ -113,6 +119,98 @@
         <div id="metrics-cards" class="stats-grid"></div>
         <div id="usage-chart" class="chart-panel"></div>
         <div id="tool-breakdown" class="breakdown-panel"></div>
+      </section>
+
+      <!-- Command Center -->
+      <section id="section-command" class="section">
+        <div class="section-header">
+          <div>
+            <h1>Command Center</h1>
+            <p class="section-subtitle">Chat, execute commands, and run tools interactively</p>
+          </div>
+          <div id="cmd-status" class="header-stats"></div>
+        </div>
+
+        <div id="cmd-unavailable" class="cmd-unavailable" style="display:none">
+          <div class="empty-state">
+            <div class="empty-icon">&#x2318;</div>
+            <h3>Agent Not Connected</h3>
+            <p>Start CodeBot with <code>codebot --dashboard</code> to enable interactive features.</p>
+          </div>
+        </div>
+
+        <div id="cmd-available" style="display:none">
+          <div class="cmd-tabs">
+            <button class="cmd-tab active" data-cmd-tab="chat">Chat</button>
+            <button class="cmd-tab" data-cmd-tab="quick">Quick Actions</button>
+            <button class="cmd-tab" data-cmd-tab="terminal">Terminal</button>
+            <button class="cmd-tab" data-cmd-tab="toolrunner">Tool Runner</button>
+          </div>
+
+          <!-- Chat -->
+          <div id="cmd-chat" class="cmd-panel active">
+            <div id="chat-messages" class="chat-messages"></div>
+            <div class="chat-input-row">
+              <input type="text" id="chat-input" class="chat-input"
+                     placeholder="Ask CodeBot anything..." autocomplete="off" />
+              <button id="chat-send" class="btn btn-primary">Send</button>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div id="cmd-quick" class="cmd-panel">
+            <div class="quick-grid">
+              <button class="quick-btn" data-action="git-status">
+                <span class="quick-icon">&#x1F4CB;</span> Git Status
+              </button>
+              <button class="quick-btn" data-action="run-tests">
+                <span class="quick-icon">&#x2705;</span> Run Tests
+              </button>
+              <button class="quick-btn" data-action="git-log">
+                <span class="quick-icon">&#x1F4DC;</span> Git Log
+              </button>
+              <button class="quick-btn" data-action="git-diff">
+                <span class="quick-icon">&#x1F50D;</span> Git Diff
+              </button>
+              <button class="quick-btn" data-action="health-check">
+                <span class="quick-icon">&#x1F3E5;</span> Health Check
+              </button>
+              <button class="quick-btn" data-action="list-tools">
+                <span class="quick-icon">&#x1F527;</span> List Tools
+              </button>
+              <button class="quick-btn" data-action="list-files">
+                <span class="quick-icon">&#x1F4C2;</span> List Files
+              </button>
+              <button class="quick-btn" data-action="npm-outdated">
+                <span class="quick-icon">&#x1F4E6;</span> NPM Outdated
+              </button>
+            </div>
+            <div id="quick-output" class="cmd-output"></div>
+          </div>
+
+          <!-- Terminal -->
+          <div id="cmd-terminal" class="cmd-panel">
+            <div id="terminal-output" class="terminal-output"></div>
+            <div class="terminal-input-row">
+              <span class="terminal-prompt">$</span>
+              <input type="text" id="terminal-input" class="terminal-input"
+                     placeholder="Enter command..." autocomplete="off" />
+            </div>
+          </div>
+
+          <!-- Tool Runner -->
+          <div id="cmd-toolrunner" class="cmd-panel">
+            <div class="tool-runner-row">
+              <select id="tool-select" class="tool-select">
+                <option value="">Select a tool...</option>
+              </select>
+              <button id="tool-run-btn" class="btn btn-primary" disabled>Execute</button>
+            </div>
+            <div id="tool-description" class="tool-description"></div>
+            <div id="tool-form" class="tool-form"></div>
+            <div id="tool-result" class="cmd-output"></div>
+          </div>
+        </div>
       </section>
     </main>
   </div>

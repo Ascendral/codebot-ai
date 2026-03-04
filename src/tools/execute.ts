@@ -4,7 +4,7 @@ import { isCwdSafe } from '../security';
 import { sandboxExec, isDockerAvailable } from '../sandbox';
 import { PolicyEnforcer } from '../policy';
 
-const BLOCKED_PATTERNS = [
+export const BLOCKED_PATTERNS = [
   // Destructive filesystem operations
   /rm\s+-rf\s+\//,
   /rm\s+-rf\s+~/,
@@ -68,7 +68,7 @@ const BLOCKED_PATTERNS = [
 ];
 
 /** Sensitive environment variables to strip before passing to child process */
-const FILTERED_ENV_VARS = [
+export const FILTERED_ENV_VARS = [
   'AWS_SECRET_ACCESS_KEY',
   'AWS_SESSION_TOKEN',
   'GITHUB_TOKEN',

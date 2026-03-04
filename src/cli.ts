@@ -27,6 +27,7 @@ import { animateWelcomeBoot } from './banner';
 import { guidedPrompts } from './ui';
 import { DashboardServer } from './dashboard/server';
 import { registerApiRoutes } from './dashboard/api';
+import { registerCommandRoutes } from './dashboard/command-api';
 
 const VERSION = '2.3.0';
 
@@ -372,6 +373,22 @@ export async function main() {
     if (messages.length > 0) {
       agent.loadMessages(messages);
       console.log(c(`   Loaded ${messages.length} messages from previous session.`, 'dim'));
+    }
+  }
+
+  // ── Dashboard server (--dashboard flag) ──
+  if (args.dashboard) {
+    try {
+      const dashStaticDir = require('path').join(__dirname, 'dashboard', 'static');
+      const dashServer = new DashboardServer({ port: 3120, staticDir: dashStaticDir });
+      const os = require('os');
+      registerApiRoutes(dashServer, os.homedir());
+      registerCommandRoutes(dashServer, agent);
+      const dashInfo = await dashServer.start();
+      console.log(c(`   Dashboard: ${dashInfo.url}`, 'cyan'));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log(c(`   Dashboard failed: ${msg}`, 'yellow'));
     }
   }
 

@@ -656,6 +656,11 @@ export class Agent {
     return this.providerRateLimiter;
   }
 
+  /** Get the tool registry for direct tool listing/execution */
+  getToolRegistry(): ToolRegistry {
+    return this.tools;
+  }
+
   /** Get the risk scorer for risk assessment history */
   getRiskScorer(): RiskScorer {
     return this.riskScorer;

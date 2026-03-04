@@ -176,6 +176,32 @@ export class DashboardServer {
     return params;
   }
 
+  // ── SSE (Server-Sent Events) helpers ──
+
+  /** Write SSE headers to start an event stream */
+  static sseHeaders(res: http.ServerResponse): void {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'X-Accel-Buffering': 'no',
+    });
+  }
+
+  /** Send a single SSE data event */
+  static sseSend(res: http.ServerResponse, data: unknown): void {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  }
+
+  /** Close an SSE stream */
+  static sseClose(res: http.ServerResponse): void {
+    res.write('data: [DONE]\n\n');
+    res.end();
+  }
+
   // ── Private methods ──
 
   private async handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
