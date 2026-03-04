@@ -151,6 +151,8 @@ export class Agent {
       const { SlackConnector } = require('./connectors/slack');
       const { JiraConnector } = require('./connectors/jira');
       const { LinearConnector } = require('./connectors/linear');
+      const { OpenAIImagesConnector } = require('./connectors/openai-images');
+      const { ReplicateConnector } = require('./connectors/replicate');
       const { AppConnectorTool } = require('./tools/app-connector');
       const { loadSkills, skillToTool } = require('./skills');
 
@@ -160,8 +162,12 @@ export class Agent {
       connectorRegistry.register(new SlackConnector());
       connectorRegistry.register(new JiraConnector());
       connectorRegistry.register(new LinearConnector());
+      connectorRegistry.register(new OpenAIImagesConnector());
+      connectorRegistry.register(new ReplicateConnector());
 
+      const { GraphicsTool } = require('./tools/graphics');
       this.tools.register(new AppConnectorTool(vault, connectorRegistry));
+      this.tools.register(new GraphicsTool());
 
       // Register skills as tools
       const skills = loadSkills();

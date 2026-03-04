@@ -5,7 +5,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { ToolRegistry } from './index';
 
-const TOTAL_TOOLS = 29;
+const TOTAL_TOOLS = 30;
 
 describe('ToolRegistry', () => {
   it(`registers all ${TOTAL_TOOLS} tools`, () => {
@@ -24,8 +24,8 @@ describe('ToolRegistry', () => {
       'git', 'code_analysis', 'multi_search', 'task_planner', 'diff_viewer',
       'docker', 'database', 'test_runner', 'http_client', 'image_info',
       'ssh_remote', 'notification', 'pdf_extract', 'package_manager', 'code_review',
-      // v2.5.0 — app connectors
-      'app',
+      // v2.5.0 — app connectors + graphics
+      'app', 'graphics',
     ];
     for (const name of names) {
       assert.ok(registry.get(name), `Tool "${name}" not found`);
@@ -52,7 +52,7 @@ describe('ToolRegistry', () => {
   it('all tools have correct permission levels', () => {
     const registry = new ToolRegistry();
     const auto = ['read_file', 'glob', 'grep', 'think', 'memory', 'routine', 'code_analysis', 'multi_search', 'task_planner', 'diff_viewer', 'image_info', 'pdf_extract', 'code_review'];
-    const prompt = ['write_file', 'edit_file', 'batch_edit', 'web_fetch', 'browser', 'web_search', 'git', 'docker', 'database', 'test_runner', 'http_client', 'notification', 'package_manager', 'app'];
+    const prompt = ['write_file', 'edit_file', 'batch_edit', 'web_fetch', 'browser', 'web_search', 'git', 'docker', 'database', 'test_runner', 'http_client', 'notification', 'package_manager', 'app', 'graphics'];
     const alwaysAsk = ['execute', 'ssh_remote'];
 
     for (const name of auto) {

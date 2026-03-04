@@ -828,12 +828,16 @@ function handleSlashCommand(input: string, agent: Agent, config: Config) {
         const { SlackConnector } = require('./connectors/slack');
         const { JiraConnector } = require('./connectors/jira');
         const { LinearConnector } = require('./connectors/linear');
+        const { OpenAIImagesConnector } = require('./connectors/openai-images');
+        const { ReplicateConnector } = require('./connectors/replicate');
         const vault = new VaultManager();
         const reg = new ConnectorRegistry(vault);
         reg.register(new GitHubConnector());
         reg.register(new SlackConnector());
         reg.register(new JiraConnector());
         reg.register(new LinearConnector());
+        reg.register(new OpenAIImagesConnector());
+        reg.register(new ReplicateConnector());
         console.log(c('\nApp Connectors:', 'bold'));
         for (const conn of reg.all()) {
           const connected = reg.isConnected(conn.name);

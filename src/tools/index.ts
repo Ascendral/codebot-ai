@@ -30,12 +30,15 @@ import { PackageManagerTool } from './package-manager';
 import { CodeReviewTool } from './code-review';
 import { PolicyEnforcer } from '../policy';
 import { AppConnectorTool } from './app-connector';
+import { GraphicsTool } from './graphics';
 import { VaultManager } from '../vault';
 import { ConnectorRegistry } from '../connectors/registry';
 import { GitHubConnector } from '../connectors/github';
 import { SlackConnector } from '../connectors/slack';
 import { JiraConnector } from '../connectors/jira';
 import { LinearConnector } from '../connectors/linear';
+import { OpenAIImagesConnector } from '../connectors/openai-images';
+import { ReplicateConnector } from '../connectors/replicate';
 
 export { EditFileTool } from './edit';
 
@@ -82,7 +85,10 @@ export class ToolRegistry {
       connectorRegistry.register(new SlackConnector());
       connectorRegistry.register(new JiraConnector());
       connectorRegistry.register(new LinearConnector());
+      connectorRegistry.register(new OpenAIImagesConnector());
+      connectorRegistry.register(new ReplicateConnector());
       this.register(new AppConnectorTool(vault, connectorRegistry));
+      this.register(new GraphicsTool());
     } catch { /* connectors unavailable */ }
   }
 
