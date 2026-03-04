@@ -106,3 +106,64 @@ describe('collapsibleSection', () => {
     assert.ok(result.includes('[+]'));
   });
 });
+
+
+// ── providerCard tests ──
+
+import { providerCard, guidedPrompts } from './ui';
+import type { ProviderCardItem } from './ui';
+
+describe('providerCard', () => {
+  const items: ProviderCardItem[] = [
+    { key: '1', icon: '\u{1F5A5}', name: 'Local (Ollama)', detail: 'free, private', subtext: 'Ollama detected (3 models)', recommended: true, available: true },
+    { key: '2', icon: '\u{1F7E3}', name: 'Claude', detail: 'best for code', subtext: 'Needs: ANTHROPIC_API_KEY', available: false },
+    { key: '3', icon: '\u{1F7E2}', name: 'GPT', detail: 'widely used' },
+  ];
+
+  it('renders all item names', () => {
+    const result = providerCard({ items });
+    assert.ok(result.includes('Local (Ollama)'), 'Should include Ollama');
+    assert.ok(result.includes('Claude'), 'Should include Claude');
+    assert.ok(result.includes('GPT'), 'Should include GPT');
+  });
+
+  it('shows recommended star marker', () => {
+    const result = providerCard({ items });
+    assert.ok(result.includes('\u2605'), 'Should include star character for recommended item');
+  });
+
+  it('shows availability check mark for items with subtext', () => {
+    const result = providerCard({ items });
+    // The check mark appears in the subtext line for available items
+    // It's rendered with ANSI codes, so check the raw output has the check
+    const stripped = result.replace(/\x1b\[[0-9;]*m/g, '');
+    assert.ok(stripped.includes('\u2713'), 'Should include check mark in subtext for available item');
+  });
+
+  it('includes title', () => {
+    const result = providerCard({ items });
+    assert.ok(result.includes('Choose your AI provider'), 'Should include title');
+  });
+
+  it('renders footer when provided', () => {
+    const result = providerCard({ items, footer: 'Run codebot --setup for full wizard' });
+    assert.ok(result.includes('Run codebot --setup'), 'Should include footer text');
+  });
+});
+
+// ── guidedPrompts tests ──
+
+describe('guidedPrompts', () => {
+  it('renders prompts in a box', () => {
+    const prompts = ['"explain this code"', '"find bugs"'];
+    const result = guidedPrompts(prompts);
+    assert.ok(result.includes('Try saying:'), 'Should include title');
+    assert.ok(result.includes('explain this code'), 'Should include first prompt');
+    assert.ok(result.includes('find bugs'), 'Should include second prompt');
+  });
+
+  it('includes footer when provided', () => {
+    const result = guidedPrompts(['"hello"'], 'Type /help for commands');
+    assert.ok(result.includes('/help'), 'Should include footer text');
+  });
+});

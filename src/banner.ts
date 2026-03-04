@@ -696,3 +696,47 @@ export async function animateSessionEnd(
 export function shouldAnimate(): boolean {
   return !!(process.stdout.isTTY) && process.env.TERM !== 'dumb' && !process.env.CI;
 }
+
+
+// ─────────────────────────────────────────────────────────────
+// Animation 7: Welcome boot — fused detection + banner
+// Shows detection results, then transitions into full banner.
+// ─────────────────────────────────────────────────────────────
+
+export async function animateWelcomeBoot(
+  bannerFn: typeof BANNER_1,
+  version: string,
+  model: string,
+  provider: string,
+  session: string,
+  autonomous: boolean,
+  detectionSteps: string[],
+  speed: AnimationSpeed = 'normal',
+  opts?: { writer?: AnimationWriter },
+): Promise<void> {
+  const w = opts?.writer ?? defaultWriter;
+  const delay = getDelay(speed);
+
+  w(ANSI.hideCursor);
+  try {
+    // Phase 1: Show detection results one by one
+    for (const step of detectionSteps) {
+      w(`  ${C.brightGreen}\u2713${C.reset} ${C.dim}${step}${C.reset}\n`);
+      await sleep(delay.line);
+    }
+
+    if (detectionSteps.length > 0) {
+      await sleep(delay.pause / 2);
+      // Clear detection lines by moving up and clearing
+      for (let i = 0; i < detectionSteps.length; i++) {
+        w(ANSI.moveUp(1) + ANSI.clearLine);
+      }
+    }
+
+    // Phase 2: Full boot sequence (reuse existing)
+    w(ANSI.showCursor);
+    await animateBootSequence(bannerFn, version, model, provider, session, autonomous, speed, opts);
+  } catch {
+    w(ANSI.showCursor);
+  }
+}

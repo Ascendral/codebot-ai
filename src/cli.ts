@@ -21,7 +21,10 @@ import { UI, permissionCard, summaryBox, box, budgetBar, streamingIndicator, cos
 import { estimateRunCost } from './telemetry';
 import { runDoctor, formatDoctorReport } from './doctor';
 import { loadTheme, setTheme, getTheme, getThemeNames } from './theme';
+import { autoDetect, runQuickSetup, saveConfig as saveSetupConfig } from './setup';
 import { TuiMode } from './tui/tui-mode';
+import { animateWelcomeBoot } from './banner';
+import { guidedPrompts } from './ui';
 import { DashboardServer } from './dashboard/server';
 import { registerApiRoutes } from './dashboard/api';
 
@@ -246,11 +249,28 @@ export async function main() {
     process.exit(report.failed > 0 ? 1 : 0);
   }
 
-  // First run: auto-launch setup if nothing is configured
+  // Zero-friction first run: auto-detect or one-question setup
+  let showGuidedPrompts = false;
   if (isFirstRun() && process.stdin.isTTY && !args.message) {
-    console.log(c('Welcome! No configuration found — launching setup...', 'cyan'));
-    await runSetup();
-    if (isFirstRun()) return;
+    const detected = await autoDetect();
+    if (detected.type === 'auto-start' && detected.model) {
+      // Auto-start: save config silently, fall through to boot
+      const autoConfig: any = {
+        model: detected.model,
+        provider: detected.provider,
+        baseUrl: detected.baseUrl,
+        autoApprove: false,
+        firstRunComplete: true,
+      };
+      if (detected.apiKey) autoConfig.apiKey = detected.apiKey;
+      saveSetupConfig(autoConfig);
+      showGuidedPrompts = true;
+    } else {
+      // One-question setup
+      const quickConfig = await runQuickSetup(detected);
+      if (!quickConfig.model) return; // user aborted
+      showGuidedPrompts = true;
+    }
   }
 
   const config = await resolveConfig(args);
@@ -300,6 +320,20 @@ export async function main() {
     } else {
       console.log(c(`   ${randomGreeting()}\n`, 'dim'));
     }
+  }
+
+  // Guided first session: show contextual suggestions
+  if (showGuidedPrompts) {
+    const prompts = getContextualPrompts();
+    console.log(guidedPrompts(prompts, 'Type /help for commands, /setup to reconfigure'));
+    // Clear the flag so prompts don't show again
+    try {
+      const saved = loadConfig();
+      if (saved.firstRunComplete) {
+        delete saved.firstRunComplete;
+        saveSetupConfig(saved);
+      }
+    } catch { /* ignore */ }
   }
 
   const agent = new Agent({
@@ -1079,4 +1113,33 @@ ${c('Interactive Commands:', 'bold')}
   /toolcost  Show per-tool cost breakdown
   /config    Show configuration
   /quit      Exit`);
+}
+
+
+// ── Guided first-session prompts ──
+
+function getContextualPrompts(): string[] {
+  const cwd = process.cwd();
+  const isGitRepo = fs.existsSync(path.join(cwd, '.git'));
+  const hasPackageJson = fs.existsSync(path.join(cwd, 'package.json'));
+
+  if (isGitRepo && hasPackageJson) {
+    return [
+      '"explain what this project does"',
+      '"find and fix any bugs in src/"',
+      '"add tests for the main module"',
+    ];
+  } else if (isGitRepo) {
+    return [
+      '"summarize the recent git changes"',
+      '"review the code in this repo"',
+      '"help me refactor the main file"',
+    ];
+  } else {
+    return [
+      '"create a new Node.js project"',
+      '"write a Python script that..."',
+      '"help me set up a React app"',
+    ];
+  }
 }

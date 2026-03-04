@@ -501,3 +501,80 @@ export function collapsibleSection(title: string, content: string, expanded: boo
   }
   return out.join('\n');
 }
+
+
+// ── providerCard() ──
+
+export interface ProviderCardItem {
+  key: string;
+  icon: string;
+  name: string;
+  detail: string;
+  subtext?: string;
+  recommended?: boolean;
+  available?: boolean;
+}
+
+/**
+ * Render a bordered card with provider options for setup.
+ */
+export function providerCard(opts: {
+  items: ProviderCardItem[];
+  footer?: string;
+  width?: number;
+}): string {
+  const color = UI.cyan;
+  const w = opts.width || 56;
+  const out: string[] = [];
+
+  // Title
+  const titleStr = ' Choose your AI provider ';
+  const titleLen = titleStr.length;
+  const remainH = Math.max(0, w - titleLen - 1);
+  out.push(`${color}${BOX.tl}${BOX.h}${UI.bold}${titleStr}${UI.reset}${color}${BOX.h.repeat(remainH)}${BOX.tr}${UI.reset}`);
+
+  // Blank line
+  out.push(`${color}${BOX.v}${UI.reset}${' '.repeat(w)}${color}${BOX.v}${UI.reset}`);
+
+  for (const item of opts.items) {
+    const check = item.available ? `${UI.brightGreen}\u2713${UI.reset} ` : '  ';
+    const star = item.recommended ? `${UI.brightYellow}\u2605${UI.reset} ` : '  ';
+    const numStr = `${UI.bold}[${item.key}]${UI.reset}`;
+    const line1 = `  ${star}${numStr}  ${item.icon}  ${UI.bold}${item.name}${UI.reset}`;
+    const detailPad = ' '.repeat(Math.max(1, 32 - stripAnsi(item.name).length - 6));
+    const line1Full = `${line1}${detailPad}${UI.dim}${item.detail}${UI.reset}`;
+    out.push(`${color}${BOX.v}${UI.reset} ${padEnd(line1Full, w - 2)} ${color}${BOX.v}${UI.reset}`);
+
+    if (item.subtext) {
+      const sub = `       ${check}${UI.dim}${item.subtext}${UI.reset}`;
+      out.push(`${color}${BOX.v}${UI.reset} ${padEnd(sub, w - 2)} ${color}${BOX.v}${UI.reset}`);
+    }
+
+    // Blank between items
+    out.push(`${color}${BOX.v}${UI.reset}${' '.repeat(w)}${color}${BOX.v}${UI.reset}`);
+  }
+
+  // Footer
+  if (opts.footer) {
+    out.push(`${color}${BOX.v}${UI.reset} ${padEnd(`${UI.dim}${opts.footer}${UI.reset}`, w - 2)} ${color}${BOX.v}${UI.reset}`);
+    out.push(`${color}${BOX.v}${UI.reset}${' '.repeat(w)}${color}${BOX.v}${UI.reset}`);
+  }
+
+  // Bottom border
+  out.push(`${color}${BOX.bl}${BOX.h.repeat(w)}${BOX.br}${UI.reset}`);
+  return out.join('\n');
+}
+
+// ── guidedPrompts() ──
+
+/**
+ * Render a "Try saying:" box with example prompts and optional footer.
+ */
+export function guidedPrompts(prompts: string[], footer?: string): string {
+  const lines = prompts.map(p => `  ${UI.brightCyan}${p}${UI.reset}`);
+  if (footer) {
+    lines.push('');
+    lines.push(`  ${UI.dim}${footer}${UI.reset}`);
+  }
+  return box('Try saying:', lines);
+}

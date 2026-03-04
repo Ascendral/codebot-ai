@@ -33,13 +33,16 @@ export { PolicyEnforcer, loadPolicy, generateDefaultPolicyFile } from './policy'
 export type { Policy, PolicyRbac, PolicyRole } from './policy';
 export { encrypt, decrypt, encryptLine, decryptLine, encryptContent, decryptContent, isEncryptionEnabled, deriveKey, getPassphrase } from './encryption';
 export type { EncryptionConfig } from './encryption';
-export { banner, randomGreeting, compactBanner, formatReaction, codiReact, sessionSummaryBanner, randomBanner, CODI_FACE, BANNER_1, BANNER_2, BANNER_3, animateReveal, animateVisorScan, animateEyeBoot, animateBootSequence, animateTyping, animateSessionEnd, shouldAnimate } from './banner';
+export { banner, randomGreeting, compactBanner, formatReaction, codiReact, sessionSummaryBanner, randomBanner, CODI_FACE, BANNER_1, BANNER_2, BANNER_3, animateReveal, animateVisorScan, animateEyeBoot, animateBootSequence, animateTyping, animateSessionEnd, animateWelcomeBoot, shouldAnimate } from './banner';
 export type { CodiMood, CodiReaction, AnimationSpeed, AnimationWriter, AnimationOptions } from './banner';
-export { box, riskBar, permissionCard, spinner, progressStep, diffPreview, sessionHeader, summaryBox, UI, BOX } from './ui';
+export { box, riskBar, permissionCard, spinner, progressStep, diffPreview, sessionHeader, summaryBox, UI, BOX, providerCard, guidedPrompts } from './ui';
+export type { ProviderCardItem } from './ui';
 export { TokenTracker, estimateRunCost } from './telemetry';
 export type { UsageRecord, SessionSummary, CostEstimate } from './telemetry';
 export { BrowserSession } from './tools/browser';
 export { runDoctor, formatDoctorReport } from './doctor';
+export { autoDetect, pickBestLocalModel, runQuickSetup, RECOMMENDED_MODELS } from './setup';
+export type { AutoDetectResult } from './setup';
 export { DARK_THEME, LIGHT_THEME, MONO_THEME, loadTheme, setTheme, getTheme, applyColor, getThemeNames } from './theme';
 export { ProviderRateLimiter, PROVIDER_RATE_DEFAULTS } from './provider-rate-limiter';
 export { LayoutEngine } from './tui/layout';

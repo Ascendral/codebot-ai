@@ -21,6 +21,7 @@ import {
   animateBootSequence,
   animateTyping,
   animateSessionEnd,
+  animateWelcomeBoot,
   shouldAnimate,
 } from './banner';
 import type { CodiMood, AnimationSpeed, AnimationWriter } from './banner';
@@ -415,5 +416,47 @@ describe('Animation system', () => {
     assert.strictEqual(typeof animateTyping, 'function');
     assert.strictEqual(typeof animateSessionEnd, 'function');
     assert.strictEqual(typeof shouldAnimate, 'function');
+  });
+});
+
+
+// ── animateWelcomeBoot tests ──
+
+describe('animateWelcomeBoot', () => {
+  it('includes detection steps in output', async () => {
+    const output: string[] = [];
+    const writer = (s: string) => { output.push(s); };
+    await animateWelcomeBoot(
+      BANNER_1,
+      '2.3.0',
+      'qwen2.5-coder:7b',
+      'ollama',
+      'test-session',
+      false,
+      ['Found Ollama on localhost:11434', 'Selected qwen2.5-coder:7b'],
+      'fast',
+      { writer },
+    );
+    const joined = output.join('');
+    assert.ok(joined.includes('Found Ollama'), 'Should include detection step');
+    assert.ok(joined.includes('qwen2.5-coder'), 'Should include model name');
+  });
+
+  it('includes version in output from boot sequence', async () => {
+    const output: string[] = [];
+    const writer = (s: string) => { output.push(s); };
+    await animateWelcomeBoot(
+      BANNER_1,
+      '2.3.0',
+      'gpt-4o',
+      'openai',
+      'test-session',
+      false,
+      [],
+      'fast',
+      { writer },
+    );
+    const joined = output.join('');
+    assert.ok(joined.includes('2.3.0'), 'Should include version from boot sequence');
   });
 });

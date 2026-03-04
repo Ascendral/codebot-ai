@@ -14,6 +14,7 @@ export interface SavedConfig {
   apiKey?: string;
   autoApprove?: boolean;
   maxIterations?: number;
+  firstRunComplete?: boolean;
 }
 
 /** Load saved config from ~/.codebot/config.json */
@@ -52,7 +53,7 @@ export function isFirstRun(): boolean {
 }
 
 /** Detect what local LLM servers are running */
-async function detectLocalServers(): Promise<Array<{ name: string; url: string; models: string[] }>> {
+export async function detectLocalServers(): Promise<Array<{ name: string; url: string; models: string[] }>> {
   const servers: Array<{ name: string; url: string; models: string[] }> = [];
   const candidates = [
     { url: 'http://localhost:11434', name: 'Ollama' },
@@ -420,3 +421,311 @@ function getKeyUrl(provider: string): string {
     default: return 'Check provider documentation';
   }
 }
+
+
+// ── Auto-detect result ──────────────────────────────────────────────────────
+
+export interface AutoDetectResult {
+  type: 'auto-start' | 'one-question';
+  model?: string;
+  provider?: string;
+  baseUrl?: string;
+  apiKey?: string;
+  localServers: Array<{ name: string; url: string; models: string[] }>;
+  detectedKeys: Map<string, string>; // provider -> envKey name
+}
+
+// ── Model ranking for auto-pick ─────────────────────────────────────────────
+
+const LOCAL_MODEL_RANKING: string[] = [
+  'qwen2.5-coder:32b', 'qwen2.5-coder:14b', 'qwen3:32b', 'qwen3:14b',
+  'deepseek-coder-v2:16b', 'deepseek-coder:33b', 'llama3.3:70b', 'llama3.1:70b',
+  'codellama:34b', 'qwen2.5-coder:7b', 'qwen3:8b',
+  'deepseek-coder:6.7b', 'mistral:7b', 'phi-4:14b', 'llama3.1:8b',
+];
+
+/** Pick the best local model from available models using coding capability ranking */
+export function pickBestLocalModel(available: string[]): string | undefined {
+  if (available.length === 0) return undefined;
+  for (const ranked of LOCAL_MODEL_RANKING) {
+    const match = available.find(m =>
+      m.toLowerCase() === ranked.toLowerCase() ||
+      m.toLowerCase().startsWith(ranked.split(':')[0].toLowerCase())
+    );
+    if (match) return match;
+  }
+  return available[0]; // fallback to first available
+}
+
+/** Best default model per cloud provider */
+export const RECOMMENDED_MODELS: Record<string, { model: string; name: string }> = {
+  anthropic: { model: 'claude-sonnet-4-6', name: 'Claude Sonnet 4' },
+  openai:    { model: 'gpt-4o',            name: 'GPT-4o' },
+  gemini:    { model: 'gemini-2.5-flash',  name: 'Gemini 2.5 Flash' },
+  deepseek:  { model: 'deepseek-chat',     name: 'DeepSeek Chat' },
+  groq:      { model: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B' },
+  mistral:   { model: 'mistral-large-latest', name: 'Mistral Large' },
+  xai:       { model: 'grok-3',            name: 'Grok-3' },
+};
+
+/** Provider priority order for auto-detection */
+const PROVIDER_PRIORITY = ['anthropic', 'openai', 'gemini', 'deepseek', 'groq', 'mistral', 'xai'];
+
+// ── Auto-detect ─────────────────────────────────────────────────────────────
+
+/** Smart auto-detect: probe local servers + env keys, return best config */
+export async function autoDetect(): Promise<AutoDetectResult> {
+  // 1. Check if config already exists (returning user)
+  const existing = loadConfig();
+  if (existing.model && existing.provider) {
+    return {
+      type: 'auto-start',
+      model: existing.model,
+      provider: existing.provider,
+      baseUrl: existing.baseUrl,
+      apiKey: existing.apiKey,
+      localServers: [],
+      detectedKeys: new Map(),
+    };
+  }
+
+  // 2. Detect local servers
+  const localServers = await detectLocalServers();
+
+  // 3. Detect env API keys
+  const detectedKeys = new Map<string, string>();
+  for (const [provider, defaults] of Object.entries(PROVIDER_DEFAULTS)) {
+    if (process.env[defaults.envKey]) {
+      detectedKeys.set(provider, defaults.envKey);
+    }
+  }
+
+  // 4. Auto-start: local server with models?
+  if (localServers.length > 0) {
+    const allModels = localServers.flatMap(s => s.models);
+    if (allModels.length > 0) {
+      const bestModel = pickBestLocalModel(allModels);
+      const server = localServers.find(s => s.models.includes(bestModel!));
+      return {
+        type: 'auto-start',
+        model: bestModel,
+        provider: 'openai', // Local servers use OpenAI-compatible API
+        baseUrl: server?.url || localServers[0].url,
+        localServers,
+        detectedKeys,
+      };
+    }
+  }
+
+  // 5. Auto-start: env API key?
+  for (const prov of PROVIDER_PRIORITY) {
+    if (detectedKeys.has(prov)) {
+      const rec = RECOMMENDED_MODELS[prov];
+      const defaults = PROVIDER_DEFAULTS[prov];
+      return {
+        type: 'auto-start',
+        model: rec.model,
+        provider: prov,
+        baseUrl: defaults?.baseUrl,
+        apiKey: process.env[detectedKeys.get(prov)!],
+        localServers,
+        detectedKeys,
+      };
+    }
+  }
+
+  // 6. Nothing found — need one question
+  return {
+    type: 'one-question',
+    localServers,
+    detectedKeys,
+  };
+}
+
+// ── Quick setup (one question) ──────────────────────────────────────────────
+
+/** Minimal one-question setup for when nothing is auto-detected */
+export async function runQuickSetup(detected: AutoDetectResult): Promise<SavedConfig> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+  // Import providerCard and guidedPrompts
+  const { providerCard } = await import('./ui');
+
+  const ollamaInstalled = detected.localServers.length > 0;
+
+  const items = [
+    {
+      key: '1',
+      icon: '\u{1F5A5}',
+      name: 'Local (Ollama)',
+      detail: 'free, private, runs on your machine',
+      subtext: ollamaInstalled
+        ? `\u2713 Ollama detected (${detected.localServers[0].models.length} models)`
+        : 'Install: curl -fsSL https://ollama.com/install.sh | sh',
+      recommended: true,
+      available: ollamaInstalled,
+    },
+    {
+      key: '2',
+      icon: '\u{1F7E3}',
+      name: 'Claude (Anthropic)',
+      detail: 'best for code',
+      subtext: 'Needs: ANTHROPIC_API_KEY',
+      available: detected.detectedKeys.has('anthropic'),
+    },
+    {
+      key: '3',
+      icon: '\u{1F7E2}',
+      name: 'GPT (OpenAI)',
+      detail: 'widely used',
+      subtext: 'Needs: OPENAI_API_KEY',
+      available: detected.detectedKeys.has('openai'),
+    },
+    {
+      key: '4',
+      icon: '\u2B21',
+      name: 'Other',
+      detail: 'Gemini, DeepSeek, Groq, Mistral, xAI',
+    },
+  ];
+
+  console.log('\n' + providerCard({ items }));
+
+  const choice = await ask(rl, fmt('  Select [1-4]: ', 'cyan'));
+  const choiceNum = parseInt(choice, 10);
+
+  let config: SavedConfig = {};
+
+  if (choiceNum === 1) {
+    // Local (Ollama)
+    if (ollamaInstalled && detected.localServers[0].models.length > 0) {
+      const bestModel = pickBestLocalModel(detected.localServers[0].models);
+      config = {
+        model: bestModel,
+        provider: 'openai',
+        baseUrl: detected.localServers[0].url,
+        autoApprove: false,
+        firstRunComplete: true,
+      };
+      console.log(fmt(`  \u2713 Selected: ${bestModel}`, 'green'));
+    } else {
+      console.log(fmt('\n  To get started with Ollama:', 'bold'));
+      console.log(fmt('  1. Install Ollama: https://ollama.com', 'dim'));
+      console.log(fmt('  2. Pull a model:   ollama pull qwen2.5-coder', 'dim'));
+      console.log(fmt('  3. Run codebot again\n', 'dim'));
+      rl.close();
+      return {};
+    }
+  } else if (choiceNum === 2 || choiceNum === 3) {
+    // Claude or GPT
+    const isAnthropic = choiceNum === 2;
+    const prov = isAnthropic ? 'anthropic' : 'openai';
+    const rec = RECOMMENDED_MODELS[prov];
+    const defaults = PROVIDER_DEFAULTS[prov];
+    const envKey = defaults?.envKey || '';
+    const existingKey = process.env[envKey];
+
+    if (existingKey) {
+      console.log(fmt(`  \u2713 Using ${envKey} from environment`, 'green'));
+      config = {
+        model: rec.model,
+        provider: prov,
+        baseUrl: defaults?.baseUrl,
+        apiKey: existingKey,
+        autoApprove: false,
+        firstRunComplete: true,
+      };
+    } else {
+      const keyUrl = getKeyUrl(prov);
+      console.log(fmt(`\n  Get your API key at: ${keyUrl}`, 'dim'));
+      const key = await ask(rl, fmt('  Paste your API key: ', 'cyan'));
+      if (key) {
+        config = {
+          model: rec.model,
+          provider: prov,
+          baseUrl: defaults?.baseUrl,
+          apiKey: key,
+          autoApprove: false,
+          firstRunComplete: true,
+        };
+        console.log(fmt(`  \u2713 Selected: ${rec.name}`, 'green'));
+      } else {
+        console.log(fmt(`\n  No key entered. Set it later:`, 'yellow'));
+        console.log(fmt(`    export ${envKey}="your-key-here"\n`, 'dim'));
+        rl.close();
+        return {};
+      }
+    }
+  } else if (choiceNum === 4) {
+    // Other providers sub-menu
+    console.log(fmt('\n  Choose provider:', 'bold'));
+    const others = [
+      { key: '1', prov: 'gemini',  name: 'Gemini (Google)' },
+      { key: '2', prov: 'deepseek', name: 'DeepSeek' },
+      { key: '3', prov: 'groq',    name: 'Groq' },
+      { key: '4', prov: 'mistral', name: 'Mistral' },
+      { key: '5', prov: 'xai',     name: 'xAI (Grok)' },
+    ];
+    for (const o of others) {
+      const hasKey = detected.detectedKeys.has(o.prov);
+      const status = hasKey ? fmt(' \u2713', 'green') : '';
+      console.log(fmt(`  [${o.key}]  ${o.name}${status}`, 'dim'));
+    }
+    const subChoice = await ask(rl, fmt('\n  Select [1-5]: ', 'cyan'));
+    const subNum = parseInt(subChoice, 10);
+    const selected = others[(subNum >= 1 && subNum <= 5) ? subNum - 1 : 0];
+    const prov = selected.prov;
+    const rec = RECOMMENDED_MODELS[prov];
+    const defaults = PROVIDER_DEFAULTS[prov];
+    const envKey = defaults?.envKey || '';
+    const existingKey = process.env[envKey];
+
+    if (existingKey) {
+      console.log(fmt(`  \u2713 Using ${envKey} from environment`, 'green'));
+      config = {
+        model: rec.model,
+        provider: prov,
+        baseUrl: defaults?.baseUrl,
+        apiKey: existingKey,
+        autoApprove: false,
+        firstRunComplete: true,
+      };
+    } else {
+      const keyUrl = getKeyUrl(prov);
+      console.log(fmt(`\n  Get your API key at: ${keyUrl}`, 'dim'));
+      const key = await ask(rl, fmt('  Paste your API key: ', 'cyan'));
+      if (key) {
+        config = {
+          model: rec.model,
+          provider: prov,
+          baseUrl: defaults?.baseUrl,
+          apiKey: key,
+          autoApprove: false,
+          firstRunComplete: true,
+        };
+        console.log(fmt(`  \u2713 Selected: ${rec.name}`, 'green'));
+      } else {
+        console.log(fmt(`\n  No key entered. Set it later:`, 'yellow'));
+        console.log(fmt(`    export ${envKey}="your-key-here"\n`, 'dim'));
+        rl.close();
+        return {};
+      }
+    }
+  } else {
+    // Invalid choice
+    console.log(fmt('  Invalid selection. Run codebot --setup to try again.\n', 'yellow'));
+    rl.close();
+    return {};
+  }
+
+  rl.close();
+
+  if (config.model) {
+    saveConfig(config);
+    console.log(fmt('  \u2713 Config saved\n', 'green'));
+  }
+  return config;
+}
+
+/** Full setup wizard — kept for --setup flag (backward compat) */
+export const runFullSetup = runSetup;
