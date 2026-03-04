@@ -25,7 +25,7 @@ import { TuiMode } from './tui/tui-mode';
 import { DashboardServer } from './dashboard/server';
 import { registerApiRoutes } from './dashboard/api';
 
-const VERSION = '2.2.0';
+const VERSION = '2.3.0';
 
 let verbose = false;
 

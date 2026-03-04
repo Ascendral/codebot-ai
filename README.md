@@ -4,7 +4,7 @@
 [![npm version](https://img.shields.io/npm/v/codebot-ai.svg)](https://www.npmjs.com/package/codebot-ai)
 [![license](https://img.shields.io/npm/l/codebot-ai.svg)](https://github.com/zanderone1980/codebot-ai/blob/main/LICENSE)
 [![node](https://img.shields.io/node/v/codebot-ai.svg)](https://nodejs.org)
-![tests](https://img.shields.io/badge/tests-907%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1035%2B%20passing-brightgreen)
 ![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![tools](https://img.shields.io/badge/tools-28-blue)
 
@@ -142,6 +142,11 @@ echo "explain this error" | codebot            # Pipe mode
 --max-iterations <n> Max agent loop iterations (default: 50)
 --no-animate         Disable mascot and banner animations
 --verbose            Show detailed debug output
+--tui                Full terminal UI mode (panels, keyboard nav)
+--dashboard          Start web dashboard on localhost:3120
+--doctor             Run environment health checks
+--theme <name>       Color theme: dark, light, mono
+--no-stream          Disable streaming token display
 ```
 
 ### Interactive Commands
@@ -160,6 +165,10 @@ echo "explain this error" | codebot            # Pipe mode
 /metrics    Show session metrics (token counts, latency, costs)
 /risk       Show risk assessment history
 /config     Show configuration
+/doctor     Run environment health checks
+/toolcost   Show per-tool cost breakdown
+/rate       Show provider rate limit status
+/theme      Switch color theme
 /quit       Exit
 ```
 
@@ -315,7 +324,7 @@ CodeBot is hardened for continuous operation:
 - **Context compaction** — when the conversation exceeds the model's context window, messages are intelligently summarized
 - **Process resilience** — unhandled exceptions and rejections are caught, logged, and the REPL keeps running
 - **Routine timeouts** — scheduled tasks are capped at 5 minutes to prevent the scheduler from hanging
-- **907+ tests** — comprehensive suite covering core agent, security, extension, and action
+- **1035+ tests** — comprehensive suite covering core agent, security, extension, and action
 
 ## Programmatic API
 
@@ -365,6 +374,19 @@ src/
   replay.ts             Session replay
   capabilities.ts       Per-tool capability restrictions
   banner.ts             Mascot and banner animation system
+  theme.ts              Color themes (dark/light/mono)
+  doctor.ts             Environment health checks
+  provider-rate-limiter.ts  Proactive RPM/TPM rate limiting
+  telemetry.ts          Token tracking and cost estimation
+  tui/
+    layout.ts           Panel-based TUI layout engine
+    keyboard.ts         Raw stdin keyboard input handler
+    screen.ts           ANSI terminal screen control
+    tui-mode.ts         Full TUI mode integration
+  dashboard/
+    server.ts           HTTP server (node:http, zero deps)
+    api.ts              REST API for sessions/audit/metrics
+    static/             Browser UI (HTML/CSS/JS)
   context/
     manager.ts          Context window management, LLM-powered compaction
     repo-map.ts         Project structure scanner

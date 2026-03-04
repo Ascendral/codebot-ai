@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.3.0] — 2026-03-02
+
+### Added
+- **TUI mode** (`--tui`) — full terminal UI with plan/output/details panels, keyboard-driven navigation (Tab=cycle, arrows=scroll, y/n=approve/deny, q=quit), real-time step tracking
+- **Web dashboard** (`--dashboard`) — local browser UI on port 3120 with session history, audit chain viewer with integrity verification, metrics summary, and SARIF export
+- **Theme system** (`--theme <name>`) — dark, light, and mono themes with semantic color roles; respects `NO_COLOR` env; persisted in config; `/theme` slash command
+- **Provider-aware rate limiting** — proactive sliding-window RPM/TPM tracking per provider (Anthropic, OpenAI, Gemini, DeepSeek, Groq, Mistral, xAI); automatic backoff on 429; `/rate` slash command
+- **Per-tool cost breakdown** — `TokenTracker.getToolCostBreakdown()` with per-tool input/output tokens, USD cost, call count, and percentage of total; `/toolcost` slash command
+- **`codebot doctor`** (`--doctor`) — 12 environment health checks (Node, npm, config, sessions, audit integrity, disk, local LLM, cloud API keys, encryption, git, Docker); `/doctor` slash command
+- **Enhanced streaming display** — `streamingIndicator()` with tokens/sec, `budgetBar()` with color gradient, `costBadge()` for REPL prompt, `timedStep()` for step timing, `collapsibleSection()` for verbose output
+- **TUI layout engine** — `LayoutEngine` with panel management, focus cycling, scroll, bordered rendering; `Screen` abstraction with alt screen buffer; `KeyboardListener` with raw stdin parsing
+- **Dashboard REST API** — 9 endpoints: `/api/health`, `/api/sessions` (paginated), `/api/sessions/:id`, `/api/audit` (filterable), `/api/audit/verify`, `/api/audit/:sessionId`, `/api/metrics/summary`, `/api/usage`, `POST /api/audit/export`
+- **`--no-stream` flag** — disable streaming token display
+
+### Changed
+- CLI help text updated with all new flags (`--tui`, `--dashboard`, `--doctor`, `--theme`, `--no-stream`)
+- UI component library: hardcoded colors replaced with theme-aware `getTheme().colors`
+- Banner system: local color constants replaced with theme integration
+- Agent loop: yields `stream_progress` events every 500ms during LLM streaming
+- Agent loop: `ProviderRateLimiter` integrated — acquire/release/backoff around provider calls
+- Tests: 907 → 1035+ (128 new tests across 12 test files)
+
+### Security
+- Dashboard server binds to `127.0.0.1` only (no network exposure)
+- Dashboard static file serving prevents directory traversal
+- Dashboard frontend uses `escapeHtml()` for all user-data rendering (XSS prevention)
+- Audit chain verification endpoint validates SHA-256 hash chains
+
+
 ## [2.2.0] — 2026-03-02
 
 ### Added

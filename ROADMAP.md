@@ -8,8 +8,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Version | 2.2.0 |
-| Tests | 907 passing |
+| Version | 2.3.0 |
+| Tests | 1035+ passing |
 | Tools | 28 built-in + MCP + plugins |
 | Security | 8-layer stack: policy, RBAC, capabilities, risk scoring, path safety, secret detection, SSRF, sandbox |
 | Platforms | CLI, VS Code extension, GitHub Action |
@@ -32,6 +32,7 @@
 | v2.1.5 | Hardened II | RBAC consistency, browser safety, encryption wiring | 559 | Shipped |
 | v2.1.6 | Intelligence | Prompt caching, vision/multimodal, model routing, JSON mode | 586 | Shipped |
 | v2.2.0 | Quality | 907 tests, CLI UI polish, permission cards, cost estimation, browser resilience | 907 | Shipped |
+| v2.3.0 | Platform | TUI mode, web dashboard, theme system, provider rate limiting, doctor | 1035 | Shipped |
 
 ---
 
@@ -65,7 +66,7 @@
 
 ---
 
-## Next: v2.3.0 — Platform
+## Shipped: v2.3.0 — Platform
 
 **Theme:** Run anywhere, for anyone.
 
@@ -92,10 +93,18 @@
 - Streaming response display (token-by-token)
 - Cost budget visualization
 
+### Completed
+- \u2705 TUI mode with 3-panel layout, keyboard navigation, permission dialogs
+- \u2705 Web dashboard with session viewer, audit chain verification, metrics
+- \u2705 Theme system (dark/light/mono) with NO_COLOR support
+- \u2705 Provider-aware rate limiting with sliding-window RPM/TPM
+- \u2705 Per-tool cost breakdown + doctor command (deferred from v2.2.0)
+- \u2705 Enhanced streaming display with budget visualization
+
 ### Gate Criteria
-- TUI prototype working
-- Web dashboard serving locally
-- 900+ tests
+- 1035+ tests, 0 failures \u2705
+- TUI mode working \u2705
+- Web dashboard serving locally \u2705
 
 ---
 
@@ -146,4 +155,4 @@ The only open-source AI coding agent that is:
 - **Provider-agnostic** — any LLM, local or cloud
 - **Zero dependencies** — pure Node.js, no install bloat
 - **Enterprise-ready** — VS Code extension, GitHub Action, CI/CD integration
-- **Tested** — 880+ tests covering every tool and security boundary
+- **Tested** — 1035+ tests covering every tool and security boundary
