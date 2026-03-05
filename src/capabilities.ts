@@ -169,7 +169,8 @@ export class CapabilityChecker {
   /** Simple glob matching (** = any depth, * = one segment). */
   private matchGlob(relativePath: string, pattern: string): boolean {
     const cleanPattern = pattern.replace(/^\.\//, '');
-    const cleanPath = relativePath.replace(/^\.\//, '');
+    // Normalize Windows backslashes for cross-platform glob matching
+    const cleanPath = relativePath.replace(/^\.\//, '').replace(/\\/g, '/');
 
     // Exact match
     if (cleanPath === cleanPattern) return true;
