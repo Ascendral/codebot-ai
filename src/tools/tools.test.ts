@@ -52,8 +52,8 @@ describe('ToolRegistry', () => {
   it('all tools have correct permission levels', () => {
     const registry = new ToolRegistry();
     const auto = ['read_file', 'glob', 'grep', 'think', 'memory', 'routine', 'code_analysis', 'multi_search', 'task_planner', 'diff_viewer', 'image_info', 'pdf_extract', 'code_review'];
-    const prompt = ['write_file', 'edit_file', 'batch_edit', 'web_fetch', 'browser', 'web_search', 'git', 'docker', 'database', 'test_runner', 'http_client', 'notification', 'package_manager', 'app', 'graphics'];
-    const alwaysAsk = ['execute', 'ssh_remote'];
+    const prompt = ['write_file', 'edit_file', 'batch_edit', 'web_fetch', 'browser', 'web_search', 'git', 'docker', 'database', 'test_runner', 'http_client', 'notification', 'package_manager', 'app', 'graphics', 'execute'];
+    const alwaysAsk = ['ssh_remote'];
 
     for (const name of auto) {
       assert.strictEqual(registry.get(name)!.permission, 'auto', `${name} should be auto`);

@@ -87,7 +87,7 @@ export const FILTERED_ENV_VARS = [
 export class ExecuteTool implements Tool {
   name = 'execute';
   description = 'Execute a shell command. Returns stdout and stderr. Use for running tests, builds, git commands, etc.';
-  permission: Tool['permission'] = 'always-ask';
+  permission: Tool['permission'] = 'prompt';
   parameters = {
     type: 'object',
     properties: {

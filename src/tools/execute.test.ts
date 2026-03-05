@@ -6,7 +6,7 @@ describe('ExecuteTool — safety (v2.1.5)', () => {
   it('has correct tool metadata', () => {
     const tool = new ExecuteTool();
     assert.strictEqual(tool.name, 'execute');
-    assert.strictEqual(tool.permission, 'always-ask');
+    assert.strictEqual(tool.permission, 'prompt');
   });
 
   it('blocks rm -rf /', async () => {

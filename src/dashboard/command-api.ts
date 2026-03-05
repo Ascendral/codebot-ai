@@ -15,12 +15,9 @@ import { BLOCKED_PATTERNS, FILTERED_ENV_VARS } from '../tools/execute';
 const QUICK_ACTIONS: Record<string, { prompt: string; command: string }> = {
   'git-status':   { prompt: 'Run git status and show me the result briefly.',                      command: 'git status' },
   'run-tests':    { prompt: 'Run the project test suite and report a brief summary of results.',   command: 'npm test 2>&1 || true' },
-  'list-tools':   { prompt: 'List all your available tools with a one-line description each.',     command: 'echo "Requires agent connection for tool listing"' },
   'health-check': { prompt: 'Check system health: run node --version, git --version, and df -h.',  command: 'echo "=== Node ===" && node --version && echo "=== Git ===" && git --version && echo "=== Disk ===" && df -h .' },
   'git-log':      { prompt: 'Run git log --oneline -10 and show me the output.',                   command: 'git log --oneline -10' },
   'git-diff':     { prompt: 'Run git diff --stat and show me the summary.',                        command: 'git diff --stat' },
-  'list-files':   { prompt: 'List the files in the current project root directory.',               command: 'ls -la' },
-  'npm-outdated': { prompt: 'Run npm outdated and show me what packages need updating.',           command: 'npm outdated 2>&1 || true' },
 };
 
 /** Build a filtered env for child processes (strip secrets) */
