@@ -101,15 +101,14 @@ describe('Command Center API', () => {
     registerCommandRoutes(server, null);
     await server.start();
 
-    // Agent is null so it returns 503, but let's test the action check
-    // by creating a test that proves the route exists
+    // Quick actions now work standalone — unknown action returns 400
     const res = await request(
       `http://127.0.0.1:${port}/api/command/quick-action`,
       'POST',
       JSON.stringify({ action: 'nonexistent' }),
     );
-    // 503 because agent is null — checked before action validation
-    assert.strictEqual(res.status, 503);
+    // 400 because action is validated first (standalone mode runs exec)
+    assert.strictEqual(res.status, 400);
   });
 
   it('POST /api/command/exec streams stdout for simple command', async () => {

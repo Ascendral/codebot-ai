@@ -29,7 +29,7 @@ import { DashboardServer } from './dashboard/server';
 import { registerApiRoutes } from './dashboard/api';
 import { registerCommandRoutes } from './dashboard/command-api';
 
-const VERSION = '2.3.0';
+const VERSION = '2.5.2';
 
 let verbose = false;
 
