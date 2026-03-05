@@ -24,6 +24,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+        env:
+          CODEBOT_NO_DOCKER: '1'
 
   extension-and-action-tests:
     runs-on: ubuntu-latest

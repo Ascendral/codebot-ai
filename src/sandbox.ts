@@ -48,6 +48,12 @@ let _dockerAvailable: boolean | null = null;
 export function isDockerAvailable(): boolean {
   if (_dockerAvailable !== null) return _dockerAvailable;
 
+  // Allow disabling Docker sandbox via env var (CI, testing)
+  if (process.env.CODEBOT_NO_DOCKER === '1') {
+    _dockerAvailable = false;
+    return false;
+  }
+
   try {
     execSync('docker info', {
       timeout: 2000,
