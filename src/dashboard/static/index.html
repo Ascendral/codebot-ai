@@ -3,253 +3,162 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CodeBot AI — Dashboard</title>
-  <link rel="stylesheet" href="style.css?v=13">
-  <link rel="icon" href="favicon.svg?v=13" type="image/svg+xml">
+  <title>CodeBot AI</title>
+  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="icon" href="favicon.svg?v=14" type="image/svg+xml">
 </head>
 <body>
+  <!-- Matrix Code Rain Canvas -->
+  <canvas id="matrix-bg"></canvas>
+
+  <!-- Main Content -->
   <div id="app">
-    <!-- Status Bar -->
-    <header id="status-bar">
-      <div class="status-left">
-        <div class="status-logo">
-          <svg width="22" height="22" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
-                <stop stop-color="#3b82f6"/>
-                <stop offset="1" stop-color="#06b6d4"/>
-              </linearGradient>
-            </defs>
-            <rect x="10" y="14" width="44" height="36" rx="9" fill="none" stroke="url(#lg)" stroke-width="3.5"/>
-            <rect x="3" y="24" width="6" height="14" rx="3" fill="none" stroke="url(#lg)" stroke-width="2.8"/>
-            <rect x="55" y="24" width="6" height="14" rx="3" fill="none" stroke="url(#lg)" stroke-width="2.8"/>
-            <g fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M24 26 L33 32 L24 38"/>
-              <path d="M37 39 H44"/>
-            </g>
-          </svg>
-          <span class="status-title">CodeBot</span>
-          <span class="status-badge">AI</span>
-        </div>
-        <div class="status-divider"></div>
-        <div class="status-item" id="status-version">
-          <span class="status-label">Version</span>
-          <span class="status-value" id="status-ver-val">--</span>
-        </div>
-        <div class="status-item" id="status-mode">
-          <span class="status-label">Mode</span>
-          <span class="status-value mode-badge" id="status-mode-val">--</span>
-        </div>
-        <div class="status-item" id="status-sessions">
-          <span class="status-label">Sessions</span>
-          <span class="status-value" id="status-sessions-val">--</span>
-        </div>
-        <div class="status-item" id="status-uptime">
-          <span class="status-label">Uptime</span>
-          <span class="status-value" id="status-uptime-val">--</span>
-        </div>
+    <!-- Connection Indicator -->
+    <div id="conn-indicator">
+      <span class="conn-dot"></span>
+      <span class="conn-text">Connecting...</span>
+    </div>
+
+    <!-- Center Stage -->
+    <div id="center-stage">
+      <!-- Logo -->
+      <div id="logo-area">
+        <img src="logo.svg?v=14" alt="CodeBot" id="logo-img" />
+        <div id="logo-tagline">AI Development Console</div>
       </div>
-      <div class="status-right">
-        <div class="status-connection" id="status-conn">
-          <span class="conn-dot"></span>
-          <span class="conn-text">Connecting...</span>
-        </div>
-      </div>
-    </header>
 
-    <!-- Nav Rail -->
-    <nav id="nav-rail">
-      <div class="rail-top">
-        <a href="#sessions" class="rail-link active" data-section="sessions" title="Sessions">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        </a>
-        <a href="#audit" class="rail-link" data-section="audit" title="Audit Trail">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        </a>
-        <a href="#metrics" class="rail-link" data-section="metrics" title="Metrics">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
-        </a>
-        <a href="#command" class="rail-link" data-section="command" title="Command Center">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-        </a>
-      </div>
-    </nav>
+      <!-- Content Panels (swapped by nav) -->
+      <div id="content-area">
 
-    <!-- Main Workspace -->
-    <main id="workspace">
-      <!-- Sessions -->
-      <section id="section-sessions" class="section active">
-        <div class="section-header">
-          <div>
-            <h1>Sessions</h1>
-            <p class="section-subtitle">Browse and inspect your CodeBot conversations</p>
-          </div>
-          <div class="header-stats" id="session-stats"></div>
-        </div>
-        <div id="sessions-list" class="card-grid"></div>
-        <div id="session-detail" class="detail-panel" style="display:none"></div>
-      </section>
-
-      <!-- Audit -->
-      <section id="section-audit" class="section">
-        <div class="section-header">
-          <div>
-            <h1>Audit Trail</h1>
-            <p class="section-subtitle">Cryptographically verified tool execution log</p>
-          </div>
-          <div class="header-actions">
-            <button id="btn-verify" class="btn btn-primary">&#x2713; Verify Chain</button>
-            <span id="verify-result" class="verify-badge"></span>
-          </div>
-        </div>
-        <div id="audit-timeline" class="timeline-container"></div>
-      </section>
-
-      <!-- Metrics -->
-      <section id="section-metrics" class="section">
-        <div class="section-header">
-          <div>
-            <h1>Metrics</h1>
-            <p class="section-subtitle">Usage analytics and performance overview</p>
-          </div>
-        </div>
-        <div id="metrics-cards" class="stats-grid"></div>
-        <div id="usage-chart" class="chart-panel"></div>
-        <div id="tool-breakdown" class="breakdown-panel"></div>
-      </section>
-
-      <!-- Command Center -->
-      <section id="section-command" class="section">
-        <div class="section-header">
-          <div>
-            <h1>Command Center</h1>
-            <p class="section-subtitle">Chat, execute commands, and run tools interactively</p>
-          </div>
-          <div id="cmd-status" class="header-stats"></div>
-        </div>
-
-        <div id="cmd-unavailable" class="cmd-unavailable" style="display:none">
-          <div class="empty-state">
-            <div class="empty-icon">&#x2318;</div>
-            <h3>Agent Not Connected</h3>
-            <p>Start CodeBot with <code>codebot --dashboard</code> to enable interactive features.</p>
+        <!-- Chat Panel (default) -->
+        <div id="panel-chat" class="panel active">
+          <div id="chat-messages" class="chat-messages"></div>
+          <div class="chat-input-row">
+            <input type="text" id="chat-input" class="chat-input"
+                   placeholder="Ask CodeBot anything..." autocomplete="off" />
+            <button id="chat-send" class="btn-send">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
           </div>
         </div>
 
-        <div id="cmd-available" style="display:none">
-          <div class="cmd-tabs">
-            <button class="cmd-tab active" data-cmd-tab="chat">Chat</button>
-            <button class="cmd-tab" data-cmd-tab="quick">Quick Actions</button>
-            <button class="cmd-tab" data-cmd-tab="terminal">Terminal</button>
-            <button class="cmd-tab" data-cmd-tab="toolrunner">Tool Runner</button>
+        <!-- Sessions Panel -->
+        <div id="panel-sessions" class="panel">
+          <div class="panel-title-row">
+            <h2>Sessions</h2>
+            <div id="session-stats" class="panel-stats"></div>
           </div>
+          <div id="sessions-list" class="card-grid"></div>
+          <div id="session-detail" class="detail-panel" style="display:none"></div>
+        </div>
 
-          <!-- Chat -->
-          <div id="cmd-chat" class="cmd-panel active">
-            <div id="chat-messages" class="chat-messages"></div>
-            <div class="chat-input-row">
-              <input type="text" id="chat-input" class="chat-input"
-                     placeholder="Ask CodeBot anything..." autocomplete="off" />
-              <button id="chat-send" class="btn btn-primary">Send</button>
+        <!-- Terminal Panel -->
+        <div id="panel-terminal" class="panel">
+          <div class="terminal-window">
+            <div class="terminal-titlebar">
+              <div class="terminal-dots">
+                <span class="dot dot-red"></span>
+                <span class="dot dot-yellow"></span>
+                <span class="dot dot-green"></span>
+              </div>
+              <span class="terminal-title">codebot &mdash; bash</span>
+              <div class="terminal-dots-spacer"></div>
+            </div>
+            <div id="terminal-output" class="terminal-output"></div>
+            <div class="terminal-input-row">
+              <span class="terminal-prompt">$</span>
+              <input type="text" id="terminal-input" class="terminal-input"
+                     placeholder="Enter command..." autocomplete="off" />
             </div>
           </div>
+        </div>
 
+        <!-- Tools Panel -->
+        <div id="panel-tools" class="panel">
+          <div class="panel-title-row">
+            <h2>Tools</h2>
+          </div>
           <!-- Quick Actions -->
-          <div id="cmd-quick" class="cmd-panel">
-            <div class="quick-grid">
-              <button class="quick-btn" data-action="git-status">
-                <span class="quick-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
-                </span>
-                Git Status
-              </button>
-              <button class="quick-btn" data-action="run-tests">
-                <span class="quick-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                </span>
-                Run Tests
-              </button>
-              <button class="quick-btn" data-action="git-log">
-                <span class="quick-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                </span>
-                Git Log
-              </button>
-              <button class="quick-btn" data-action="git-diff">
-                <span class="quick-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M18 9l-6-6-6 6"/></svg>
-                </span>
-                Git Diff
-              </button>
-              <button class="quick-btn" data-action="health-check">
-                <span class="quick-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                </span>
-                Health Check
-              </button>
-            </div>
-            <div id="quick-output" class="cmd-output"></div>
+          <div class="quick-grid">
+            <button class="quick-btn" data-action="git-status">
+              <span class="quick-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
+              </span>
+              Git Status
+            </button>
+            <button class="quick-btn" data-action="run-tests">
+              <span class="quick-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </span>
+              Run Tests
+            </button>
+            <button class="quick-btn" data-action="git-log">
+              <span class="quick-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </span>
+              Git Log
+            </button>
+            <button class="quick-btn" data-action="health-check">
+              <span class="quick-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              </span>
+              Health Check
+            </button>
           </div>
-
-          <!-- Terminal -->
-          <div id="cmd-terminal" class="cmd-panel">
-            <div class="terminal-window">
-              <div class="terminal-titlebar">
-                <div class="terminal-dots">
-                  <span class="dot dot-red"></span>
-                  <span class="dot dot-yellow"></span>
-                  <span class="dot dot-green"></span>
-                </div>
-                <span class="terminal-title">codebot &mdash; bash</span>
-                <div class="terminal-dots-spacer"></div>
-              </div>
-              <div id="terminal-output" class="terminal-output"></div>
-              <div class="terminal-input-row">
-                <span class="terminal-prompt">$</span>
-                <input type="text" id="terminal-input" class="terminal-input"
-                       placeholder="Enter command..." autocomplete="off" />
-              </div>
-            </div>
-          </div>
-
+          <div id="quick-output" class="cmd-output"></div>
           <!-- Tool Runner -->
-          <div id="cmd-toolrunner" class="cmd-panel">
+          <div class="tool-runner-section">
+            <h3>Tool Runner</h3>
             <div class="tool-runner-row">
               <select id="tool-select" class="tool-select">
                 <option value="">Select a tool...</option>
               </select>
-              <button id="tool-run-btn" class="btn btn-primary" disabled>Execute</button>
+              <button id="tool-run-btn" class="btn-action" disabled>Execute</button>
             </div>
             <div id="tool-description" class="tool-description"></div>
             <div id="tool-form" class="tool-form"></div>
             <div id="tool-result" class="cmd-output"></div>
           </div>
         </div>
-      </section>
-    </main>
 
-    <!-- Context Panel (Right) -->
-    <aside id="context-panel">
-      <div class="panel-section">
-        <div class="panel-header">
-          <h3>Activity</h3>
-          <span class="panel-badge" id="activity-count">0</span>
+        <!-- Metrics Panel -->
+        <div id="panel-metrics" class="panel">
+          <div class="panel-title-row">
+            <h2>Metrics</h2>
+          </div>
+          <div id="metrics-cards" class="stats-grid"></div>
+          <div id="usage-chart" class="chart-panel"></div>
+          <div id="tool-breakdown" class="breakdown-panel"></div>
         </div>
-        <div id="activity-feed" class="activity-feed">
-          <div class="empty-state-sm">No activity yet</div>
-        </div>
+
       </div>
-      <div class="panel-section">
-        <div class="panel-header">
-          <h3>Tool Log</h3>
-        </div>
-        <div id="tool-log" class="tool-log">
-          <div class="empty-state-sm">No tool calls yet</div>
-        </div>
-      </div>
-    </aside>
+    </div>
+
+    <!-- Bottom Nav Pills -->
+    <nav id="bottom-nav">
+      <button class="nav-pill active" data-panel="chat">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Chat</span>
+      </button>
+      <button class="nav-pill" data-panel="sessions">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Sessions</span>
+      </button>
+      <button class="nav-pill" data-panel="terminal">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        <span>Terminal</span>
+      </button>
+      <button class="nav-pill" data-panel="tools">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        <span>Tools</span>
+      </button>
+      <button class="nav-pill" data-panel="metrics">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        <span>Metrics</span>
+      </button>
+    </nav>
   </div>
 
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>
