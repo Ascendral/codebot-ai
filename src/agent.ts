@@ -235,7 +235,7 @@ export class Agent {
       let toolCalls: ToolCall[] = [];
       let streamError: string | null = null;
       let streamTokenCount = 0;
-      let streamStartTime = Date.now();
+      const streamStartTime = Date.now();
       let lastProgressTime = 0;
 
       // Stream LLM response — wrapped in try-catch for resilience
