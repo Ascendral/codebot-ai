@@ -1,24 +1,17 @@
 /**
- * Delegate Tool for CodeBot v2.2.0-alpha
+ * Delegate Tool for CodeBot
  *
  * Allows the parent agent to spawn child agents for parallel work.
- * Each child gets a scoped task, inherits policy, and reports back.
- *
- * Usage:
- *   delegate({ task: "Refactor auth module", files: ["src/auth.ts"] })
- *   delegate({ tasks: [{ task: "Fix file1", files: [...] }, { task: "Fix file2", files: [...] }] })
- *
- * Swarm mode (v2.3+):
- *   delegate({ task: "Design API", files: [...], mode: "swarm", strategy: "debate" })
+ * Supports both legacy (simple parallel) and swarm (multi-LLM collaboration) modes.
  */
 
 import { Tool } from '../types';
 import { Orchestrator, AgentTask, AgentResult, generateTaskId } from '../orchestrator';
-import { SwarmOrchestrator, SwarmStrategyType, SwarmEvent, AgentContribution } from '../swarm';
+import { SwarmOrchestrator, SwarmStrategyType, SwarmTaskContext, AgentContribution } from '../swarm';
 
 export class DelegateTool implements Tool {
   name = 'delegate';
-  description = 'Spawn child agent(s) to handle subtasks in parallel. Use for multi-file operations, parallel refactoring, or independent tasks. Each child gets a scoped task description and optional file context. Results are collected and returned. Supports swarm mode for multi-LLM collaboration.';
+  description = 'Spawn child agent(s) to handle subtasks. Supports two modes: "legacy" (simple parallel delegation) and "swarm" (multi-LLM collaboration with strategies like debate, mixture-of-agents, pipeline, fan-out, or generator-critic).';
   permission: Tool['permission'] = 'prompt';
   parameters = {
     type: 'object',
@@ -58,42 +51,61 @@ export class DelegateTool implements Tool {
   private orchestrator: Orchestrator | null = null;
   private swarmOrchestrator: SwarmOrchestrator | null = null;
 
-  /** Set the orchestrator instance (injected by Agent) */
-  setOrchestrator(orchestrator: Orchestrator) {
+  /** Set the legacy orchestrator instance (injected by Agent) */
+  setOrchestrator(orchestrator: Orchestrator): void {
     this.orchestrator = orchestrator;
   }
 
-  /** Set the swarm orchestrator instance (injected by Agent for swarm mode) */
-  setSwarmOrchestrator(swarmOrchestrator: SwarmOrchestrator) {
-    this.swarmOrchestrator = swarmOrchestrator;
+  /** Set the swarm orchestrator instance (injected by Agent) */
+  setSwarmOrchestrator(swarm: SwarmOrchestrator): void {
+    this.swarmOrchestrator = swarm;
   }
 
   async execute(args: Record<string, unknown>): Promise<string> {
-    // ── Swarm mode ──
-    if (args.mode === 'swarm' && this.swarmOrchestrator) {
-      const taskDescription = (args.task as string) || 'Swarm task';
-      const files = (args.files as string[]) || [];
-      const strategy = (args.strategy as SwarmStrategyType) || 'auto';
+    const mode = (args.mode as string) || 'legacy';
 
-      const taskContext = {
-        id: generateTaskId(),
-        description: taskDescription,
-        files,
-        strategy,
-      };
-
-      const contributions: AgentContribution[] = [];
-
-      for await (const event of this.swarmOrchestrator.execute(taskContext)) {
-        if (event.type === 'contribution') {
-          contributions.push(event.data as AgentContribution);
-        }
+    // ── Swarm Mode ──
+    if (mode === 'swarm') {
+      if (!this.swarmOrchestrator) {
+        return 'Error: Swarm orchestration is not enabled. Configure providers in swarm config.';
       }
 
-      return this.formatSwarmResults(contributions);
+      const task = args.task as string;
+      if (!task) {
+        return 'Error: Provide a "task" string for swarm mode.';
+      }
+
+      const strategy = (args.strategy as SwarmStrategyType) || 'auto';
+      const files = args.files as string[] | undefined;
+
+      const contributions: AgentContribution[] = [];
+      const events: string[] = [];
+
+      try {
+        for await (const event of this.swarmOrchestrator.execute(task, {
+          files,
+          preferredStrategy: strategy,
+        })) {
+          if (event.type === 'agent_complete' && event.data) {
+            const data = event.data as AgentContribution;
+            contributions.push(data);
+          }
+          if (event.type === 'strategy_selected') {
+            events.push('Strategy: ' + (event.strategy || 'auto'));
+          }
+          if (event.type === 'swarm_complete') {
+            events.push('Swarm complete');
+          }
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return 'Swarm error: ' + msg;
+      }
+
+      return this.formatSwarmResults(contributions, events);
     }
 
-    // ── Legacy mode (existing behavior) ──
+    // ── Legacy Mode ──
     if (!this.orchestrator) {
       return 'Error: Multi-agent orchestration is not enabled. Start with --router or configure orchestration in policy.';
     }
@@ -108,10 +120,9 @@ export class DelegateTool implements Tool {
 
       const check = this.orchestrator.canSpawn();
       if (!check.allowed) {
-        return `Error: Cannot spawn child agent — ${check.reason}`;
+        return 'Error: Cannot spawn child agent -- ' + (check.reason || 'unknown');
       }
 
-      // Execute with a stub executor (real implementation wired in Agent)
       const result = await this.orchestrator.delegate(task, this.createChildExecutor());
       return this.formatResult(result);
     }
@@ -135,19 +146,10 @@ export class DelegateTool implements Tool {
     return 'Error: Provide either "task" (string) for a single child agent, or "tasks" (array) for parallel delegation.';
   }
 
-  /**
-   * Create a child executor function.
-   * In the real implementation, this creates a new Agent instance
-   * with inherited policy and scoped context.
-   *
-   * For now, this returns a stub that simulates child execution.
-   * The Agent class will override this with real execution.
-   */
   private createChildExecutor(): (task: AgentTask) => Promise<{ output: string; toolCalls: string[]; filesModified: string[] }> {
     return async (task: AgentTask) => {
-      // Stub: the real executor is injected by the Agent class
       return {
-        output: `Child agent completed: ${task.description}`,
+        output: 'Child agent completed: ' + task.description,
         toolCalls: [],
         filesModified: [],
       };
@@ -155,43 +157,47 @@ export class DelegateTool implements Tool {
   }
 
   private formatResult(result: AgentResult): string {
-    const statusIcon = result.status === 'success' ? '✅' : result.status === 'timeout' ? '⏱' : '❌';
-    let output = `${statusIcon} Child agent: ${result.description}\n`;
-    output += `Status: ${result.status} (${result.durationMs}ms)\n`;
+    const statusIcon = result.status === 'success' ? '[OK]' : result.status === 'timeout' ? '[TIMEOUT]' : '[ERROR]';
+    let output = statusIcon + ' Child agent: ' + result.description + '\n';
+    output += 'Status: ' + result.status + ' (' + result.durationMs + 'ms)\n';
 
     if (result.toolCalls.length > 0) {
-      output += `Tools: ${result.toolCalls.join(', ')}\n`;
+      output += 'Tools: ' + result.toolCalls.join(', ') + '\n';
     }
     if (result.filesModified.length > 0) {
-      output += `Files modified: ${result.filesModified.join(', ')}\n`;
+      output += 'Files modified: ' + result.filesModified.join(', ') + '\n';
     }
     if (result.output) {
-      output += `Output: ${result.output}\n`;
+      output += 'Output: ' + result.output + '\n';
     }
     if (result.error) {
-      output += `Error: ${result.error}\n`;
+      output += 'Error: ' + result.error + '\n';
     }
 
     return output;
   }
 
-  private formatSwarmResults(contributions: AgentContribution[]): string {
-    if (contributions.length === 0) return 'No swarm contributions received.';
+  private formatSwarmResults(contributions: AgentContribution[], events: string[]): string {
+    const lines: string[] = [];
+    lines.push('## Swarm Results (' + contributions.length + ' agents)\n');
 
-    const lines = [`## Swarm Results (${contributions.length} contributions)\n`];
+    if (events.length > 0) {
+      lines.push(events.join(' | ') + '\n');
+    }
 
     for (const c of contributions) {
-      const role = c.role || 'agent';
-      const model = c.model || 'unknown';
-      const round = c.round != null ? c.round : '?';
-      lines.push(`### [${role}] (model: ${model}, round: ${round})`);
+      lines.push('### [' + c.role.toUpperCase() + '] ' + c.model);
+      lines.push('Round: ' + c.round + ' | Duration: ' + c.durationMs + 'ms');
 
-      if (c.filesModified && c.filesModified.length > 0) {
-        lines.push(`- Files modified: ${c.filesModified.join(', ')}`);
+      if (c.toolCalls.length > 0) {
+        lines.push('Tools: ' + c.toolCalls.join(', '));
       }
-      if (c.output) {
-        const truncated = c.output.length > 500 ? c.output.substring(0, 500) + '...' : c.output;
-        lines.push(`- Output: ${truncated}`);
+      if (c.filesModified.length > 0) {
+        lines.push('Files: ' + c.filesModified.join(', '));
+      }
+      if (c.content) {
+        const truncated = c.content.length > 500 ? c.content.slice(0, 500) + '...' : c.content;
+        lines.push('Output: ' + truncated);
       }
       lines.push('');
     }
