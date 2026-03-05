@@ -8,7 +8,7 @@ import { PolicyEnforcer } from '../policy';
 
 // Shared browser instance across tool calls
 let client: CDPClient | null = null;
-let debugPort = 9222;
+const debugPort = 9222;
 let connectingPromise: Promise<CDPClient> | null = null;
 const CHROME_DATA_DIR = path.join(os.homedir(), '.codebot', 'chrome-profile');
 

@@ -49,7 +49,7 @@ describe('autoDetect', () => {
   const CONFIG_DIR = path.join(os.homedir(), '.codebot');
   const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
   let savedConfig: string | null = null;
-  let savedEnv: Record<string, string | undefined> = {};
+  const savedEnv: Record<string, string | undefined> = {};
 
   const envKeys = [
     'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY',
