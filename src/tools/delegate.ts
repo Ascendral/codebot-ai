@@ -7,14 +7,18 @@
  * Usage:
  *   delegate({ task: "Refactor auth module", files: ["src/auth.ts"] })
  *   delegate({ tasks: [{ task: "Fix file1", files: [...] }, { task: "Fix file2", files: [...] }] })
+ *
+ * Swarm mode (v2.3+):
+ *   delegate({ task: "Design API", files: [...], mode: "swarm", strategy: "debate" })
  */
 
 import { Tool } from '../types';
 import { Orchestrator, AgentTask, AgentResult, generateTaskId } from '../orchestrator';
+import { SwarmOrchestrator, SwarmStrategyType, SwarmEvent, AgentContribution } from '../swarm';
 
 export class DelegateTool implements Tool {
   name = 'delegate';
-  description = 'Spawn child agent(s) to handle subtasks in parallel. Use for multi-file operations, parallel refactoring, or independent tasks. Each child gets a scoped task description and optional file context. Results are collected and returned.';
+  description = 'Spawn child agent(s) to handle subtasks in parallel. Use for multi-file operations, parallel refactoring, or independent tasks. Each child gets a scoped task description and optional file context. Results are collected and returned. Supports swarm mode for multi-LLM collaboration.';
   permission: Tool['permission'] = 'prompt';
   parameters = {
     type: 'object',
@@ -40,17 +44,56 @@ export class DelegateTool implements Tool {
         },
         description: 'Multiple tasks to run in parallel (use for batch delegation)',
       },
+      mode: {
+        type: 'string',
+        description: 'Orchestration mode: "legacy" (simple parallel) or "swarm" (multi-LLM collaboration). Default: legacy.',
+      },
+      strategy: {
+        type: 'string',
+        description: 'Swarm strategy: debate, moa, pipeline, fan-out, generator-critic, auto. Only used in swarm mode. Default: auto.',
+      },
     },
   };
 
   private orchestrator: Orchestrator | null = null;
+  private swarmOrchestrator: SwarmOrchestrator | null = null;
 
   /** Set the orchestrator instance (injected by Agent) */
   setOrchestrator(orchestrator: Orchestrator) {
     this.orchestrator = orchestrator;
   }
 
+  /** Set the swarm orchestrator instance (injected by Agent for swarm mode) */
+  setSwarmOrchestrator(swarmOrchestrator: SwarmOrchestrator) {
+    this.swarmOrchestrator = swarmOrchestrator;
+  }
+
   async execute(args: Record<string, unknown>): Promise<string> {
+    // ── Swarm mode ──
+    if (args.mode === 'swarm' && this.swarmOrchestrator) {
+      const taskDescription = (args.task as string) || 'Swarm task';
+      const files = (args.files as string[]) || [];
+      const strategy = (args.strategy as SwarmStrategyType) || 'auto';
+
+      const taskContext = {
+        id: generateTaskId(),
+        description: taskDescription,
+        files,
+        strategy,
+      };
+
+      const contributions: AgentContribution[] = [];
+
+      for await (const event of this.swarmOrchestrator.execute(taskContext)) {
+        if (event.type === 'contribution') {
+          contributions.push(event.data as AgentContribution);
+        }
+      }
+
+      return this.formatSwarmResults(contributions);
+    }
+
+    // ── Legacy mode (existing behavior) ──
     if (!this.orchestrator) {
       return 'Error: Multi-agent orchestration is not enabled. Start with --router or configure orchestration in policy.';
     }
@@ -130,5 +173,29 @@ export class DelegateTool implements Tool {
     }
 
     return output;
+  }
+
+  private formatSwarmResults(contributions: AgentContribution[]): string {
+    if (contributions.length === 0) return 'No swarm contributions received.';
+
+    const lines = [`## Swarm Results (${contributions.length} contributions)\n`];
+
+    for (const c of contributions) {
+      const role = c.role || 'agent';
+      const model = c.model || 'unknown';
+      const round = c.round != null ? c.round : '?';
+      lines.push(`### [${role}] (model: ${model}, round: ${round})`);
+
+      if (c.filesModified && c.filesModified.length > 0) {
+        lines.push(`- Files modified: ${c.filesModified.join(', ')}`);
+      }
+      if (c.output) {
+        const truncated = c.output.length > 500 ? c.output.substring(0, 500) + '...' : c.output;
+        lines.push(`- Output: ${truncated}`);
+      }
+      lines.push('');
+    }
+
+    return lines.join('\n');
   }
 }
