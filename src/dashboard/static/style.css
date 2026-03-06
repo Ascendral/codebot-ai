@@ -141,8 +141,8 @@ body {
 
 
 #logo-img {
-  width: 220px;
-  height: 220px;
+  width: 280px;
+  height: 280px;
   filter: drop-shadow(0 0 30px rgba(47, 107, 255, 0.4)) drop-shadow(0 0 60px rgba(0, 210, 255, 0.2));
   transition: filter var(--transition);
 }
@@ -1145,7 +1145,7 @@ body {
 
 @media (max-width: 768px) {
   #center-stage { padding: 20px 12px 10px; }
-  #logo-img { width: 160px; height: 160px; }
+  #logo-img { width: 200px; height: 200px; }
   #logo-tagline { font-size: 10px; }
   .nav-pill span { display: none; }
   .nav-pill { padding: 8px 12px; }
@@ -1158,5 +1158,5 @@ body {
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr; }
   #center-stage { padding: 12px 8px 8px; }
-  #logo-img { width: 120px; height: 120px; }
+  #logo-img { width: 160px; height: 160px; }
 }
