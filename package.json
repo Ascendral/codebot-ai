@@ -1,6 +1,6 @@
 {
   "name": "codebot-ai",
-  "version": "2.5.2",
+  "version": "2.6.0",
   "description": "Zero-dependency autonomous AI agent. Code, browse, search, automate. Works with any LLM — Ollama, Claude, GPT, Gemini, DeepSeek, Groq, Mistral, Grok.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -53,7 +53,10 @@
     "github-action",
     "sarif",
     "policy-engine",
-    "mcp"
+    "mcp",
+    "swarm",
+    "multi-agent",
+    "multi-llm"
   ],
   "author": "Ascendral Software Development & Innovation",
   "license": "MIT",
