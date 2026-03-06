@@ -4,7 +4,7 @@
 
 ### Zero-dependency autonomous AI agent
 
-**Code. Browse. Search. Automate. Audit.**
+**Your local-first AI coding agent. Runs with Ollama (no API keys), edits code, browses the web, automates git/PRs/tests. Multi-LLM swarm mode lets multiple AI models collaborate on your tasks. Enterprise security from day 1.**
 
 [![npm version](https://img.shields.io/npm/v/codebot-ai.svg?style=flat-square&color=6366f1)](https://www.npmjs.com/package/codebot-ai)
 [![CI](https://github.com/zanderone1980/codebot-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/zanderone1980/codebot-ai/actions/workflows/ci.yml)
@@ -12,14 +12,15 @@
 ![tests](https://img.shields.io/badge/tests-1125%20passing-22c55e?style=flat-square)
 ![dependencies](https://img.shields.io/badge/dependencies-0-22c55e?style=flat-square)
 ![tools](https://img.shields.io/badge/tools-32-6366f1?style=flat-square)
+![swarm](https://img.shields.io/badge/swarm-multi--LLM-f59e0b?style=flat-square)
 ![node](https://img.shields.io/node/v/codebot-ai.svg?style=flat-square)
 
-```
-npm install -g codebot-ai
+```bash
+npm install -g codebot-ai && codebot --setup
 ```
 
-Works with **any LLM** &mdash; Ollama, Claude, GPT, Gemini, DeepSeek, Groq, Mistral, Grok.
-<br>Includes web dashboard, VS Code extension, GitHub Action, and enterprise security.
+Works with **any LLM** &mdash; Ollama (local, free), Claude, GPT, Gemini, DeepSeek, Groq, Mistral, Grok.
+<br>Web dashboard, VS Code extension, GitHub Action, multi-LLM swarm, and enterprise security built in.
 
 </div>
 
@@ -66,6 +67,29 @@ codebot --autonomous "refactor auth module and run tests"
 | **Schedule routines** | Cron-based recurring tasks &mdash; monitoring, reports, automation |
 | **Persistent memory** | Remembers preferences and context across sessions |
 | **Enterprise security** | RBAC policies, risk scoring, encrypted audit trail, SARIF export |
+| **Multi-LLM Swarm** | Multiple AI models collaborate using debate, pipeline, fan-out, and more |
+
+---
+
+## Multi-LLM Swarm
+
+Launch a swarm of AI agents that collaborate on complex tasks. Mix cloud and local models freely.
+
+```bash
+codebot --dashboard   # open http://localhost:3120, click "Launch Swarm"
+```
+
+**6 Strategies:**
+- **Auto** &mdash; Router analyzes your task and picks the best strategy
+- **Debate** &mdash; Multiple agents propose solutions and vote on the best
+- **Mixture of Agents** &mdash; Diverse proposals merged by a synthesizer
+- **Pipeline** &mdash; Sequential stages: plan &rarr; research &rarr; code &rarr; review &rarr; test
+- **Fan-Out** &mdash; Parallel subtasks gathered and synthesized
+- **Generator-Critic** &mdash; One agent generates, another critiques, iterate to quality
+
+**Supported providers:** Anthropic (Claude), OpenAI (GPT), Ollama (local, free), Gemini, DeepSeek, Groq, Mistral, xAI (Grok)
+
+Select providers in the dashboard, type your task, and watch agents stream results in real-time via SSE.
 
 ---
 
