@@ -75,4 +75,7 @@ export { OpenAIImagesConnector } from './connectors/openai-images';
 export { ReplicateConnector } from './connectors/replicate';
 export { loadSkills, skillToTool } from './skills';
 export type { SkillDefinition, SkillStep } from './skills';
+// v2.7.0 — Solve command
+export { SolveCommand } from './solve';
+export type { SolveOptions, SolveEvent, SolveResult, SolvePhase, IssueInfo } from './solve';
 export * from './types';

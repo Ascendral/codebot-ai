@@ -2,7 +2,7 @@
  * GitHub Connector — REST API v3
  *
  * Auth: Bearer token (Personal Access Token or GITHUB_TOKEN)
- * Actions: list_repos, create_issue, list_issues, create_pr, list_prs, get_repo_info
+ * Actions: list_repos, create_issue, list_issues, get_issue, create_pr, list_prs, get_repo_info
  */
 
 import { Connector, ConnectorAction } from './base';
@@ -214,6 +214,57 @@ export class GitHubConnector implements Connector {
           `  #${p.number} [${p.state}] ${p.title} (${p.head.ref} by ${p.user.login})`
         );
         return truncate(`Pull Requests (${prs.length}):\n${lines.join('\n')}`);
+      },
+    },
+    {
+      name: 'get_issue',
+      description: 'Get a single issue with full body and comments',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string', description: 'Repository owner' },
+          repo: { type: 'string', description: 'Repository name' },
+          number: { type: 'number', description: 'Issue number' },
+        },
+        required: ['owner', 'repo', 'number'],
+      },
+      execute: async (args, cred) => {
+        const owner = args.owner as string;
+        const repo = args.repo as string;
+        const num = args.number as number;
+        if (!owner || !repo || !num) return 'Error: owner, repo, and number are required';
+
+        const issueRes = await apiRequest('GET',
+          `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${num}`, cred);
+        if (issueRes.status !== 200) return formatError(issueRes.status, issueRes.data);
+
+        const commentsRes = await apiRequest('GET',
+          `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${num}/comments?per_page=20`, cred);
+
+        const issue = issueRes.data as {
+          number: number; title: string; body: string; state: string;
+          user: { login: string }; labels: Array<{ name: string }>;
+          html_url: string; created_at: string;
+        };
+
+        const comments = (commentsRes.status === 200
+          ? commentsRes.data as Array<{ user: { login: string }; body: string; created_at: string }>
+          : []);
+
+        let output = `#${issue.number}: ${issue.title}\n`;
+        output += `State: ${issue.state} | By: ${issue.user.login}\n`;
+        output += `Labels: ${issue.labels.map(l => l.name).join(', ') || 'none'}\n`;
+        output += `URL: ${issue.html_url}\n\n`;
+        output += `--- Body ---\n${issue.body || '(empty)'}\n`;
+
+        if (comments.length > 0) {
+          output += `\n--- Comments (${comments.length}) ---\n`;
+          for (const c of comments) {
+            output += `\n[${c.user.login}] ${c.created_at}\n${c.body}\n`;
+          }
+        }
+
+        return truncate(output);
       },
     },
     {

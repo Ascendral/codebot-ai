@@ -4,7 +4,7 @@ import { PolicyEnforcer } from '../policy';
 
 const ALLOWED_ACTIONS = [
   'status', 'diff', 'log', 'commit', 'branch', 'checkout',
-  'stash', 'push', 'pull', 'merge', 'blame', 'tag', 'add', 'reset',
+  'stash', 'push', 'pull', 'merge', 'blame', 'tag', 'add', 'reset', 'clone',
 ];
 
 /** Check for shell injection characters in arguments */
@@ -34,13 +34,13 @@ function splitArgs(argsStr: string): string[] {
 
 export class GitTool implements Tool {
   name = 'git';
-  description = 'Run git operations. Actions: status, diff, log, commit, branch, checkout, stash, push, pull, merge, blame, tag, add, reset.';
+  description = 'Run git operations. Actions: status, diff, log, commit, branch, checkout, stash, push, pull, merge, blame, tag, add, reset, clone.';
   permission: Tool['permission'] = 'prompt';
   private policyEnforcer?: PolicyEnforcer;
   parameters = {
     type: 'object',
     properties: {
-      action: { type: 'string', description: 'Git action (status, diff, log, commit, branch, checkout, stash, push, pull, merge, blame, tag, add, reset)' },
+      action: { type: 'string', description: 'Git action (status, diff, log, commit, branch, checkout, stash, push, pull, merge, blame, tag, add, reset, clone)' },
       args: { type: 'string', description: 'Additional arguments (e.g., file path, branch name, commit message)' },
       cwd: { type: 'string', description: 'Working directory (defaults to current)' },
     },
@@ -65,6 +65,15 @@ export class GitTool implements Tool {
     // Injection detection — block shell metacharacters
     if (extra && containsInjection(extra)) {
       return 'Error: arguments contain disallowed characters (possible injection attempt).';
+    }
+
+    // Restrict clone to well-known hosts only
+    if (action === 'clone') {
+      const cloneArgs = splitArgs(extra);
+      const url = cloneArgs[0] || '';
+      if (!url.startsWith('https://github.com/') && !url.startsWith('git@github.com:') && !url.startsWith('https://gitlab.com/')) {
+        return 'Error: clone is restricted to github.com and gitlab.com URLs for safety.';
+      }
     }
 
     // Build argument array (no shell interpolation)

@@ -30,6 +30,7 @@ import { registerApiRoutes } from './dashboard/api';
 import { registerCommandRoutes } from './dashboard/command-api';
 
 import { VERSION } from './index';
+import { SolveCommand, SolveEvent, SolveResult } from './solve';
 
 let verbose = false;
 
@@ -248,6 +249,40 @@ export async function main() {
     const report = await runDoctor();
     console.log(formatDoctorReport(report));
     process.exit(report.failed > 0 ? 1 : 0);
+  }
+
+  // ── Solve command: autonomous GitHub issue solver ──
+  if (args.solve) {
+    const solveUrl = typeof args.solve === 'string' ? args.solve as string : (args.message as string);
+    if (!solveUrl) {
+      console.error(c('Error: provide a GitHub issue URL.\n  Usage: codebot --solve https://github.com/owner/repo/issues/123', 'red'));
+      process.exit(1);
+    }
+
+    const config = await resolveConfig(args);
+    const provider = createProvider(config);
+
+    const solver = new SolveCommand({
+      model: config.model,
+      provider,
+      providerName: config.provider,
+      autoApprove: !!config.autoApprove,
+      maxIterations: config.maxIterations,
+      dryRun: args['dry-run'] !== false && !args['open-pr'],
+      openPr: !!args['open-pr'],
+      safe: !!args.safe,
+      maxFiles: parseInt((args['max-files'] as string) || '10', 10) || 10,
+      timeoutMin: parseInt((args['timeout-min'] as string) || '20', 10) || 20,
+      workspace: typeof args.workspace === 'string' ? args.workspace as string : undefined,
+      json: !!args.json,
+      verbose: !!args.verbose,
+    });
+
+    console.log(c('\n  CodeBot AI — Issue Solver\n', 'bold'));
+    for await (const event of solver.run(solveUrl)) {
+      renderSolveEvent(event, !!args.json);
+    }
+    return;
   }
 
   // Zero-friction first run: auto-detect or one-question setup
@@ -1067,6 +1102,24 @@ function parseArgs(argv: string[]): Record<string, string | boolean> {
       result.doctor = true;
       continue;
     }
+    if (arg === '--solve') {
+      const next = argv[i + 1];
+      if (next && !next.startsWith('--')) {
+        result['solve'] = next;
+        i++;
+      } else {
+        result['solve'] = true;
+      }
+      continue;
+    }
+    if (arg === '--open-pr') {
+      result['open-pr'] = true;
+      continue;
+    }
+    if (arg === '--safe') {
+      result['safe'] = true;
+      continue;
+    }
     if (arg === '--dry-run' || arg === '--estimate') {
       result['dry-run'] = true;
       continue;
@@ -1142,6 +1195,14 @@ ${c('Diagnostics:', 'bold')}
   --doctor             Run environment health check
   --dry-run, --estimate Estimate cost without executing
 
+${c('Issue Solving:', 'bold')}
+  --solve <url>          Solve a GitHub issue autonomously
+  --open-pr              Push branch and create PR (default: dry-run)
+  --safe                 Conservative mode (max 3 files, no dep changes)
+  --max-files <n>        Max files to modify (default: 10)
+  --timeout-min <n>      Hard timeout in minutes (default: 20)
+  --json                 Structured JSON output
+
 ${c('Debugging & Replay:', 'bold')}
   --replay [id]        Replay a session, re-execute tools, compare outputs
   --deterministic      Set temperature=0 for reproducible outputs
@@ -1187,6 +1248,80 @@ ${c('Interactive Commands:', 'bold')}
   /toolcost  Show per-tool cost breakdown
   /config    Show configuration
   /quit      Exit`);
+}
+
+function renderSolveEvent(event: SolveEvent, jsonMode: boolean): void {
+  if (jsonMode && event.type === 'result' && event.result) {
+    console.log(JSON.stringify(event.result, null, 2));
+    return;
+  }
+
+  switch (event.type) {
+    case 'phase_start':
+      console.log(c(`  >> ${event.phase}: ${event.message}`, 'cyan'));
+      break;
+    case 'phase_end':
+      console.log(c(`     Done: ${event.message}`, 'green'));
+      break;
+    case 'progress':
+      console.log(c(`     ${event.message}`, 'dim'));
+      break;
+    case 'agent_event':
+      if (event.agentEvent?.type === 'text' && event.agentEvent.text) {
+        process.stdout.write(event.agentEvent.text);
+      } else if (event.agentEvent?.type === 'tool_call' && event.agentEvent.toolCall) {
+        console.log(c(`     [tool] ${event.agentEvent.toolCall.name}`, 'dim'));
+      } else if (event.agentEvent?.type === 'tool_result' && event.agentEvent.toolResult) {
+        const r = event.agentEvent.toolResult;
+        const preview = r.result.substring(0, 80).replace(/\n/g, ' ');
+        console.log(c(`     [result] ${r.name}: ${preview}${r.result.length > 80 ? '...' : ''}`, 'dim'));
+      }
+      break;
+    case 'error':
+      console.error(c(`  ✗ Error: ${event.error}`, 'red'));
+      break;
+    case 'result':
+      if (event.result) {
+        renderSolveResult(event.result);
+      }
+      break;
+  }
+}
+
+function renderSolveResult(r: SolveResult): void {
+  const lines = [
+    '',
+    c('  ═══════════════════════════════════════════', 'cyan'),
+    c('  SOLVE RESULT', 'bold'),
+    c('  ═══════════════════════════════════════════', 'cyan'),
+    `  Session:    ${r.sessionId}`,
+    `  Issue:      #${r.issue.number} "${r.issue.title}"`,
+    `  Repo:       ${r.issue.owner}/${r.issue.repo}`,
+    `  Branch:     ${r.branch}`,
+    `  Files:      ${r.filesModified.length} changed`,
+  ];
+
+  if (r.filesModified.length > 0) {
+    for (const f of r.filesModified) {
+      lines.push(`              - ${f}`);
+    }
+  }
+
+  lines.push(`  Tests:      ${r.testsPassed ? c('PASSED', 'green') : r.testsOutput ? c('FAILED', 'red') : c('N/A', 'yellow')}`);
+  lines.push(`  Confidence: ${r.confidence}%`);
+  lines.push(`  Risk:       ${r.risk}`);
+  lines.push(`  Duration:   ${(r.durationMs / 1000).toFixed(1)}s`);
+  lines.push(`  Tokens:     ${r.tokensUsed.toLocaleString()}`);
+  lines.push(`  Cost:       ${r.cost}`);
+
+  if (r.prUrl) {
+    lines.push(`  PR:         ${c(r.prUrl, 'cyan')}`);
+  }
+
+  lines.push(c('  ═══════════════════════════════════════════', 'cyan'));
+  lines.push('');
+
+  console.log(lines.join('\n'));
 }
 
 
