@@ -415,7 +415,8 @@ export async function main() {
   if (args.dashboard) {
     try {
       const dashStaticDir = require('path').join(__dirname, 'dashboard', 'static');
-      const dashServer = new DashboardServer({ port: 3120, staticDir: dashStaticDir });
+      const dashHost = typeof args.host === 'string' ? args.host : '127.0.0.1';
+      const dashServer = new DashboardServer({ port: 3120, host: dashHost, staticDir: dashStaticDir });
       const os = require('os');
       registerApiRoutes(dashServer, os.homedir());
       registerCommandRoutes(dashServer, agent);
@@ -1080,6 +1081,14 @@ function parseArgs(argv: string[]): Record<string, string | boolean> {
       result.dashboard = true;
       continue;
     }
+    if (arg === '--host') {
+      const next = argv[i + 1];
+      if (next && !next.startsWith('--')) {
+        result.host = next;
+        i++;
+      }
+      continue;
+    }
     if (arg === '--tui') {
       result.tui = true;
       continue;
@@ -1177,6 +1186,7 @@ ${c('Options:', 'bold')}
   --base-url <url>     LLM API base URL (auto-detects Ollama/LM Studio/vLLM + cloud)
   --api-key <key>      API key (or set provider-specific env var)
   --dashboard          Start web dashboard on port 3120
+  --host <addr>        Dashboard bind address (default: 127.0.0.1, use 0.0.0.0 for LAN)
   --tui                Full-screen TUI mode with panels
   --no-stream          Suppress streaming progress indicators
   --theme <name>       Theme: dark, light, mono (default: auto)
