@@ -843,3 +843,80 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
+
+
+// ── Security Panel (CORD + VIGIL) ──
+
+async function loadSecurityData() {
+  try {
+    const res = await apiFetch('/api/constitutional');
+    if (!res.ok) return;
+    const data = await res.json();
+
+    if (!data.enabled) {
+      document.getElementById('security-status').textContent = 'Not active';
+      document.getElementById('security-feed').innerHTML =
+        '<div style="color:#666;text-align:center;padding:2rem">Constitutional layer not active. Start an agent session to see CORD metrics.</div>';
+      return;
+    }
+
+    // Update stats
+    document.getElementById('sec-total').textContent = data.totalEvaluations || 0;
+    document.getElementById('sec-allow').textContent = (data.decisions && data.decisions.ALLOW) || 0;
+    document.getElementById('sec-challenge').textContent =
+      ((data.decisions && data.decisions.CHALLENGE) || 0) + ((data.decisions && data.decisions.CONTAIN) || 0);
+    document.getElementById('sec-block').textContent = (data.decisions && data.decisions.BLOCK) || 0;
+    document.getElementById('sec-hardblocks').textContent = data.hardBlocks || 0;
+    document.getElementById('sec-vigil-scans').textContent = data.vigilScans || 0;
+    document.getElementById('sec-escalations').textContent = data.escalations || 0;
+    document.getElementById('sec-canaries').textContent = data.canariesTriggered || 0;
+
+    // Update status badge
+    const blockRate = data.totalEvaluations > 0
+      ? Math.round(((data.decisions && data.decisions.BLOCK) || 0) / data.totalEvaluations * 100) : 0;
+    document.getElementById('security-status').textContent =
+      data.totalEvaluations + ' evals | ' + blockRate + '% blocked';
+
+    // Render recent decisions
+    const feed = document.getElementById('security-feed');
+    const decisions = data.recentDecisions || [];
+
+    if (decisions.length === 0) {
+      feed.innerHTML = '<div style="color:#666;text-align:center;padding:1rem">No decisions yet</div>';
+      return;
+    }
+
+    feed.innerHTML = decisions.slice().reverse().slice(0, 50).map(function(d) {
+      var cls = 'badge-' + (d.decision || 'allow').toLowerCase();
+      var time = new Date(d.timestamp).toLocaleTimeString();
+      var tool = d.tool || '-';
+      var explain = d.explanation || '';
+      return '<div class="security-entry">' +
+        '<span class="badge ' + cls + '">' + (d.decision || 'ALLOW') + '</span>' +
+        '<span class="entry-tool">' + escapeHtml(tool) + '</span>' +
+        '<span class="entry-explain">' + escapeHtml(explain) + '</span>' +
+        '<span class="entry-score">score:' + (d.score || 0) + '</span>' +
+        '<span class="entry-time">' + time + '</span>' +
+        '</div>';
+    }).join('');
+  } catch (e) {
+    // Silently fail
+  }
+}
+
+// Refresh security data when navigating to the panel
+(function() {
+  var origSwitch = switchPanel;
+  switchPanel = function(panel) {
+    origSwitch(panel);
+    if (panel === 'security') loadSecurityData();
+  };
+})();
+
+// Auto-refresh security data every 5 seconds when on security panel
+setInterval(function() {
+  var secPanel = document.getElementById('panel-security');
+  if (secPanel && secPanel.classList.contains('active')) {
+    loadSecurityData();
+  }
+}, 5000);

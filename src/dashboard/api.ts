@@ -236,6 +236,21 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
     });
   });
 
+
+  // ── Constitutional Safety (CORD + VIGIL) ──
+  server.route('GET', '/api/constitutional', (_req, res) => {
+    // Return constitutional metrics if available
+    const metrics = (server as unknown as Record<string, unknown>)._constitutionalMetrics;
+    if (!metrics) {
+      DashboardServer.json(res, {
+        enabled: false,
+        message: 'Constitutional layer not active. Start CodeBot with an agent to see CORD metrics.',
+      });
+      return;
+    }
+    DashboardServer.json(res, { enabled: true, ...metrics });
+  });
+
   // -- Swarm API --
 
   // Default models per provider (best representative model)

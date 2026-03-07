@@ -158,6 +158,57 @@
         </div>
 
 
+
+        <!-- Security Panel (CORD + VIGIL) -->
+        <div id="panel-security" class="panel">
+          <div class="panel-title-row">
+            <h2>Security</h2>
+            <div id="security-status" class="panel-stats"></div>
+          </div>
+          <div class="security-overview">
+            <div class="security-stat-grid">
+              <div class="security-stat">
+                <div class="stat-value" id="sec-total">0</div>
+                <div class="stat-label">Evaluations</div>
+              </div>
+              <div class="security-stat">
+                <div class="stat-value stat-allow" id="sec-allow">0</div>
+                <div class="stat-label">Allowed</div>
+              </div>
+              <div class="security-stat">
+                <div class="stat-value stat-challenge" id="sec-challenge">0</div>
+                <div class="stat-label">Challenged</div>
+              </div>
+              <div class="security-stat">
+                <div class="stat-value stat-block" id="sec-block">0</div>
+                <div class="stat-label">Blocked</div>
+              </div>
+            </div>
+            <div class="security-stat-grid">
+              <div class="security-stat">
+                <div class="stat-value" id="sec-hardblocks">0</div>
+                <div class="stat-label">Hard Blocks</div>
+              </div>
+              <div class="security-stat">
+                <div class="stat-value" id="sec-vigil-scans">0</div>
+                <div class="stat-label">VIGIL Scans</div>
+              </div>
+              <div class="security-stat">
+                <div class="stat-value" id="sec-escalations">0</div>
+                <div class="stat-label">Escalations</div>
+              </div>
+              <div class="security-stat">
+                <div class="stat-value" id="sec-canaries">0</div>
+                <div class="stat-label">Canaries</div>
+              </div>
+            </div>
+          </div>
+          <div class="security-section">
+            <h3>Recent Decisions</h3>
+            <div id="security-feed" class="security-feed"></div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -182,6 +233,10 @@
       <button class="nav-pill" data-panel="swarm">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><line x1="12" y1="7" x2="5" y2="17"/><line x1="12" y1="7" x2="19" y2="17"/><line x1="7" y1="19" x2="17" y2="19"/></svg>
         <span>Swarm</span>
+      </button>
+      <button class="nav-pill" data-panel="security">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Security</span>
       </button>
     </nav>
   </div>
