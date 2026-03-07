@@ -1182,14 +1182,20 @@ body.chat-expanded #logo-area {
   margin-bottom: 8px;
 }
 
+body.chat-expanded #logo-area.faded {
+  opacity: 1;
+  transform: none;
+}
+
 body.chat-expanded #logo-img {
-  width: 32px;
-  height: 32px;
-  filter: drop-shadow(0 0 8px rgba(47, 107, 255, 0.3));
+  width: 48px;
+  height: 48px;
+  filter: drop-shadow(0 0 10px rgba(47, 107, 255, 0.3));
 }
 
 body.chat-expanded #logo-tagline {
-  display: none;
+  font-size: 10px;
+  margin-top: 0;
 }
 
 body.chat-expanded .chat-msg {

@@ -423,6 +423,13 @@ export async function main() {
       registerCommandRoutes(dashServer, agent);
       const dashInfo = await dashServer.start();
       console.log(c(`   Dashboard: ${dashInfo.url}`, 'cyan'));
+      // Auto-open browser
+      const dashUrl = dashHost === '0.0.0.0' ? `http://localhost:${dashInfo.port}` : dashInfo.url;
+      try {
+        const { exec } = require('child_process');
+        const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+        exec(`${openCmd} ${dashUrl}`);
+      } catch { /* browser open is best-effort */ }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log(c(`   Dashboard failed: ${msg}`, 'yellow'));
