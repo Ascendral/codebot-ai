@@ -43,7 +43,7 @@ describe('DelegateTool — execute (v2.2.0-alpha)', () => {
       files: ['src/auth.ts'],
     });
 
-    assert.ok(result.includes('✅'));
+    assert.ok(result.includes('[OK]'));
     assert.ok(result.includes('Fix the bug in auth.ts'));
     assert.ok(result.includes('success'));
   });

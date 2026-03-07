@@ -54,22 +54,24 @@ describe('Dashboard Frontend — index.html structure', () => {
     assert.ok(html.includes('app.js'));
   });
 
-  it('has nav sections for sessions, audit, metrics, command', () => {
+  it('has nav pills for all panels', () => {
     const dir = getStaticDir();
     const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf-8');
-    assert.ok(html.includes('data-section="sessions"'));
-    assert.ok(html.includes('data-section="audit"'));
-    assert.ok(html.includes('data-section="metrics"'));
-    assert.ok(html.includes('data-section="command"'));
+    assert.ok(html.includes('data-panel="chat"'));
+    assert.ok(html.includes('data-panel="sessions"'));
+    assert.ok(html.includes('data-panel="terminal"'));
+    assert.ok(html.includes('data-panel="tools"'));
+    assert.ok(html.includes('data-panel="swarm"'));
   });
 
-  it('has Command Center sub-tabs', () => {
+  it('has panel sections', () => {
     const dir = getStaticDir();
     const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf-8');
-    assert.ok(html.includes('cmd-chat'));
-    assert.ok(html.includes('cmd-quick'));
-    assert.ok(html.includes('cmd-terminal'));
-    assert.ok(html.includes('cmd-toolrunner'));
+    assert.ok(html.includes('panel-chat'));
+    assert.ok(html.includes('panel-sessions'));
+    assert.ok(html.includes('panel-terminal'));
+    assert.ok(html.includes('panel-tools'));
+    assert.ok(html.includes('panel-swarm'));
   });
 });
 

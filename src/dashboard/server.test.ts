@@ -6,9 +6,11 @@ import * as path from 'path';
 import { DashboardServer } from './server';
 
 // Helper to make HTTP requests
-function request(url: string, method: string = 'GET', body?: string): Promise<{ status: number; headers: http.IncomingHttpHeaders; body: string }> {
+function request(url: string, method: string = 'GET', body?: string, authToken?: string): Promise<{ status: number; headers: http.IncomingHttpHeaders; body: string }> {
   return new Promise((resolve, reject) => {
-    const req = http.request(url, { method }, (res) => {
+    const headers: Record<string, string> = {};
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+    const req = http.request(url, { method, headers }, (res) => {
       const chunks: Buffer[] = [];
       res.on('data', (chunk: Buffer) => chunks.push(chunk));
       res.on('end', () => {
@@ -69,7 +71,8 @@ describe('DashboardServer', () => {
       DashboardServer.json(res, { status: 'ok' });
     });
     await server.start();
-    const res = await request(`http://127.0.0.1:${port}/api/health`);
+    const token = server!.getAuthToken();
+    const res = await request(`http://127.0.0.1:${port}/api/health`, 'GET', undefined, token);
     assert.strictEqual(res.status, 200);
     const body = JSON.parse(res.body);
     assert.strictEqual(body.status, 'ok');
@@ -82,7 +85,8 @@ describe('DashboardServer', () => {
       DashboardServer.json(res, { sessionId: params.id });
     });
     await server.start();
-    const res = await request(`http://127.0.0.1:${port}/api/sessions/abc123`);
+    const token = server!.getAuthToken();
+    const res = await request(`http://127.0.0.1:${port}/api/sessions/abc123`, 'GET', undefined, token);
     assert.strictEqual(res.status, 200);
     const body = JSON.parse(res.body);
     assert.strictEqual(body.sessionId, 'abc123');
