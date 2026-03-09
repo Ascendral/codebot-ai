@@ -347,7 +347,7 @@ npm install && npm run build
 - **Stream recovery** &mdash; reconnects if the LLM drops mid-response
 - **Context compaction** &mdash; smart summarization when hitting context limits
 - **Process resilience** &mdash; catches unhandled exceptions, keeps the REPL running
-- **1125 tests** &mdash; comprehensive coverage across agent, tools, security, and dashboard
+- **1,168 tests** &mdash; comprehensive coverage across agent, tools, security, and dashboard
 
 ---
 
