@@ -18,6 +18,7 @@ import { TokenTracker } from './telemetry';
 import { MetricsCollector } from './metrics';
 import { RiskScorer, RiskAssessment } from './risk';
 import { ConstitutionalLayer, ConstitutionalResult } from './constitutional';
+import { SparkSoul } from './spark-soul';
 
 /** Permission callback type — risk and sandbox info are optional for backwards compat */
 type AskPermissionFn = (
@@ -120,6 +121,7 @@ export class Agent {
   private metricsCollector: MetricsCollector;
   private riskScorer: RiskScorer;
   private constitutional: ConstitutionalLayer | null = null;
+  private sparkSoul: SparkSoul | null = null;
   private projectRoot: string;
   private branchCreated: boolean = false;
   private lastExecutedTools: string[] = [];
@@ -168,6 +170,12 @@ export class Agent {
         this.constitutional.start();
       } catch { /* cord-engine not available — continue without constitutional layer */ }
     }
+
+    // Initialize SPARK soul
+    try {
+      this.sparkSoul = new SparkSoul(this.projectRoot);
+      if (!this.sparkSoul.isActive) this.sparkSoul = null;
+    } catch {}
 
     const costLimit = this.policyEnforcer.getCostLimitUsd();
     if (costLimit > 0) this.tokenTracker.setCostLimit(costLimit);
@@ -394,6 +402,7 @@ export class Agent {
 
       // No tool calls = conversation turn done
       if (toolCalls.length === 0) {
+        if (this.sparkSoul) { try { this.sparkSoul.finalizeSession(); } catch {} }
         yield { type: 'done' };
         return;
       }
@@ -475,6 +484,18 @@ export class Agent {
           if (cordResult.decision === 'CHALLENGE') {
             effectivePermission = 'always-ask';
           }
+        }
+
+        // SPARK adaptive safety
+        if (this.sparkSoul) {
+          try {
+            const sparkResult = this.sparkSoul.evaluateTool(toolName, args);
+            if (sparkResult.decision === 'BLOCK') {
+              prepared.push({ tc, tool, args, denied: false, error: 'Error: Blocked by SPARK: ' + sparkResult.reason });
+              continue;
+            }
+            if (sparkResult.decision === 'CHALLENGE') effectivePermission = 'always-ask';
+          } catch {}
         }
 
         // Permission check: policy override > tool default
@@ -603,6 +624,9 @@ export class Agent {
             this.metricsCollector.increment('security_blocks_total', { tool: toolName, type: 'security' });
           }
 
+          // SPARK: record success
+          if (this.sparkSoul) { try { this.sparkSoul.recordOutcome(toolName, prep.args, true, output, latencyMs); } catch {} }
+
           return { content: output };
         } catch (err: unknown) {
           const errMsg = err instanceof Error ? err.message : String(err);
@@ -612,6 +636,10 @@ export class Agent {
           this.metricsCollector.increment('errors_total', { tool: toolName });
           // Audit log: error
           this.auditLogger.log({ tool: toolName, action: 'error', args: prep.args, result: 'error', reason: errMsg });
+
+          // SPARK: record failure
+          if (this.sparkSoul) { try { this.sparkSoul.recordOutcome(toolName, prep.args, false, errMsg, latencyMs); } catch {} }
+
           return { content: `Error: ${errMsg}`, is_error: true };
         }
       };
@@ -685,6 +713,7 @@ export class Agent {
       }
     }
 
+    if (this.sparkSoul) { try { this.sparkSoul.finalizeSession(); } catch {} }
     yield { type: 'error', error: `Max iterations (${this.maxIterations}) reached.` };
   }
 
@@ -907,6 +936,12 @@ export class Agent {
       // memory unavailable
     }
 
+    // SPARK soul context
+    let sparkBlock = '';
+    if (this.sparkSoul) {
+      try { sparkBlock = this.sparkSoul.getPromptBlock(this.messages[this.messages.length - 1]?.content as string); } catch {}
+    }
+
     let prompt = `You are CodeBot, a fully autonomous AI agent. You help with ANY task: coding, research, sending emails, posting on social media, web automation, and anything else that can be accomplished with a computer.
 
 CRITICAL IDENTITY — you MUST follow this:
@@ -940,7 +975,7 @@ Skills:
 - Email: navigate to Gmail/email, compose and send messages through the browser interface.
 - Routines: use the routine tool to schedule recurring tasks (daily posts, email checks, etc.).
 
-${repoMap}${memoryBlock}`;
+${repoMap}${memoryBlock}${sparkBlock}`;
 
     if (!supportsTools) {
       prompt += `
