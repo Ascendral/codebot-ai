@@ -136,6 +136,9 @@ export class SparkSoul {
   private sessionId: string;
   private predictions = new Map<string, any>();
   private initialized = false;
+  private toolHistory: string[] = [];
+  private successCount = 0;
+  private failureCount = 0;
 
   constructor(projectRoot: string) {
     this.sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -326,14 +329,51 @@ export class SparkSoul {
         this.orchestrator.learn(prediction, outcome);
       }
 
-      // Update emotional state based on outcome
+      // Track tool history for personality evolution
+      if (!this.toolHistory.includes(tool)) this.toolHistory.push(tool);
+      if (success) this.successCount++;
+      else this.failureCount++;
+
+      // Update emotional state with meaningful signals
       try {
-        if (success) {
-          this.orchestrator.emotionalState.onPositiveEvent(0.1);
+        const intensity = success ? 0.4 : -0.6;
+        // Use updateFromEssence if available (proper EMA pipeline), else fallback
+        if (this.orchestrator.emotionalState.updateFromEssence) {
+          this.orchestrator.emotionalState.updateFromEssence({
+            sentiment: success ? 'positive' : 'negative',
+            sentimentIntensity: Math.abs(intensity),
+            topics: [tool, category],
+          });
+        } else if (success) {
+          this.orchestrator.emotionalState.onPositiveEvent(0.4);
         } else {
-          this.orchestrator.emotionalState.onNegativeEvent(0.15);
+          this.orchestrator.emotionalState.onNegativeEvent(0.6);
+        }
+        // Persist emotional state to DB
+        if (this.store.saveEmotionalState) {
+          const state = this.orchestrator.emotionalState.getState();
+          if (state) this.store.saveEmotionalState(state);
         }
       } catch { /* emotional update failed */ }
+
+      // Drive personality evolution on every outcome
+      try {
+        const hasSentinel = category === 'destructive' || category === 'financial';
+        const valence = this.orchestrator.emotionalState?.getState?.()?.valence ?? 0;
+        const momentum = this.orchestrator.emotionalState?.getState?.()?.momentum ?? 'stable';
+        this.orchestrator.personality.evolve({
+          topicDiversity: this.toolHistory.length,
+          hasSentinelCategories: hasSentinel,
+          emotionalValence: valence,
+          queryIntent: success ? 'execute' : 'diagnose',
+          emotionalMomentum: momentum,
+        });
+        // Persist personality to DB
+        if (this.store.savePersonality) {
+          const profile = this.orchestrator.personality.getProfile();
+          if (profile) this.store.savePersonality(profile);
+        }
+      } catch { /* personality evolution failed */ }
     } catch { /* learning failed — non-fatal */ }
   }
 
@@ -350,10 +390,30 @@ export class SparkSoul {
         reflection = this.orchestrator.reflection.reflect();
       } catch { /* reflection unavailable */ }
 
-      // Personality evolution
+      // Final personality evolution with session summary
       try {
-        this.orchestrator.personality.evolve();
+        const valence = this.orchestrator.emotionalState?.getState?.()?.valence ?? 0;
+        const momentum = this.orchestrator.emotionalState?.getState?.()?.momentum ?? 'stable';
+        this.orchestrator.personality.evolve({
+          topicDiversity: this.toolHistory.length,
+          hasSentinelCategories: false,
+          emotionalValence: valence,
+          queryIntent: 'reflect',
+          emotionalMomentum: momentum,
+        });
       } catch { /* personality evolution failed */ }
+
+      // Persist both engines to DB for cross-session continuity
+      try {
+        if (this.store.saveEmotionalState) {
+          const state = this.orchestrator.emotionalState.getState();
+          if (state) this.store.saveEmotionalState(state);
+        }
+        if (this.store.savePersonality) {
+          const profile = this.orchestrator.personality.getProfile();
+          if (profile) this.store.savePersonality(profile);
+        }
+      } catch { /* persistence failed */ }
 
       return { reflection };
     } catch {
