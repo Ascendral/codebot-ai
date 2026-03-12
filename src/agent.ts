@@ -486,7 +486,8 @@ export class Agent {
           }
         }
 
-        // SPARK adaptive safety
+        // SPARK adaptive safety — learned judgment overrides autoApprove
+        let sparkChallenged = false;
         if (this.sparkSoul) {
           try {
             const sparkResult = this.sparkSoul.evaluateTool(toolName, args);
@@ -494,16 +495,21 @@ export class Agent {
               prepared.push({ tc, tool, args, denied: false, error: 'Error: Blocked by SPARK: ' + sparkResult.reason });
               continue;
             }
-            if (sparkResult.decision === 'CHALLENGE') effectivePermission = 'always-ask';
+            if (sparkResult.decision === 'CHALLENGE') {
+              effectivePermission = 'always-ask';
+              sparkChallenged = true;
+            }
           } catch {}
         }
 
         // Permission check: policy override > tool default
         // autoApprove bypasses ALL permission levels (autonomous/dashboard mode)
-        const needsPermission = !this.autoApprove && (
+        // EXCEPTION: SPARK's learned CHALLENGE overrides autoApprove — the system
+        // has learned from repeated failures that this category needs human review
+        const needsPermission = sparkChallenged || (!this.autoApprove && (
           effectivePermission === 'always-ask' ||
           effectivePermission === 'prompt'
-        );
+        ));
 
         let denied = false;
         if (needsPermission) {

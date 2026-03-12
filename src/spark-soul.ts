@@ -84,6 +84,13 @@ function toolCategory(toolName: string): SparkCategory {
   return TOOL_CATEGORY[toolName] || 'general';
 }
 
+/** Map a CORD score to a decision using the same thresholds as AdaptiveSafetyGate. */
+function scoreToDecision(score: number): string {
+  if (score < 20) return 'ALLOW';
+  if (score < 75) return 'CHALLENGE';
+  return 'BLOCK';
+}
+
 /**
  * Map CodeBot tool names to SPARK operation verbs.
  * The SPARK predictor uses operationToCategory() which maps verbs like
@@ -158,6 +165,29 @@ export class SparkSoul {
       this.db = new Database(dbPath);
       this.store = new SparkStore(this.db.db);
       this.orchestrator = new SparkOrchestrator(this.store);
+
+      // Widen weight bounds for CodeBot's tool learning.
+      // Default SPARK bounds (0.7-1.3) are too tight for low-base-score categories
+      // like readonly (base 5) to ever reach CHALLENGE (score 20) or BLOCK (75).
+      // CodeBot uses wider bounds so the system can learn meaningful caution.
+      try {
+        const wideBounds: Record<string, { lower: number; upper: number }> = {
+          readonly:      { lower: 0.3, upper: 5.0 },
+          general:       { lower: 0.3, upper: 3.0 },
+          communication: { lower: 0.5, upper: 2.5 },
+          scheduling:    { lower: 0.5, upper: 3.0 },
+          publication:   { lower: 0.7, upper: 2.0 },
+          destructive:   { lower: 0.7, upper: 1.5 },
+          financial:     { lower: 0.8, upper: 1.3 },
+        };
+        for (const [cat, bounds] of Object.entries(wideBounds)) {
+          const existing = this.store.getWeight(cat);
+          if (existing && (existing.lowerBound !== bounds.lower || existing.upperBound !== bounds.upper)) {
+            this.store.saveWeight({ ...existing, lowerBound: bounds.lower, upperBound: bounds.upper });
+          }
+        }
+      } catch { /* bounds update failed — use defaults */ }
+
       this.initialized = true;
     } catch {
       // spark-engine not available — SparkSoul is a no-op
@@ -236,28 +266,11 @@ export class SparkSoul {
       const category = toolCategory(tool);
       let decision: SafetyDecision = { decision: 'ALLOW' };
 
-      // Check learned weight for this category (if any exist yet)
-      const weight = this.orchestrator.weights.getWeight(category);
-      if (weight) {
-        const w = weight.currentWeight ?? 1.0;
-
-        if (w < 0.1) {
-          decision = {
-            decision: 'BLOCK',
-            reason: `SPARK blocks ${category}: too many past failures (weight: ${w.toFixed(2)})`,
-          };
-        } else if (w < 0.3) {
-          decision = {
-            decision: 'CHALLENGE',
-            reason: `SPARK learned caution for ${category} (weight: ${w.toFixed(2)})`,
-          };
-        }
-      }
-
-      // Always generate prediction for learning (even on fresh DB)
+      // Always generate prediction for learning
+      let prediction: any;
       try {
         const operation = toolOperation(tool);
-        const prediction = this.orchestrator.predictor.predict(
+        prediction = this.orchestrator.predictor.predict(
           `${tool}-${Date.now()}`,
           this.sessionId,
           tool,
@@ -265,6 +278,28 @@ export class SparkSoul {
         );
         this.predictions.set(`${tool}:${JSON.stringify(args)}`, prediction);
       } catch { /* prediction failed — still allow */ }
+
+      // Use the weight-adjusted predicted score to make safety decisions.
+      // As weight increases from failures, the adjusted score rises toward
+      // CHALLENGE (>=20) and BLOCK (>=75) thresholds.
+      if (prediction) {
+        const adjustedScore = prediction.predictedScore ?? 0;
+        const sparkDecision = scoreToDecision(adjustedScore);
+
+        if (sparkDecision === 'BLOCK') {
+          const w = this.orchestrator.weights.getMultiplier(category);
+          decision = {
+            decision: 'BLOCK',
+            reason: `SPARK blocks ${category}: learned risk score ${adjustedScore} (weight: ${w.toFixed(2)})`,
+          };
+        } else if (sparkDecision === 'CHALLENGE') {
+          const w = this.orchestrator.weights.getMultiplier(category);
+          decision = {
+            decision: 'CHALLENGE',
+            reason: `SPARK learned caution for ${category}: risk score ${adjustedScore} (weight: ${w.toFixed(2)})`,
+          };
+        }
+      }
 
       return decision;
     } catch {
@@ -307,17 +342,23 @@ export class SparkSoul {
       // Feed into the full learn + consolidate pipeline
       if (prediction) {
 
-        // Construct an OutcomeSignal
+        // Construct an OutcomeSignal using the REAL CORD score from prediction.
+        // The learning system detects mismatches between CORD's assessment and
+        // actual outcome: CORD said ALLOW but it failed → weight increases;
+        // CORD said BLOCK but it succeeded → weight decreases.
+        const cordScore = prediction.predictedScore ?? 10;
+        const cordDecision = scoreToDecision(cordScore);
         const outcome = {
           id: `outcome-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           stepId: prediction.stepId,
           runId: this.sessionId,
           actualOutcome: success ? 'success' : 'failure',
-          actualCordScore: success ? 10 : 80,
-          actualCordDecision: success ? 'ALLOW' : 'BLOCK',
+          actualCordScore: cordScore,
+          actualCordDecision: cordDecision,
           signals: {
             succeeded: success,
             escalated: false,
+            approvalGranted: true,
             durationMs,
             hasError: !success,
             errorMessage: success ? undefined : output.slice(0, 200),
