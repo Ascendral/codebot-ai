@@ -279,25 +279,29 @@ export class SparkSoul {
         this.predictions.set(`${tool}:${JSON.stringify(args)}`, prediction);
       } catch { /* prediction failed — still allow */ }
 
-      // Use the weight-adjusted predicted score to make safety decisions.
-      // As weight increases from failures, the adjusted score rises toward
-      // CHALLENGE (>=20) and BLOCK (>=75) thresholds.
+      // Use SPARK's learned weight to make safety decisions.
+      // Only escalate when the weight has INCREASED from baseline (1.0),
+      // meaning SPARK has learned from real failures — not just because
+      // a category's default score happens to be above the threshold.
       if (prediction) {
-        const adjustedScore = prediction.predictedScore ?? 0;
-        const sparkDecision = scoreToDecision(adjustedScore);
+        const w = this.orchestrator.weights.getMultiplier(category);
+        const hasLearned = w > 1.05; // Weight increased meaningfully from baseline
 
-        if (sparkDecision === 'BLOCK') {
-          const w = this.orchestrator.weights.getMultiplier(category);
-          decision = {
-            decision: 'BLOCK',
-            reason: `SPARK blocks ${category}: learned risk score ${adjustedScore} (weight: ${w.toFixed(2)})`,
-          };
-        } else if (sparkDecision === 'CHALLENGE') {
-          const w = this.orchestrator.weights.getMultiplier(category);
-          decision = {
-            decision: 'CHALLENGE',
-            reason: `SPARK learned caution for ${category}: risk score ${adjustedScore} (weight: ${w.toFixed(2)})`,
-          };
+        if (hasLearned) {
+          const adjustedScore = prediction.predictedScore ?? 0;
+          const sparkDecision = scoreToDecision(adjustedScore);
+
+          if (sparkDecision === 'BLOCK') {
+            decision = {
+              decision: 'BLOCK',
+              reason: `SPARK blocks ${category}: learned risk score ${adjustedScore} (weight: ${w.toFixed(2)})`,
+            };
+          } else if (sparkDecision === 'CHALLENGE') {
+            decision = {
+              decision: 'CHALLENGE',
+              reason: `SPARK learned caution for ${category}: risk score ${adjustedScore} (weight: ${w.toFixed(2)})`,
+            };
+          }
         }
       }
 
