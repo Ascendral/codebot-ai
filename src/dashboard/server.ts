@@ -11,6 +11,7 @@ import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { execSync } from 'child_process';
 
 /** MIME type mapping for static files */
 const MIME_TYPES: Record<string, string> = {
@@ -83,7 +84,31 @@ export class DashboardServer {
 
       this.server.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EADDRINUSE') {
-          reject(new Error(`Port ${this.port} is already in use`));
+          // Auto-kill stale dashboard process and retry once
+          this.killStaleProcess(this.port).then(killed => {
+            if (killed) {
+              // Retry after killing stale process
+              this.server = http.createServer((req2, res2) => {
+                this.handleRequest(req2, res2).catch(e => {
+                  console.error('Dashboard server error:', e);
+                  DashboardServer.error(res2, 500, 'Internal Server Error');
+                });
+              });
+              this.server.on('error', (retryErr: NodeJS.ErrnoException) => {
+                reject(new Error(`Port ${this.port} still in use after killing stale process: ${retryErr.message}`));
+              });
+              this.server.listen(this.port, this.host, () => {
+                this.running = true;
+                const url = `http://${this.host}:${this.port}`;
+                console.log(`Dashboard recovered — killed stale process on port ${this.port}`);
+                resolve({ port: this.port, url });
+              });
+            } else {
+              reject(new Error(`Port ${this.port} is already in use (could not kill stale process)`));
+            }
+          }).catch(() => {
+            reject(new Error(`Port ${this.port} is already in use`));
+          });
         } else {
           reject(err);
         }
@@ -95,6 +120,27 @@ export class DashboardServer {
         resolve({ port: this.port, url });
       });
     });
+  }
+
+  /**
+   * Kill a stale dashboard process holding the port.
+   * Returns true if a process was found and killed.
+   */
+  private async killStaleProcess(port: number): Promise<boolean> {
+    try {
+      const output = execSync(`lsof -ti :${port}`, { encoding: 'utf8', timeout: 3000 }).trim();
+      if (!output) return false;
+      const pids = output.split('\n').map(p => parseInt(p, 10)).filter(p => p > 0 && p !== process.pid);
+      if (pids.length === 0) return false;
+      for (const pid of pids) {
+        try { process.kill(pid, 'SIGTERM'); } catch { /* already dead */ }
+      }
+      // Wait for port to free
+      await new Promise(r => setTimeout(r, 1500));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /** Stop the server */
