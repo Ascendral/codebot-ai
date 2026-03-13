@@ -92,7 +92,7 @@ async function fetchPageContent(url: string): Promise<string> {
     const html = await res.text();
 
     // Simple HTML-to-text: strip tags, decode entities, clean whitespace
-    let text = html
+    const text = html
       .replace(/<script[\s\S]*?<\/script>/gi, '')
       .replace(/<style[\s\S]*?<\/style>/gi, '')
       .replace(/<nav[\s\S]*?<\/nav>/gi, '')
