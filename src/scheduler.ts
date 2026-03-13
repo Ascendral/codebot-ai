@@ -4,6 +4,7 @@ import * as os from 'os';
 import { Routine, matchesCron } from './tools/routine';
 import { Agent } from './agent';
 import { AgentEvent } from './types';
+import { getProactiveEngine } from './proactive';
 
 const ROUTINES_FILE = path.join(os.homedir(), '.codebot', 'routines.json');
 
@@ -83,9 +84,11 @@ export class Scheduler {
       this.saveRoutines(allRoutines);
 
       this.onOutput?.(`\n✓ Routine "${routine.name}" completed.\n`);
+      getProactiveEngine().notifyRoutineComplete(routine.name, true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.onOutput?.(`\n✗ Routine "${routine.name}" failed: ${msg}\n`);
+      getProactiveEngine().notifyRoutineComplete(routine.name, false, msg);
     } finally {
       this.running = false;
     }

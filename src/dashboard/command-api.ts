@@ -20,6 +20,7 @@ import { PROVIDER_DEFAULTS } from '../providers/registry';
 import { AnthropicProvider } from '../providers/anthropic';
 import { OpenAIProvider } from '../providers/openai';
 import { LLMProvider, Message } from '../types';
+import { getProactiveEngine } from '../proactive';
 import { loadWorkflows, getWorkflow, resolveWorkflowPrompt, WORKFLOW_CATEGORIES } from '../workflows';
 
 /** Load API keys from ~/.codebot/config.json + environment */
@@ -652,6 +653,66 @@ export function registerCommandRoutes(
       agentBusy = false;
       if (!closed) DashboardServer.sseClose(res);
     }
+  });
+
+  // ── GET /api/notifications ──
+  server.route('GET', '/api/notifications', (_req, res) => {
+    const engine = getProactiveEngine();
+    DashboardServer.json(res, {
+      notifications: engine.getAll(),
+      unreadCount: engine.getUnreadCount(),
+    });
+  });
+
+  // ── POST /api/notifications/:id/dismiss ──
+  server.route('POST', '/api/notifications/', async (req, res) => {
+    const url = new URL(req.url || '', 'http://localhost');
+    const parts = url.pathname.split('/').filter(Boolean);
+    // api/notifications/<id>/dismiss  OR  api/notifications/dismiss-all
+    const engine = getProactiveEngine();
+
+    if (parts[2] === 'dismiss-all') {
+      const count = engine.dismissAll();
+      DashboardServer.json(res, { dismissed: count });
+      return;
+    }
+
+    const id = parts[2] || '';
+    const action = parts[3] || '';
+
+    if (action === 'dismiss') {
+      const ok = engine.dismiss(id);
+      DashboardServer.json(res, { dismissed: ok });
+    } else if (action === 'read') {
+      const ok = engine.markRead(id);
+      DashboardServer.json(res, { read: ok });
+    } else {
+      DashboardServer.error(res, 400, 'Unknown action. Use /dismiss or /read');
+    }
+  });
+
+  // ── GET /api/notifications/stream (SSE) ──
+  server.route('GET', '/api/notifications/stream', (_req, res) => {
+    DashboardServer.sseHeaders(res);
+    const engine = getProactiveEngine();
+
+    const listener = (notification: unknown) => {
+      if (res.writable) {
+        DashboardServer.sseSend(res, { type: 'notification', notification });
+      }
+    };
+
+    engine.onNotification(listener);
+
+    res.on('close', () => {
+      engine.removeListener(listener);
+    });
+
+    // Send initial unread count
+    DashboardServer.sseSend(res, {
+      type: 'init',
+      unreadCount: engine.getUnreadCount(),
+    });
   });
 
   // ── GET /api/workflows ──

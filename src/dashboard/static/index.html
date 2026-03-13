@@ -7,7 +7,7 @@
   <meta http-equiv="pragma" content="no-cache">
   <meta http-equiv="expires" content="0">
   <title>CodeBot AI — v2</title>
-  <link rel="stylesheet" href="style.css?v=29">
+  <link rel="stylesheet" href="style.css?v=30">
   <link rel="icon" href="favicon.svg?v=20" type="image/svg+xml">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#00d4ff">
@@ -19,6 +19,21 @@
 <body>
   <!-- Main Content -->
   <div id="app">
+    <!-- Notification Bell -->
+    <div id="notification-area">
+      <button id="notification-bell" class="notification-bell" onclick="App.toggleNotifications()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="notification-badge" class="notification-badge" style="display:none">0</span>
+      </button>
+      <div id="notification-panel" class="notification-panel" style="display:none">
+        <div class="notification-panel-header">
+          <span>Notifications</span>
+          <button class="notification-dismiss-all" onclick="App.dismissAllNotifications()">Clear all</button>
+        </div>
+        <div id="notification-list" class="notification-list"></div>
+      </div>
+    </div>
+
     <!-- Connection Indicator -->
     <div id="conn-indicator">
       <span class="conn-dot"></span>
@@ -324,7 +339,7 @@
     </nav>
   </div>
 
-  <script src="app.js?v=29"></script>
+  <script src="app.js?v=30"></script>
   <script>
   // Kill any leftover service workers — they cause more problems than they solve
   if ('serviceWorker' in navigator) {

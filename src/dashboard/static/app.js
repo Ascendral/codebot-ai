@@ -46,6 +46,8 @@ const App = {
     this.navigateToHash();
     window.addEventListener('hashchange', () => this.navigateToHash());
     setInterval(() => this.checkHealth(), 30000);
+    this.pollNotifications();
+    setInterval(() => this.pollNotifications(), 30000);
   },
 
   // ===========================================================
@@ -283,6 +285,92 @@ const App = {
     // Focus input
     var input = document.getElementById('chat-input');
     if (input) { input.value = ''; input.focus(); }
+  },
+
+  // ===========================================================
+  // NOTIFICATIONS
+  // ===========================================================
+
+  notificationPanelOpen: false,
+
+  async pollNotifications() {
+    try {
+      var data = await this.fetch('/api/notifications');
+      var badge = document.getElementById('notification-badge');
+      if (data.unreadCount > 0) {
+        badge.textContent = data.unreadCount > 99 ? '99+' : data.unreadCount;
+        badge.style.display = '';
+      } else {
+        badge.style.display = 'none';
+      }
+    } catch (err) {
+      // silently fail
+    }
+  },
+
+  toggleNotifications() {
+    this.notificationPanelOpen = !this.notificationPanelOpen;
+    var panel = document.getElementById('notification-panel');
+    panel.style.display = this.notificationPanelOpen ? '' : 'none';
+    if (this.notificationPanelOpen) {
+      this.loadNotifications();
+    }
+  },
+
+  async loadNotifications() {
+    var list = document.getElementById('notification-list');
+    try {
+      var data = await this.fetch('/api/notifications');
+      if (!data.notifications || data.notifications.length === 0) {
+        list.innerHTML = '<div class="notification-empty">No notifications</div>';
+        return;
+      }
+
+      list.innerHTML = data.notifications.slice().reverse().slice(0, 20).map(function(n) {
+        var icon = { routine: 'clock', reminder: 'bell', system: 'alert', milestone: 'star', alert: 'alert', suggestion: 'lightbulb' };
+        var priorityClass = n.priority === 'high' ? ' notification-high' : (n.priority === 'low' ? ' notification-low' : '');
+        var readClass = n.read ? ' notification-read' : '';
+        var timeAgo = App.relativeTime(n.createdAt);
+        var actionHtml = n.action ? ' <button class="notification-action-btn" onclick="event.stopPropagation();App.runNotificationAction(&#39;' + App.escapeHtml(n.action.command) + '&#39;)">' + App.escapeHtml(n.action.label) + '</button>' : '';
+        return '<div class="notification-card' + priorityClass + readClass + '" onclick="App.dismissNotification(&#39;' + n.id + '&#39;)">' +
+          '<div class="notification-card-title">' + App.escapeHtml(n.title) + '</div>' +
+          '<div class="notification-card-msg">' + App.escapeHtml(n.message).substring(0, 120) + actionHtml + '</div>' +
+          '<div class="notification-card-time">' + App.escapeHtml(timeAgo) + '</div>' +
+        '</div>';
+      }).join('');
+    } catch (err) {
+      list.innerHTML = '<div class="notification-empty">Error loading</div>';
+    }
+  },
+
+  async dismissNotification(id) {
+    try {
+      await apiFetch('/api/notifications/' + id + '/dismiss', { method: 'POST' });
+      this.loadNotifications();
+      this.pollNotifications();
+    } catch (err) {}
+  },
+
+  async dismissAllNotifications() {
+    try {
+      await apiFetch('/api/notifications/dismiss-all', { method: 'POST' });
+      this.loadNotifications();
+      this.pollNotifications();
+      this.notificationPanelOpen = false;
+      document.getElementById('notification-panel').style.display = 'none';
+    } catch (err) {}
+  },
+
+  runNotificationAction(command) {
+    // Navigate to chat and send the command
+    window.location.hash = 'chat';
+    var input = document.getElementById('chat-input');
+    if (input) {
+      input.value = command;
+      input.focus();
+    }
+    this.notificationPanelOpen = false;
+    document.getElementById('notification-panel').style.display = 'none';
   },
 
   // ===========================================================
