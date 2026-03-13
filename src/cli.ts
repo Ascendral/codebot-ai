@@ -55,6 +55,21 @@ export async function main() {
     }
   });
 
+  // ── Process lifecycle: graceful shutdown on signals ──
+  // Prevents orphaned zombie processes when parent session ends
+  const pidFile = path.join(require('os').homedir(), '.codebot', 'dashboard.pid');
+  let shuttingDown = false;
+  const gracefulShutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`\n\x1b[2mCodeBot shutting down (${signal})...\x1b[0m`);
+    try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
+    process.exit(0);
+  };
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  process.on('SIGHUP', () => gracefulShutdown('SIGHUP'));
+
   const args = parseArgs(process.argv.slice(2));
 
   if (typeof args.theme === 'string') {
@@ -285,11 +300,31 @@ export async function main() {
       registerCommandRoutes(dashServer, agent);
       const dashInfo = await dashServer.start();
       console.log(c(`   Dashboard: ${dashInfo.url}`, 'cyan'));
+      // Write PID file so stale processes can be identified
+      try {
+        const pidDir = path.join(require('os').homedir(), '.codebot');
+        if (!fs.existsSync(pidDir)) fs.mkdirSync(pidDir, { recursive: true });
+        fs.writeFileSync(pidFile, String(process.pid), 'utf8');
+      } catch { /* best-effort */ }
       const dashUrl = dashHost === '0.0.0.0' ? `http://localhost:${dashInfo.port}` : dashInfo.url;
       try { const { exec } = require('child_process'); const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'; exec(`${openCmd} ${dashUrl}`); } catch { /* best-effort */ }
     } catch (err: unknown) {
       console.log(c(`   Dashboard failed: ${err instanceof Error ? err.message : String(err)}`, 'yellow'));
     }
+
+    // Watchdog: if parent process dies, shut down cleanly
+    // Check every 30s if parent PID is still alive (PPID=1 means orphaned)
+    const watchdog = setInterval(() => {
+      try {
+        const ppid = process.ppid;
+        if (ppid === undefined || ppid <= 1) {
+          console.log(c('   Dashboard: parent process gone, shutting down cleanly.', 'dim'));
+          clearInterval(watchdog);
+          gracefulShutdown('orphan-detected');
+        }
+      } catch { /* ignore */ }
+    }, 30_000);
+    watchdog.unref(); // Don't prevent exit
   }
 
   if (typeof args.message === 'string') { await runOnce(agent, args.message); printSessionSummary(agent); return; }
