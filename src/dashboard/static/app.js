@@ -283,13 +283,13 @@ const App = {
       this.workflowsData = data.workflows;
 
       // Category filter chips
-      var catHtml = '<button class="category-chip active" data-cat="all" onclick="App.filterWorkflows('all')">All</button>';
+      var catHtml = '<button class="category-chip active" data-cat="all" onclick="App.filterWorkflows(&#39;all&#39;)">All</button>';
       var seenCats = {};
       for (var i = 0; i < data.workflows.length; i++) {
         var cat = data.workflows[i].category;
         if (!seenCats[cat] && data.categories[cat]) {
           seenCats[cat] = true;
-          catHtml += '<button class="category-chip" data-cat="' + App.escapeHtml(cat) + '" onclick="App.filterWorkflows('' + App.escapeHtml(cat) + '')">' + App.escapeHtml(data.categories[cat].label) + '</button>';
+          catHtml += '<button class="category-chip" data-cat="' + App.escapeHtml(cat) + '" onclick="App.filterWorkflows(&#39;' + App.escapeHtml(cat) + '&#39;)">' + App.escapeHtml(data.categories[cat].label) + '</button>';
         }
       }
       cats.innerHTML = catHtml;
@@ -320,7 +320,7 @@ const App = {
 
     grid.innerHTML = workflows.map(function(wf) {
       var icon = icons[wf.icon] || icons.clipboard;
-      return '<div class="workflow-card" data-category="' + App.escapeHtml(wf.category) + '" onclick="App.openWorkflowRunner('' + App.escapeHtml(wf.name) + '')" style="--wf-color: ' + App.escapeHtml(wf.color) + '">' +
+      return '<div class="workflow-card" data-category="' + App.escapeHtml(wf.category) + '" onclick="App.openWorkflowRunner(&#39;' + App.escapeHtml(wf.name) + '&#39;)" style="--wf-color: ' + App.escapeHtml(wf.color) + '">' +
         '<div class="workflow-card-icon">' + icon + '</div>' +
         '<div class="workflow-card-name">' + App.escapeHtml(wf.description) + '</div>' +
         '<span class="workflow-card-cat">' + App.escapeHtml(wf.category) + '</span>' +
