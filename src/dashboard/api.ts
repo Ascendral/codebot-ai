@@ -103,7 +103,13 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
       return;
     }
 
-    const lines = fs.readFileSync(sessionFile, 'utf-8').split('\n').filter(Boolean);
+    let lines: string[];
+    try {
+      lines = fs.readFileSync(sessionFile, 'utf-8').split('\n').filter(Boolean);
+    } catch (err: any) {
+      DashboardServer.error(res, 500, 'Failed to read session: ' + (err.message || 'unknown'));
+      return;
+    }
     const messages = lines.map(line => {
       try {
         const decrypted = decryptLine(line);
@@ -157,39 +163,38 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
   });
 
   // ── Batch Delete Sessions ──
-  server.route('POST', '/api/sessions/batch-delete', (req, res) => {
-    let body = '';
-    req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
-    req.on('end', () => {
+  server.route('POST', '/api/sessions/batch-delete', async (req, res) => {
+    let parsed: any;
+    try {
+      parsed = await DashboardServer.parseBody(req);
+    } catch (err: any) {
+      DashboardServer.error(res, 400, err.message || 'Invalid JSON body');
+      return;
+    }
+
+    const ids = parsed?.ids;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      DashboardServer.error(res, 400, 'ids must be a non-empty array');
+      return;
+    }
+
+    const sessionsDir = path.join(os.homedir(), '.codebot', 'sessions');
+    let deleted = 0;
+    let failed = 0;
+
+    for (const id of ids) {
+      const sessionFile = path.join(sessionsDir, `${id}.jsonl`);
       try {
-        const { ids } = JSON.parse(body);
-        if (!Array.isArray(ids) || ids.length === 0) {
-          DashboardServer.error(res, 400, 'ids must be a non-empty array');
-          return;
+        if (fs.existsSync(sessionFile)) {
+          fs.unlinkSync(sessionFile);
+          const auditFile = path.join(root, '.codebot', 'audit', `${id}.jsonl`);
+          if (fs.existsSync(auditFile)) fs.unlinkSync(auditFile);
+          deleted++;
         }
+      } catch { failed++; }
+    }
 
-        const sessionsDir = path.join(os.homedir(), '.codebot', 'sessions');
-        let deleted = 0;
-        let failed = 0;
-
-        for (const id of ids) {
-          const sessionFile = path.join(sessionsDir, `${id}.jsonl`);
-          try {
-            if (fs.existsSync(sessionFile)) {
-              fs.unlinkSync(sessionFile);
-              // Also remove corresponding audit log
-              const auditFile = path.join(root, '.codebot', 'audit', `${id}.jsonl`);
-              if (fs.existsSync(auditFile)) fs.unlinkSync(auditFile);
-              deleted++;
-            }
-          } catch { failed++; }
-        }
-
-        DashboardServer.json(res, { deleted, failed, total: ids.length });
-      } catch {
-        DashboardServer.error(res, 400, 'Invalid JSON body');
-      }
-    });
+    DashboardServer.json(res, { deleted, failed, total: ids.length });
   });
 
   // ── Audit ──

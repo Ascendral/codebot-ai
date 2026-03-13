@@ -246,7 +246,7 @@ export class DashboardServer {
       const match = urlPath.match(route.pattern);
       if (match) {
         // Require auth for /api/* routes
-        if (urlPath.startsWith('/api/') && !this.checkAuth(req)) {
+        if (urlPath.startsWith('/api/') && urlPath !== '/api/health' && !this.checkAuth(req)) {
           DashboardServer.error(res, 401, 'Unauthorized');
           return;
         }

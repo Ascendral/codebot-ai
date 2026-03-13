@@ -11,7 +11,23 @@ function apiFetch(path, opts) {
   if (token) headers['Authorization'] = 'Bearer ' + token;
   opts.headers = headers;
   var base = window.location.origin;
-  return window.fetch(base + path, opts);
+  // Add 30s timeout via AbortController
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function() { controller.abort(); }, 30000);
+  if (!opts.signal) opts.signal = controller.signal;
+  return window.fetch(base + path, opts).then(function(res) {
+    clearTimeout(timeoutId);
+    // Auto-reload on 401 to pick up new auth token after server restart
+    if (res.status === 401 && !window.__reloading) {
+      window.__reloading = true;
+      window.location.reload();
+    }
+    return res;
+  }).catch(function(err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') throw new Error('Request timed out (30s)');
+    throw err;
+  });
 }
 
 const App = {
