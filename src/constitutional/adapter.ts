@@ -165,7 +165,15 @@ export class CordAdapter {
    */
   evaluateAction(action: ToolAction): ConstitutionalResult {
     const toolType = TOOL_TYPE_MAP[action.tool] || action.type || 'unknown';
-    const text = this.buildProposalText(action);
+
+    // Memory writes contain project documentation that triggers false positives
+    // on injection/drift regexes (e.g. "os.homedir()" matches os.system pattern,
+    // "override" in architecture docs matches promptInjection pattern).
+    // Memory is permission:'auto' (lowest risk) — only evaluate tool name + scope.
+    const isMemoryWrite = action.tool === 'memory' && action.args.action === 'write';
+    const text = isMemoryWrite
+      ? this.buildMemoryProposalText(action)
+      : this.buildProposalText(action);
 
     const cordInput = {
       text,
@@ -294,6 +302,19 @@ export class CordAdapter {
     if (action.args.content) parts.push(String(action.args.content).substring(0, 500));
     if (action.args.url) parts.push(String(action.args.url));
     if (action.args.query) parts.push(String(action.args.query));
+    return parts.join(' ');
+  }
+
+  /**
+   * Build proposal text for memory writes — excludes content body to prevent
+   * false positives from project documentation triggering injection/drift patterns.
+   * Only includes tool name, action, scope, and file name for CORD evaluation.
+   */
+  private buildMemoryProposalText(action: ToolAction): string {
+    const parts = ['memory'];
+    if (action.args.action) parts.push(String(action.args.action));
+    if (action.args.scope) parts.push(String(action.args.scope));
+    if (action.args.file) parts.push(String(action.args.file));
     return parts.join(' ');
   }
 
