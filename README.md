@@ -2,56 +2,92 @@
 
 # CodeBot AI
 
-### Zero-dependency autonomous AI agent
+### The safe, local-first autonomous coding agent
 
-**Your local-first AI coding agent. Runs with Ollama (no API keys), edits code, browses the web, automates git/PRs/tests. Multi-LLM swarm mode lets multiple AI models collaborate on your tasks. Enterprise security from day 1.**
+**Run AI-assisted development entirely on your machine. No API keys required. Policy-governed, audit-trailed, sandboxed — built for teams that take code security seriously.**
 
 [![npm version](https://img.shields.io/npm/v/codebot-ai.svg?style=flat-square&color=6366f1)](https://www.npmjs.com/package/codebot-ai)
 [![CI](https://github.com/zanderone1980/codebot-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/zanderone1980/codebot-ai/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/codebot-ai.svg?style=flat-square)](https://github.com/zanderone1980/codebot-ai/blob/main/LICENSE)
-![tests](https://img.shields.io/badge/tests-1125%20passing-22c55e?style=flat-square)
-![dependencies](https://img.shields.io/badge/dependencies-0-22c55e?style=flat-square)
-![tools](https://img.shields.io/badge/tools-32-6366f1?style=flat-square)
+![tests](https://img.shields.io/badge/tests-1217%20passing-22c55e?style=flat-square)
+![tools](https://img.shields.io/badge/tools-31-6366f1?style=flat-square)
 ![swarm](https://img.shields.io/badge/swarm-multi--LLM-f59e0b?style=flat-square)
 ![node](https://img.shields.io/node/v/codebot-ai.svg?style=flat-square)
-
-```bash
-npm install -g codebot-ai && codebot --setup
-```
-
-Works with **any LLM** &mdash; Ollama (local, free), Claude, GPT, Gemini, DeepSeek, Groq, Mistral, Grok.
-<br>Web dashboard, VS Code extension, GitHub Action, multi-LLM swarm, and enterprise security built in.
+[![downloads](https://img.shields.io/npm/dw/codebot-ai.svg?style=flat-square)](https://www.npmjs.com/package/codebot-ai)
 
 </div>
 
 ---
 
-## Install & Run
+## Why This Exists
+
+Most AI coding tools require sending your code to third-party servers. That's a non-starter for security-sensitive teams, regulated industries, and developers who want to keep their code local.
+
+CodeBot AI runs entirely on your machine with local LLMs (Ollama, LM Studio, vLLM) — or connects to any cloud provider when you choose. Every action is policy-governed, risk-scored, and audit-trailed.
+
+### Who This Is For
+
+- **Security-sensitive teams** — code never leaves your machine unless you opt in
+- **Regulated industries** — finance, healthcare, government teams with compliance requirements
+- **Solo developers** — autonomous coding without subscription fees
+- **Internal platform teams** — extensible agent runtime with plugins, MCP, and API
+
+---
+
+## Quick Start
 
 ```bash
-# Install globally
+# Install
 npm install -g codebot-ai
 
-# Launch interactive mode
-codebot
+# Auto-detects Ollama, LM Studio, or cloud providers
+codebot --setup
 
-# Or run without installing
-npx codebot-ai
+# Start coding
+codebot "explain what this project does"
+
+# Launch the web dashboard
+codebot --dashboard
 ```
 
-First run launches the setup wizard &mdash; pick your model, paste an API key (or use local LLM), done.
-
+Local LLM with zero API keys:
 ```bash
-# Local LLM (no API key needed)
-ollama pull qwen2.5-coder
-codebot --setup       # select "ollama"
-
-# Web dashboard
-codebot --dashboard   # opens localhost:3120
-
-# Full autonomous mode
-codebot --autonomous "refactor auth module and run tests"
+ollama pull qwen2.5-coder && codebot --provider ollama --model qwen2.5-coder
 ```
+
+---
+
+## Why CodeBot vs. Alternatives?
+
+| | CodeBot AI | GitHub Copilot | Cursor | Claude Code |
+|---|:---:|:---:|:---:|:---:|
+| **Self-hosted** | Yes | No | No | No |
+| **Any LLM** | 8 providers | GPT only | Mixed | Claude only |
+| **Policy engine** | Yes | No | No | No |
+| **Audit trail** | Yes | No | No | No |
+| **Sandboxed execution** | Yes | No | No | No |
+| **Free / MIT** | Yes | $10-39/mo | $20/mo | $20/mo |
+
+[Full comparison →](docs/COMPARISON.md)
+
+---
+
+## Built for Safety
+
+Every tool call is risk-scored before execution. Every action is logged to a tamper-evident audit trail.
+
+| Layer | What It Does |
+|-------|-------------|
+| **Policy Engine** | Declarative JSON rules defining what the agent can and cannot do |
+| **Risk Scoring** | 6-factor scoring on every tool call (0-100) with configurable thresholds |
+| **Audit Trail** | SHA-256 hash-chained, tamper-evident logs with SARIF export |
+| **Sandbox** | Docker-based execution with network/CPU/memory limits |
+| **Permission Model** | Interactive approval for risky operations, auto-approve for safe ones |
+| **Secret Detection** | 15+ patterns (AWS keys, tokens, private keys) blocked before exposure |
+| **SSRF Protection** | Blocks localhost, private IPs, cloud metadata endpoints |
+| **Session Integrity** | HMAC-based tamper detection on session state |
+
+See [SECURITY.md](SECURITY.md) for the full threat model.
 
 ---
 
@@ -61,55 +97,14 @@ codebot --autonomous "refactor auth module and run tests"
 |-----------|-----|
 | **Write & edit code** | Reads your codebase, makes targeted edits, runs tests |
 | **Run commands** | Shell execution with security filtering and sandbox support |
-| **Browse the web** | Controls Chrome via DevTools Protocol &mdash; navigate, click, type, screenshot |
+| **Browse the web** | Controls Chrome via DevTools Protocol — navigate, click, type, screenshot |
 | **Search the internet** | Real-time web search for docs, APIs, current info |
+| **Deep research** | Multi-source research with synthesis across web, docs, and code |
 | **Web dashboard** | Sessions, audit trail, metrics, and Command Center at localhost:3120 |
-| **Schedule routines** | Cron-based recurring tasks &mdash; monitoring, reports, automation |
+| **Schedule routines** | Cron-based recurring tasks — monitoring, reports, automation |
 | **Persistent memory** | Remembers preferences and context across sessions |
-| **Enterprise security** | RBAC policies, risk scoring, encrypted audit trail, SARIF export |
 | **Multi-LLM Swarm** | Multiple AI models collaborate using debate, pipeline, fan-out, and more |
-
----
-
-## Multi-LLM Swarm
-
-Launch a swarm of AI agents that collaborate on complex tasks. Mix cloud and local models freely.
-
-```bash
-codebot --dashboard   # open http://localhost:3120, click "Launch Swarm"
-```
-
-**6 Strategies:**
-- **Auto** &mdash; Router analyzes your task and picks the best strategy
-- **Debate** &mdash; Multiple agents propose solutions and vote on the best
-- **Mixture of Agents** &mdash; Diverse proposals merged by a synthesizer
-- **Pipeline** &mdash; Sequential stages: plan &rarr; research &rarr; code &rarr; review &rarr; test
-- **Fan-Out** &mdash; Parallel subtasks gathered and synthesized
-- **Generator-Critic** &mdash; One agent generates, another critiques, iterate to quality
-
-**Supported providers:** Anthropic (Claude), OpenAI (GPT), Ollama (local, free), Gemini, DeepSeek, Groq, Mistral, xAI (Grok)
-
-Select providers in the dashboard, type your task, and watch agents stream results in real-time via SSE.
-
----
-
-## Web Dashboard
-
-Launch with `codebot --dashboard` or standalone with `npx codebot-ai && open http://localhost:3120`.
-
-<!-- Add screenshots: save to docs/images/ and uncomment
-![Dashboard Sessions](docs/images/dashboard-sessions.png)
-![Dashboard Metrics](docs/images/dashboard-metrics.png)
-![Dashboard Command Center](docs/images/dashboard-command.png)
--->
-
-**Sessions** &mdash; Browse and inspect every conversation with message counts and timestamps.
-
-**Audit Trail** &mdash; Cryptographic hash-chained log of every tool execution. One-click chain verification.
-
-**Metrics** &mdash; Session counts, audit events, tool usage breakdown, and activity charts.
-
-**Command Center** &mdash; Interactive terminal, quick actions (git status, run tests, health check), and when connected to the agent: AI chat and tool runner.
+| **App integrations** | GitHub, Jira, Slack, Gmail, Notion, and more via encrypted connector vault |
 
 ---
 
@@ -126,19 +121,16 @@ Launch with `codebot --dashboard` or standalone with `npx codebot-ai && open htt
 | **Mistral** | mistral-large, codestral |
 | **xAI** | grok-3, grok-3-mini |
 
+All cloud providers route through OpenAI-compatible APIs. Local providers connect directly via Ollama/LM Studio/vLLM.
+
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."    # or any provider
 codebot --model claude-sonnet-4-6
 ```
 
-Or use a local model with zero API keys:
-```bash
-ollama pull qwen2.5-coder && codebot --provider ollama --model qwen2.5-coder
-```
-
 ---
 
-## 32 Built-in Tools
+## 31 Built-in Tools
 
 | Tool | Permission | Description |
 |------|:----------:|-------------|
@@ -153,6 +145,7 @@ ollama pull qwen2.5-coder && codebot --provider ollama --model qwen2.5-coder
 | `browser` | prompt | Chrome automation via CDP |
 | `web_fetch` | prompt | HTTP requests and API calls |
 | `web_search` | prompt | Internet search with summaries |
+| `deep_research` | prompt | Multi-source research with synthesis |
 | `think` | auto | Internal reasoning scratchpad |
 | `memory` | auto | Persistent memory across sessions |
 | `routine` | prompt | Schedule recurring tasks with cron |
@@ -170,17 +163,16 @@ ollama pull qwen2.5-coder && codebot --provider ollama --model qwen2.5-coder
 | `ssh_remote` | always-ask | Remote command execution via SSH |
 | `notification` | prompt | Webhook notifications (Slack, Discord) |
 | `package_manager` | prompt | Dependency management (npm, yarn, pip, cargo, go) |
-| `app_connector` | prompt | GitHub, Jira, Linear, Slack integrations |
+| `app_connector` | prompt | 10 app integrations via encrypted vault |
 | `graphics` | prompt | Image processing: resize, crop, watermark, convert |
-| `delegate` | prompt | Multi-agent task delegation |
 
 **Permission levels:** `auto` = runs silently, `prompt` = asks first (skipped in `--autonomous`), `always-ask` = always confirms.
 
 ---
 
-## App Connectors
+## 10 App Connectors
 
-Connect to external services with OAuth or API keys:
+Connect to external services with OAuth or API keys. Credentials stored in encrypted vault (AES-256-GCM).
 
 | Connector | Capabilities |
 |-----------|-------------|
@@ -188,31 +180,108 @@ Connect to external services with OAuth or API keys:
 | **Jira** | Issues, projects, sprints, transitions |
 | **Linear** | Issues, projects, teams, cycles |
 | **Slack** | Messages, channels, users, threads |
+| **Gmail** | Read, send, search, label management |
+| **Google Calendar** | Events, scheduling, availability |
+| **Notion** | Pages, databases, search, content blocks |
+| **Google Drive** | Files, folders, search, sharing |
 | **OpenAI Images** | DALL-E generation, editing, variations |
 | **Replicate** | Run any ML model via API |
 
-Credentials stored in encrypted vault (AES-256-GCM).
+---
+
+## Multi-LLM Swarm
+
+Launch a swarm of AI agents that collaborate on complex tasks. Mix cloud and local models freely.
+
+```bash
+codebot --dashboard   # open http://localhost:3120, click "Launch Swarm"
+```
+
+**6 Strategies:**
+- **Auto** — Router analyzes your task and picks the best strategy
+- **Debate** — Multiple agents propose solutions and vote on the best
+- **Mixture of Agents** — Diverse proposals merged by a synthesizer
+- **Pipeline** — Sequential stages: plan → research → code → review → test
+- **Fan-Out** — Parallel subtasks gathered and synthesized
+- **Generator-Critic** — One agent generates, another critiques, iterate to quality
 
 ---
 
-## Security
+## Web Dashboard
 
-Built for enterprise from day one:
+Launch with `codebot --dashboard` — opens at `http://localhost:3120`.
 
+**Sessions** — Browse and inspect every conversation with message counts and timestamps.
+
+**Audit Trail** — Cryptographic hash-chained log of every tool execution. One-click chain verification.
+
+**Metrics** — Session counts, audit events, tool usage breakdown, and activity charts.
+
+**Command Center** — Interactive terminal, quick actions, AI chat, and tool runner.
+
+**Security** — Live constitutional AI decision feed, block rate metrics, risk dimension breakdown.
+
+---
+
+## Ecosystem
+
+### VS Code Extension
+
+```bash
+code --install-extension codebot-ai-vscode-2.7.7.vsix
 ```
- Risk Scoring       6-factor risk scoring on every tool call (0-100)
- Encryption         AES-256-GCM encryption at rest
- Audit Trail        SHA-256 hash-chained, tamper-evident logs
- Sandbox            Docker-based execution with network/CPU/memory limits
- RBAC               Declarative JSON policy engine with per-tool permissions
- SARIF Export       GitHub Code Scanning integration
- SSRF Protection    Blocks localhost, private IPs, cloud metadata
- Secret Detection   15+ patterns (AWS keys, tokens, private keys)
- Path Safety        Blocks writes to system directories
- Session Integrity  HMAC-based tamper detection
+
+Sidebar chat panel, inline diff preview, status bar (tokens, cost, risk level), theme integration.
+
+### GitHub Action
+
+```yaml
+- uses: zanderone1980/codebot-ai/actions/codebot@v2
+  with:
+    task: review    # or: fix, scan
+    api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-See [SECURITY.md](SECURITY.md) for the full model.
+### Programmatic API
+
+```typescript
+import { Agent, AnthropicProvider } from 'codebot-ai';
+
+const agent = new Agent({
+  provider: new AnthropicProvider({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    model: 'claude-sonnet-4-6',
+  }),
+  model: 'claude-sonnet-4-6',
+  autoApprove: true,
+});
+
+for await (const event of agent.run('list all TypeScript files')) {
+  if (event.type === 'text') process.stdout.write(event.text || '');
+}
+```
+
+### Plugins & MCP
+
+**Custom tools:** Drop `.js` files in `.codebot/plugins/`:
+
+```javascript
+module.exports = {
+  name: 'my_tool',
+  description: 'Does something useful',
+  permission: 'prompt',
+  parameters: { type: 'object', properties: { input: { type: 'string' } }, required: ['input'] },
+  execute: async (args) => \`Result: \${args.input}\`,
+};
+```
+
+**MCP servers:** Create `.codebot/mcp.json`:
+
+```json
+{
+  "servers": [{ "name": "my-server", "command": "npx", "args": ["-y", "@my/mcp-server"] }]
+}
+```
 
 ---
 
@@ -272,63 +341,21 @@ echo "explain this error" | codebot            # Pipe mode
 
 ---
 
-## VS Code Extension
+## Testing & Reliability
 
-```bash
-code --install-extension codebot-ai-vscode-2.0.0.vsix
-```
+| Metric | Value |
+|--------|-------|
+| **Tests** | 1,217 passing across 232 suites |
+| **CI Matrix** | 3 OS (macOS, Linux, Windows) × 3 Node versions (18, 20, 22) |
+| **Test types** | Unit, integration, security (SSRF, path traversal, secret detection) |
+| **Deterministic** | No network calls in test suite, all providers mocked |
+| **Run** | `npm test` |
 
-Sidebar chat panel, inline diff preview, status bar (tokens, cost, risk level), theme integration.
-
-## GitHub Action
-
-```yaml
-- uses: zanderone1980/codebot-ai/actions/codebot@v2
-  with:
-    task: review    # or: fix, scan
-    api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-```
-
-## Programmatic API
-
-```typescript
-import { Agent, AnthropicProvider } from 'codebot-ai';
-
-const agent = new Agent({
-  provider: new AnthropicProvider({
-    apiKey: process.env.ANTHROPIC_API_KEY,
-    model: 'claude-sonnet-4-6',
-  }),
-  model: 'claude-sonnet-4-6',
-  autoApprove: true,
-});
-
-for await (const event of agent.run('list all TypeScript files')) {
-  if (event.type === 'text') process.stdout.write(event.text || '');
-}
-```
-
-## Plugins & MCP
-
-**Custom tools:** Drop `.js` files in `.codebot/plugins/`:
-
-```javascript
-module.exports = {
-  name: 'my_tool',
-  description: 'Does something useful',
-  permission: 'prompt',
-  parameters: { type: 'object', properties: { input: { type: 'string' } }, required: ['input'] },
-  execute: async (args) => `Result: ${args.input}`,
-};
-```
-
-**MCP servers:** Create `.codebot/mcp.json`:
-
-```json
-{
-  "servers": [{ "name": "my-server", "command": "npx", "args": ["-y", "@my/mcp-server"] }]
-}
-```
+**Stability features:**
+- Auto-retry with exponential backoff on network errors and rate limits
+- Stream recovery — reconnects if the LLM drops mid-response
+- Context compaction — smart summarization when hitting context limits
+- Process resilience — catches unhandled exceptions, keeps the REPL running
 
 ---
 
@@ -341,20 +368,12 @@ npm install && npm run build
 ./bin/codebot
 ```
 
-## Stability
-
-- **Auto-retry** &mdash; exponential backoff on network errors, rate limits, server errors
-- **Stream recovery** &mdash; reconnects if the LLM drops mid-response
-- **Context compaction** &mdash; smart summarization when hitting context limits
-- **Process resilience** &mdash; catches unhandled exceptions, keeps the REPL running
-- **1,168 tests** &mdash; comprehensive coverage across agent, tools, security, and dashboard
-
 ---
 
 <div align="center">
 
-**[npm](https://www.npmjs.com/package/codebot-ai)** &middot; **[GitHub](https://github.com/zanderone1980/codebot-ai)** &middot; **[Changelog](CHANGELOG.md)** &middot; **[Roadmap](ROADMAP.md)** &middot; **[Security](SECURITY.md)**
+**[npm](https://www.npmjs.com/package/codebot-ai)** · **[GitHub](https://github.com/zanderone1980/codebot-ai)** · **[Changelog](CHANGELOG.md)** · **[Docs](docs/)** · **[Security](SECURITY.md)**
 
-MIT &mdash; [Ascendral Software Development & Innovation](https://github.com/AscendralSoftware)
+MIT — [Ascendral Software Development & Innovation](https://github.com/AscendralSoftware)
 
 </div>

@@ -1,5 +1,5 @@
 name: 'CodeBot AI'
-description: 'Autonomous AI code review, auto-fix, and security scan'
+description: 'Safe, local-first autonomous coding agent — code review, auto-fix, and security scan'
 author: 'codebot-ai'
 
 branding:

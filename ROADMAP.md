@@ -4,16 +4,19 @@
 
 ---
 
-## Current State (v2.1.6) — SHIPPED
+## Current State (v2.7.7) — SHIPPED
 
 | Metric | Value |
 |--------|-------|
-| Version | 2.3.0 |
-| Tests | 1035+ passing |
-| Tools | 28 built-in + MCP + plugins |
+| Version | 2.7.7 |
+| Tests | 1,217 passing (232 suites) |
+| Tools | 31 built-in + MCP + plugins |
+| Connectors | 10 app integrations |
+| Providers | 8 LLM providers (local + cloud) |
 | Security | 8-layer stack: policy, RBAC, capabilities, risk scoring, path safety, secret detection, SSRF, sandbox |
-| Platforms | CLI, VS Code extension, GitHub Action |
-| npm | [codebot-ai@2.1.6](https://www.npmjs.com/package/codebot-ai) |
+| Platforms | CLI, VS Code extension, GitHub Action, Web Dashboard |
+| CI | 3 OS (macOS, Linux, Windows) x 3 Node versions (18, 20, 22) |
+| npm | [codebot-ai@2.7.7](https://www.npmjs.com/package/codebot-ai) |
 
 ### Completed Milestones
 
@@ -28,117 +31,48 @@
 | v1.9.0 | Observable | Structured metrics, risk scoring, SARIF export | 376 | Shipped |
 | v2.0.0 | Enterprise | VS Code extension, GitHub Action, docs, legal | 483 | Shipped |
 | v2.1.0 | RBAC | RBAC sweep, encryption at rest, ESLint | 491 | Shipped |
-| v2.1.3 | Animation | Terminal animation system, mascot, boot sequence | 491 | Shipped |
-| v2.1.5 | Hardened II | RBAC consistency, browser safety, encryption wiring | 559 | Shipped |
 | v2.1.6 | Intelligence | Prompt caching, vision/multimodal, model routing, JSON mode | 586 | Shipped |
-| v2.2.0 | Quality | 907 tests, CLI UI polish, permission cards, cost estimation, browser resilience | 907 | Shipped |
-| v2.3.0 | Platform | TUI mode, web dashboard, theme system, provider rate limiting, doctor | 1035 | Shipped |
+| v2.2.0 | Quality | CLI UI polish, permission cards, cost estimation, browser resilience | 907 | Shipped |
+| v2.3.0 | Platform | TUI mode, web dashboard, theme system, provider rate limiting | 1,035 | Shipped |
+| v2.5.0 | Ecosystem | App connectors (10), credential vault, skills system | 1,114 | Shipped |
+| v2.5.2 | Command | Dashboard Command Center, terminal, quick actions, tool runner | 1,135 | Shipped |
+| v2.7.0 | Safety | Constitutional AI (CORD engine, VIGIL patrol), security dashboard | 1,168 | Shipped |
+| v2.7.7 | Hardening | Centralized CODEBOT_HOME paths, warnNonFatal, cli decomposition | 1,217 | Shipped |
 
 ---
 
-## Shipped: v2.2.0 — Quality and UX
+## Next: v2.8.0 — Operational Trust
 
-**Theme:** Make it feel production-grade.
+**Theme:** From "technically impressive" to "boringly reliable."
 
-**Target:** March 2026
-
-### Completed (v2.2.0-alpha)
-- 880 comprehensive tests (every tool has a dedicated test file)
-- Premium CLI output: UI component library (boxes, risk bars, spinners, diff previews)
-- Permission cards: bordered cards with risk bar, sandbox/network status, approve/deny
-- --verbose flag for detailed output
-- Boxed session summary with risk average
-- README overhaul: comparison table, badges, troubleshooting, security summary
-- Multi-agent orchestration (parent/child delegation)
-
-### Completed (v2.2.0)
-- ✅ Cost transparency: --dry-run / --estimate flags for cost prediction
-- ✅ Browser resilience: auto-reconnect on WebSocket drop, fetch-only fallback
-- ✅ CHANGELOG update for v2.2.0 release
-- ⏳ Per-tool cost breakdown in session metrics (deferred to v2.3.0)
-- ⏳ codebot doctor: environment health check (deferred to v2.3.0)
-
-### Gate Criteria
-- 907 tests, 0 failures ✅
-- Clean npm run build
-- All tools have dedicated test files
-- README renders correctly on GitHub
+### Planned
+- Agent decomposition (tool executor, prompt builder, message repair extracted)
+- Browser decomposition (connection, actions, dispatch separated)
+- Error recovery suggestions (pattern-match common errors to actionable fixes)
+- Plugin schema validation (JSON Schema for manifests)
+- Risk scoring dashboard (configurable thresholds, history visualization)
+- Model management dashboard (installed models, VRAM detection, pull/delete)
+- Offline fallback cache for web tools
 
 ---
 
-## Shipped: v2.3.0 — Platform
-
-**Theme:** Run anywhere, for anyone.
-
-**Target:** Q2 2026
-
-### TUI Mode
-- Full terminal UI with plan/logs/diff panels
-- Interactive step list with approve/retry/skip
-- Real-time progress with spinners and timing
-
-### CLI Enhancements
-- Progress UI with spinners and timing per step
-- Diff preview before write operations (approve/deny/edit scope)
-- Collapsible verbose sections
-- Theme presets (dark, light, mono)
-
-### Web Dashboard (Local)
-- Session history with timestamps and outcomes
-- Per-run view: plan, approvals, tool calls, diffs, artifacts
-- Audit chain viewer with export button
-
-### Enhanced Providers
-- Provider-aware rate limiting
-- Streaming response display (token-by-token)
-- Cost budget visualization
-
-### Completed
-- \u2705 TUI mode with 3-panel layout, keyboard navigation, permission dialogs
-- \u2705 Web dashboard with session viewer, audit chain verification, metrics
-- \u2705 Theme system (dark/light/mono) with NO_COLOR support
-- \u2705 Provider-aware rate limiting with sliding-window RPM/TPM
-- \u2705 Per-tool cost breakdown + doctor command (deferred from v2.2.0)
-- \u2705 Enhanced streaming display with budget visualization
-
-### Gate Criteria
-- 1035+ tests, 0 failures \u2705
-- TUI mode working \u2705
-- Web dashboard serving locally \u2705
-
----
-
-## v2.4.0 — Teams and Ecosystem
+## v2.9.0 — Teams and Ecosystem
 
 **Theme:** Scale beyond a single developer.
 
-**Target:** Q3 2026
-
-### Team Policies
+### Planned
 - Organization-level policy inheritance (org, team, project)
-- Shared policy repository via git
-- Policy validation CLI
-
-### Plugin Marketplace
-- Community plugin registry (searchable, versioned)
-- MCP server discovery
-- One-click install
-- Plugin security audit (dependency scan, permission review)
-
-### REST API
-- Server mode (codebot --serve)
-- REST API with OpenAPI spec
+- Plugin marketplace with community registry
+- REST API server mode (`codebot --serve`) with OpenAPI spec
 - Webhook integrations (Slack, Discord, Teams)
 
 ---
 
-## What We Are NOT Building (Scope Control)
-
-Explicitly out of scope:
+## What We Are NOT Building
 
 - Desktop app (Electron/Tauri) — CLI + VS Code is sufficient
 - Cloud hosted version — self-hosted only
-- Billing/subscription system
+- Billing/subscription system — MIT stays free
 - Mobile app
 - Proprietary license — staying MIT
 
@@ -146,13 +80,11 @@ Explicitly out of scope:
 
 ## Competitive Position
 
-**The secure, self-hosted AI engineering platform.**
+**The safe, local-first autonomous coding agent.**
 
-The only open-source AI coding agent that is:
-- **Secure by default** — 8-layer security stack
+- **Secure by default** — 8-layer security stack from day one
 - **Auditable** — hash-chained SARIF-exportable audit trail
 - **Policy-driven** — declarative JSON security policies
 - **Provider-agnostic** — any LLM, local or cloud
-- **Zero dependencies** — pure Node.js, no install bloat
+- **Tested** — 1,217 tests across 3 OS and 3 Node versions
 - **Enterprise-ready** — VS Code extension, GitHub Action, CI/CD integration
-- **Tested** — 1035+ tests covering every tool and security boundary

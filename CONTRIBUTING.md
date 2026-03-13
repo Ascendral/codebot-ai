@@ -88,7 +88,7 @@ describe('YourModule', () => {
 
 ## Contributor License Agreement
 
-By submitting a pull request, you agree to the terms in [CLA.md](CLA.md). In summary: you grant a perpetual, irrevocable license to use your contributions under the project's MIT license, and you confirm you have the right to make the contribution.
+By submitting a pull request, you agree to the terms in [CLA.md](docs/CLA.md). In summary: you grant a perpetual, irrevocable license to use your contributions under the project's MIT license, and you confirm you have the right to make the contribution.
 
 ## Code of Conduct
 

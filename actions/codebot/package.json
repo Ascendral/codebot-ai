@@ -1,7 +1,7 @@
 {
   "name": "@codebot-ai/action",
-  "version": "2.0.0",
-  "description": "CodeBot AI GitHub Action - Autonomous code review, auto-fix, and security scan",
+  "version": "2.7.7",
+  "description": "CodeBot AI GitHub Action — safe, local-first autonomous coding agent for code review, auto-fix, and security scan",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -11,7 +11,7 @@
   "dependencies": {
     "@actions/core": "^1.10.1",
     "@actions/github": "^6.0.0",
-    "codebot-ai": "^2.0.0"
+    "codebot-ai": "^2.7.7"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

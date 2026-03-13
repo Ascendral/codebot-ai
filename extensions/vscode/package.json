@@ -1,8 +1,8 @@
 {
   "name": "codebot-ai-vscode",
   "displayName": "CodeBot AI",
-  "description": "AI-powered coding assistant with multi-provider support, risk scoring, and policy enforcement.",
-  "version": "2.0.0",
+  "description": "Safe, local-first autonomous coding agent with policy governance, risk scoring, and audit trail.",
+  "version": "2.7.7",
   "publisher": "ascendral",
   "license": "MIT",
   "engines": {
@@ -55,10 +55,16 @@
       "properties": {
         "codebot.provider": {
           "type": "string",
-          "default": "openai",
+          "default": "ollama",
           "enum": [
+            "ollama",
+            "anthropic",
             "openai",
-            "anthropic"
+            "gemini",
+            "deepseek",
+            "groq",
+            "mistral",
+            "xai"
           ],
           "description": "LLM provider to use."
         },
@@ -90,7 +96,7 @@
     "watch": "tsc --watch"
   },
   "dependencies": {
-    "codebot-ai": "^2.0.0"
+    "codebot-ai": "^2.7.7"
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",
