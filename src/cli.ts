@@ -292,7 +292,10 @@ export async function main() {
   if (args.dashboard) {
     agent.setAutoApprove(true);
     try {
-      const dashStaticDir = require('path').join(__dirname, 'dashboard', 'static');
+      // Resolve static dir: prefer src/ (canonical) over dist/ (stale copies)
+      const srcStatic = require('path').resolve(__dirname, '..', 'src', 'dashboard', 'static');
+      const distStatic = require('path').join(__dirname, 'dashboard', 'static');
+      const dashStaticDir = require('fs').existsSync(srcStatic) ? srcStatic : distStatic;
       const dashHost = typeof args.host === 'string' ? args.host : '127.0.0.1';
       const dashServer = new DashboardServer({ port: 3120, host: dashHost, staticDir: dashStaticDir });
       const os = require('os');
