@@ -7,7 +7,7 @@
   <meta http-equiv="pragma" content="no-cache">
   <meta http-equiv="expires" content="0">
   <title>CodeBot AI — v2</title>
-  <link rel="stylesheet" href="style.css?v=30">
+  <link rel="stylesheet" href="style.css?v=31">
   <link rel="icon" href="favicon.svg?v=20" type="image/svg+xml">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#00d4ff">
@@ -17,6 +17,13 @@
   <link rel="apple-touch-icon" href="logo.svg">
 </head>
 <body>
+  <!-- Onboarding Overlay (shown on first run) -->
+  <div id="onboarding-overlay" class="onboarding-overlay" style="display:none">
+    <div class="onboarding-card">
+      <div id="onboarding-step" class="onboarding-step"></div>
+    </div>
+  </div>
+
   <!-- Main Content -->
   <div id="app">
     <!-- Notification Bell -->
@@ -339,7 +346,7 @@
     </nav>
   </div>
 
-  <script src="app.js?v=30"></script>
+  <script src="app.js?v=31"></script>
   <script>
   // Kill any leftover service workers — they cause more problems than they solve
   if ('serviceWorker' in navigator) {

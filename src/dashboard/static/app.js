@@ -42,12 +42,137 @@ const App = {
   // -- Init --
   init() {
     this.setupNavigation();
+    this.checkOnboarding();
     this.checkHealth();
     this.navigateToHash();
     window.addEventListener('hashchange', () => this.navigateToHash());
     setInterval(() => this.checkHealth(), 30000);
     this.pollNotifications();
     setInterval(() => this.pollNotifications(), 30000);
+  },
+
+  // ===========================================================
+  // ONBOARDING
+  // ===========================================================
+
+  async checkOnboarding() {
+    try {
+      var data = await this.fetch('/api/setup/status');
+      if (!data.configured && !data.firstRunComplete) {
+        this.startOnboarding();
+      }
+    } catch (err) {
+      // Server not ready yet, skip onboarding check
+    }
+  },
+
+  onboardingStep: 0,
+  onboardingDetected: null,
+
+  startOnboarding() {
+    document.getElementById('onboarding-overlay').style.display = '';
+    this.onboardingStep = 0;
+    this.showOnboardingStep();
+  },
+
+  async showOnboardingStep() {
+    var el = document.getElementById('onboarding-step');
+    var step = this.onboardingStep;
+
+    if (step === 0) {
+      // Welcome
+      el.innerHTML =
+        '<h2 class="onboarding-title">Welcome to CodeBot</h2>' +
+        '<p class="onboarding-desc">Your AI super agent. Let\'s get you set up in under a minute.</p>' +
+        '<p class="onboarding-desc">CodeBot can help with coding, research, social media, writing, system tasks, and much more.</p>' +
+        '<button class="btn-continue" onclick="App.nextOnboardingStep()">Get Started</button>';
+    }
+    else if (step === 1) {
+      // Detect providers
+      el.innerHTML = '<h2 class="onboarding-title">Detecting Providers...</h2>' +
+        '<div class="onboarding-detecting"><div class="spinner"></div><p>Looking for AI providers...</p></div>';
+
+      try {
+        var data = await this.fetch('/api/setup/detect');
+        this.onboardingDetected = data;
+
+        var html = '<h2 class="onboarding-title">Choose Your AI Provider</h2>';
+
+        if (data.localServers && data.localServers.length > 0) {
+          html += '<p class="onboarding-desc">Local AI detected! No API key needed.</p>';
+          for (var i = 0; i < data.localServers.length; i++) {
+            var s = data.localServers[i];
+            html += '<button class="onboarding-provider-btn" onclick="App.selectOnboardingProvider(&#39;ollama&#39;, &#39;' + App.escapeHtml(s.models[0] || '') + '&#39;, &#39;' + App.escapeHtml(s.url) + '&#39;)">' +
+              '<strong>' + App.escapeHtml(s.name) + '</strong> <span class="onboarding-model">' + App.escapeHtml(s.models.slice(0, 3).join(', ')) + '</span>' +
+            '</button>';
+          }
+        }
+
+        if (data.envProviders && data.envProviders.length > 0) {
+          html += '<p class="onboarding-desc">API keys detected in environment:</p>';
+          for (var j = 0; j < data.envProviders.length; j++) {
+            var p = data.envProviders[j];
+            html += '<button class="onboarding-provider-btn" onclick="App.selectOnboardingProvider(&#39;' + App.escapeHtml(p) + '&#39;)">' +
+              '<strong>' + App.escapeHtml(p.charAt(0).toUpperCase() + p.slice(1)) + '</strong>' +
+            '</button>';
+          }
+        }
+
+        if ((!data.localServers || data.localServers.length === 0) && (!data.envProviders || data.envProviders.length === 0)) {
+          html += '<p class="onboarding-desc">No providers detected. You can set one up later.</p>';
+          html += '<button class="btn-continue" onclick="App.nextOnboardingStep()">Skip for Now</button>';
+        }
+
+        el.innerHTML = html;
+      } catch (err) {
+        el.innerHTML = '<h2 class="onboarding-title">Provider Detection</h2>' +
+          '<p class="onboarding-desc">Could not detect providers. You can configure this later.</p>' +
+          '<button class="btn-continue" onclick="App.nextOnboardingStep()">Continue</button>';
+      }
+    }
+    else if (step === 2) {
+      // Done
+      el.innerHTML =
+        '<h2 class="onboarding-title">You\'re All Set!</h2>' +
+        '<p class="onboarding-desc">CodeBot is ready. Try asking it anything.</p>' +
+        '<div class="onboarding-tips">' +
+          '<p><strong>Quick tips:</strong></p>' +
+          '<ul>' +
+            '<li>Use <strong>Chat</strong> to talk to CodeBot</li>' +
+            '<li>Try <strong>Workflows</strong> for one-click actions</li>' +
+            '<li>Check <strong>Memory</strong> to set your preferences</li>' +
+            '<li>Use the <strong>notification bell</strong> for alerts</li>' +
+          '</ul>' +
+        '</div>' +
+        '<button class="btn-continue" onclick="App.finishOnboarding()">Start Using CodeBot</button>';
+    }
+  },
+
+  async selectOnboardingProvider(provider, model, baseUrl) {
+    try {
+      var body = { provider: provider };
+      if (model) body.model = model;
+      if (baseUrl) body.baseUrl = baseUrl;
+      await apiFetch('/api/setup/provider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch (err) {}
+    this.onboardingStep = 2;
+    this.showOnboardingStep();
+  },
+
+  nextOnboardingStep() {
+    this.onboardingStep++;
+    this.showOnboardingStep();
+  },
+
+  async finishOnboarding() {
+    try {
+      await apiFetch('/api/setup/complete', { method: 'POST' });
+    } catch (err) {}
+    document.getElementById('onboarding-overlay').style.display = 'none';
   },
 
   // ===========================================================

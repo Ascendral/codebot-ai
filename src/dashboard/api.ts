@@ -17,6 +17,7 @@ import { SessionManager } from '../history';
 import { decryptLine } from '../encryption';
 import { UserProfile } from '../user-profile';
 import { MemoryManager } from '../memory';
+import { loadConfig, saveConfig as saveSetupConfig, isFirstRun, detectLocalServers, SavedConfig } from '../setup';
 
 /** Load API key availability from config + env */
 function detectAvailableProviders(): Record<string, boolean> {
@@ -197,6 +198,66 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
     }
 
     DashboardServer.json(res, { deleted, failed, total: ids.length });
+  });
+
+  // ── Setup / Onboarding ──
+  server.route('GET', '/api/setup/status', (_req, res) => {
+    const config = loadConfig();
+    DashboardServer.json(res, {
+      configured: !isFirstRun(),
+      firstRunComplete: !!config.firstRunComplete,
+      provider: config.provider || null,
+      model: config.model || null,
+      hasApiKey: !!config.apiKey,
+    });
+  });
+
+  server.route('GET', '/api/setup/detect', async (_req, res) => {
+    // Detect available providers: env vars + local servers
+    const envProviders: string[] = [];
+    for (const [name, info] of Object.entries(PROVIDER_DEFAULTS)) {
+      const envVal = process.env[info.envKey];
+      if (envVal && envVal.length > 5) envProviders.push(name);
+    }
+    if (process.env.CLAUDE_CODE_OAUTH_TOKEN) envProviders.push('anthropic');
+
+    let localServers: Array<{ name: string; url: string; models: string[] }> = [];
+    try {
+      localServers = await detectLocalServers();
+    } catch {}
+
+    DashboardServer.json(res, { envProviders, localServers });
+  });
+
+  server.route('POST', '/api/setup/provider', async (req, res) => {
+    let body: { provider?: string; model?: string; apiKey?: string; baseUrl?: string };
+    try {
+      body = (await DashboardServer.parseBody(req)) as typeof body;
+    } catch {
+      DashboardServer.error(res, 400, 'Invalid JSON body');
+      return;
+    }
+
+    if (!body?.provider) {
+      DashboardServer.error(res, 400, 'Missing provider');
+      return;
+    }
+
+    const config: SavedConfig = loadConfig();
+    config.provider = body.provider;
+    if (body.model) config.model = body.model;
+    if (body.apiKey) config.apiKey = body.apiKey;
+    if (body.baseUrl) config.baseUrl = body.baseUrl;
+    saveSetupConfig(config);
+
+    DashboardServer.json(res, { saved: true, provider: config.provider, model: config.model });
+  });
+
+  server.route('POST', '/api/setup/complete', async (_req, res) => {
+    const config: SavedConfig = loadConfig();
+    config.firstRunComplete = true;
+    saveSetupConfig(config);
+    DashboardServer.json(res, { complete: true });
   });
 
   // ── User Profile ──
