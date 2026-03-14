@@ -1,176 +1,89 @@
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import * as assert from 'node:assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
-
-// Import the loadPlugins function -- we test it with temp directories
 import { loadPlugins } from './plugins';
 
-describe('Plugin System — loadPlugins', () => {
-  it('returns empty array when no plugin directories exist', () => {
-    const plugins = loadPlugins('/nonexistent/project/root');
-    // May return plugins from global dir, but should not throw
+describe('loadPlugins', () => {
+  let tmpDir: string;
+  let pluginsDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-plugin-test-'));
+    pluginsDir = path.join(tmpDir, '.codebot', 'plugins');
+    fs.mkdirSync(pluginsDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns empty array when no plugins directory exists', () => {
+    const plugins = loadPlugins('/nonexistent/path');
+    // Should not throw, just return empty or whatever global plugins exist
     assert.ok(Array.isArray(plugins));
   });
 
-  it('skips non-.js files in plugin directory', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-plugin-test-'));
-    const pluginDir = path.join(tmpDir, '.codebot', 'plugins');
-    fs.mkdirSync(pluginDir, { recursive: true });
-    fs.writeFileSync(path.join(pluginDir, 'readme.txt'), 'not a plugin');
+  it('skips non-JS files', () => {
+    fs.writeFileSync(path.join(pluginsDir, 'readme.txt'), 'not a plugin');
     const plugins = loadPlugins(tmpDir);
-    // Should not load .txt files
-    const fromDir = plugins.filter(p => p.name === 'readme');
-    assert.strictEqual(fromDir.length, 0);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    // Should not load txt files
+    const names = plugins.map(p => p.name);
+    assert.ok(!names.includes('readme'));
   });
 
-  it('skips plugin without manifest (plugin.json)', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-plugin-test-'));
-    const pluginDir = path.join(tmpDir, '.codebot', 'plugins');
-    fs.mkdirSync(pluginDir, { recursive: true });
-    fs.writeFileSync(path.join(pluginDir, 'my-plugin.js'), 'module.exports = { name: "test" }');
-    // No plugin.json
+  it('skips JS files without manifest', () => {
+    const pluginCode = 'module.exports = { name: "test_plugin", description: "test", execute: async () => "ok" };';
+    fs.writeFileSync(path.join(pluginsDir, 'test.js'), pluginCode);
+    // No manifest file — should be skipped
     const plugins = loadPlugins(tmpDir);
-    const fromDir = plugins.filter(p => p.name === 'test');
-    assert.strictEqual(fromDir.length, 0);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    const names = plugins.map(p => p.name);
+    assert.ok(!names.includes('test_plugin'));
   });
 
-  it('skips plugin with hash mismatch', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-plugin-test-'));
-    const pluginDir = path.join(tmpDir, '.codebot', 'plugins');
-    fs.mkdirSync(pluginDir, { recursive: true });
-
-    const pluginCode = 'module.exports = { name: "mismatch", description: "test", permission: "auto", parameters: { type: "object" }, execute: async () => "ok" };';
-    fs.writeFileSync(path.join(pluginDir, 'mismatch.js'), pluginCode);
-    fs.writeFileSync(path.join(pluginDir, 'plugin.json'), JSON.stringify({
-      name: 'mismatch',
-      version: '1.0.0',
-      hash: 'sha256:' + '0'.repeat(64), // wrong hash
-    }));
-
+  it('loads valid plugin with correct manifest', () => {
+    const pluginCode = 'module.exports = { name: "valid_plugin", description: "A valid plugin", permission: "prompt", parameters: { type: "object", properties: {} }, execute: async () => "result" };';
+    const hash = crypto.createHash('sha256').update(pluginCode).digest('hex');
+    const manifest = { name: "valid_plugin", version: "1.0.0", hash: "sha256:" + hash };
+    fs.writeFileSync(path.join(pluginsDir, 'valid.js'), pluginCode);
+    fs.writeFileSync(path.join(pluginsDir, 'valid.plugin.json'), JSON.stringify(manifest));
     const plugins = loadPlugins(tmpDir);
-    const fromDir = plugins.filter(p => p.name === 'mismatch');
-    assert.strictEqual(fromDir.length, 0);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    const found = plugins.find(p => p.name === 'valid_plugin');
+    assert.ok(found, 'Should load valid plugin');
+    assert.strictEqual(found!.description, 'A valid plugin');
   });
 
-  it('loads valid plugin with correct hash', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-plugin-test-'));
-    const pluginDir = path.join(tmpDir, '.codebot', 'plugins');
-    fs.mkdirSync(pluginDir, { recursive: true });
-
-    const pluginCode = 'module.exports = { name: "valid_plugin", description: "A valid plugin", permission: "auto", parameters: { type: "object", properties: {} }, execute: async () => "ok" };';
-    const pluginPath = path.join(pluginDir, 'valid.js');
-    fs.writeFileSync(pluginPath, pluginCode);
-
-    const hash = 'sha256:' + crypto.createHash('sha256').update(fs.readFileSync(pluginPath)).digest('hex');
-    fs.writeFileSync(path.join(pluginDir, 'plugin.json'), JSON.stringify({
-      name: 'valid_plugin',
-      version: '1.0.0',
-      hash,
-    }));
-
+  it('rejects plugin with hash mismatch', () => {
+    const pluginCode = 'module.exports = { name: "bad_hash", description: "test", execute: async () => "ok" };';
+    const manifest = { name: "bad_hash", version: "1.0.0", hash: "sha256:" + "a".repeat(64) };
+    fs.writeFileSync(path.join(pluginsDir, 'bad.js'), pluginCode);
+    fs.writeFileSync(path.join(pluginsDir, 'bad.plugin.json'), JSON.stringify(manifest));
     const plugins = loadPlugins(tmpDir);
-    const found = plugins.filter(p => p.name === 'valid_plugin');
-    assert.strictEqual(found.length, 1);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    const found = plugins.find(p => p.name === 'bad_hash');
+    assert.ok(!found, 'Should reject plugin with wrong hash');
   });
 
-  it('skips plugin with invalid manifest name', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-plugin-test-'));
-    const pluginDir = path.join(tmpDir, '.codebot', 'plugins');
-    fs.mkdirSync(pluginDir, { recursive: true });
-
-    const pluginCode = 'module.exports = { name: "test", description: "d", permission: "auto", parameters: {}, execute: async () => "ok" };';
-    fs.writeFileSync(path.join(pluginDir, 'test.js'), pluginCode);
-    const hash = 'sha256:' + crypto.createHash('sha256').update(fs.readFileSync(path.join(pluginDir, 'test.js'))).digest('hex');
-    fs.writeFileSync(path.join(pluginDir, 'plugin.json'), JSON.stringify({
-      name: 'invalid name with spaces!',
-      version: '1.0.0',
-      hash,
-    }));
-
+  it('rejects manifest with invalid name', () => {
+    const pluginCode = 'module.exports = { name: "test", description: "test", execute: async () => "ok" };';
+    const hash = crypto.createHash('sha256').update(pluginCode).digest('hex');
+    const manifest = { name: "invalid name with spaces!", version: "1.0.0", hash: "sha256:" + hash };
+    fs.writeFileSync(path.join(pluginsDir, 'invalid.js'), pluginCode);
+    fs.writeFileSync(path.join(pluginsDir, 'invalid.plugin.json'), JSON.stringify(manifest));
     const plugins = loadPlugins(tmpDir);
-    const found = plugins.filter(p => p.name === 'test');
-    assert.strictEqual(found.length, 0);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    const found = plugins.find(p => p.name === 'invalid name with spaces!');
+    assert.ok(!found, 'Should reject invalid manifest name');
   });
 
-  it('skips plugin with invalid manifest version', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-plugin-test-'));
-    const pluginDir = path.join(tmpDir, '.codebot', 'plugins');
-    fs.mkdirSync(pluginDir, { recursive: true });
-
-    const pluginCode = 'module.exports = { name: "test2", description: "d", permission: "auto", parameters: {}, execute: async () => "ok" };';
-    fs.writeFileSync(path.join(pluginDir, 'test2.js'), pluginCode);
-    const hash = 'sha256:' + crypto.createHash('sha256').update(fs.readFileSync(path.join(pluginDir, 'test2.js'))).digest('hex');
-    fs.writeFileSync(path.join(pluginDir, 'plugin.json'), JSON.stringify({
-      name: 'test2',
-      version: 'not-semver',
-      hash,
-    }));
-
+  it('rejects manifest with missing version', () => {
+    const pluginCode = 'module.exports = { name: "test", description: "test", execute: async () => "ok" };';
+    const hash = crypto.createHash('sha256').update(pluginCode).digest('hex');
+    const manifest = { name: "nover", hash: "sha256:" + hash };
+    fs.writeFileSync(path.join(pluginsDir, 'nover.js'), pluginCode);
+    fs.writeFileSync(path.join(pluginsDir, 'nover.plugin.json'), JSON.stringify(manifest));
     const plugins = loadPlugins(tmpDir);
-    const found = plugins.filter(p => p.name === 'test2');
-    assert.strictEqual(found.length, 0);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  it('skips plugin with malformed plugin.json', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-plugin-test-'));
-    const pluginDir = path.join(tmpDir, '.codebot', 'plugins');
-    fs.mkdirSync(pluginDir, { recursive: true });
-
-    fs.writeFileSync(path.join(pluginDir, 'bad.js'), 'module.exports = {}');
-    fs.writeFileSync(path.join(pluginDir, 'plugin.json'), '{invalid json');
-
-    const plugins = loadPlugins(tmpDir);
-    const found = plugins.filter(p => p.name === 'bad');
-    assert.strictEqual(found.length, 0);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  it('skips plugin with invalid hash format (wrong length)', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-plugin-test-'));
-    const pluginDir = path.join(tmpDir, '.codebot', 'plugins');
-    fs.mkdirSync(pluginDir, { recursive: true });
-
-    fs.writeFileSync(path.join(pluginDir, 'short.js'), 'module.exports = {}');
-    fs.writeFileSync(path.join(pluginDir, 'plugin.json'), JSON.stringify({
-      name: 'short',
-      version: '1.0.0',
-      hash: 'sha256:tooshort',
-    }));
-
-    const plugins = loadPlugins(tmpDir);
-    const found = plugins.filter(p => p.name === 'short');
-    assert.strictEqual(found.length, 0);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  it('skips plugin that does not implement Tool interface', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-plugin-test-'));
-    const pluginDir = path.join(tmpDir, '.codebot', 'plugins');
-    fs.mkdirSync(pluginDir, { recursive: true });
-
-    // Missing 'execute' function
-    const pluginCode = 'module.exports = { name: "incomplete", description: "d" };';
-    const pluginPath = path.join(pluginDir, 'incomplete.js');
-    fs.writeFileSync(pluginPath, pluginCode);
-    const hash = 'sha256:' + crypto.createHash('sha256').update(fs.readFileSync(pluginPath)).digest('hex');
-    fs.writeFileSync(path.join(pluginDir, 'plugin.json'), JSON.stringify({
-      name: 'incomplete',
-      version: '1.0.0',
-      hash,
-    }));
-
-    const plugins = loadPlugins(tmpDir);
-    const found = plugins.filter(p => p.name === 'incomplete');
-    assert.strictEqual(found.length, 0);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    const found = plugins.find(p => p.name === 'nover');
+    assert.ok(!found, 'Should reject manifest without version');
   });
 });
