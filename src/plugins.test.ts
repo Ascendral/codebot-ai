@@ -48,7 +48,7 @@ describe('loadPlugins', () => {
     const hash = crypto.createHash('sha256').update(pluginCode).digest('hex');
     const manifest = { name: "valid_plugin", version: "1.0.0", hash: "sha256:" + hash };
     fs.writeFileSync(path.join(pluginsDir, 'valid.js'), pluginCode);
-    fs.writeFileSync(path.join(pluginsDir, 'valid.plugin.json'), JSON.stringify(manifest));
+    fs.writeFileSync(path.join(pluginsDir, 'plugin.json'), JSON.stringify(manifest));
     const plugins = loadPlugins(tmpDir);
     const found = plugins.find(p => p.name === 'valid_plugin');
     assert.ok(found, 'Should load valid plugin');
@@ -59,7 +59,7 @@ describe('loadPlugins', () => {
     const pluginCode = 'module.exports = { name: "bad_hash", description: "test", execute: async () => "ok" };';
     const manifest = { name: "bad_hash", version: "1.0.0", hash: "sha256:" + "a".repeat(64) };
     fs.writeFileSync(path.join(pluginsDir, 'bad.js'), pluginCode);
-    fs.writeFileSync(path.join(pluginsDir, 'bad.plugin.json'), JSON.stringify(manifest));
+    fs.writeFileSync(path.join(pluginsDir, 'plugin.json'), JSON.stringify(manifest));
     const plugins = loadPlugins(tmpDir);
     const found = plugins.find(p => p.name === 'bad_hash');
     assert.ok(!found, 'Should reject plugin with wrong hash');
@@ -70,7 +70,7 @@ describe('loadPlugins', () => {
     const hash = crypto.createHash('sha256').update(pluginCode).digest('hex');
     const manifest = { name: "invalid name with spaces!", version: "1.0.0", hash: "sha256:" + hash };
     fs.writeFileSync(path.join(pluginsDir, 'invalid.js'), pluginCode);
-    fs.writeFileSync(path.join(pluginsDir, 'invalid.plugin.json'), JSON.stringify(manifest));
+    fs.writeFileSync(path.join(pluginsDir, 'plugin.json'), JSON.stringify(manifest));
     const plugins = loadPlugins(tmpDir);
     const found = plugins.find(p => p.name === 'invalid name with spaces!');
     assert.ok(!found, 'Should reject invalid manifest name');
@@ -81,7 +81,7 @@ describe('loadPlugins', () => {
     const hash = crypto.createHash('sha256').update(pluginCode).digest('hex');
     const manifest = { name: "nover", hash: "sha256:" + hash };
     fs.writeFileSync(path.join(pluginsDir, 'nover.js'), pluginCode);
-    fs.writeFileSync(path.join(pluginsDir, 'nover.plugin.json'), JSON.stringify(manifest));
+    fs.writeFileSync(path.join(pluginsDir, 'plugin.json'), JSON.stringify(manifest));
     const plugins = loadPlugins(tmpDir);
     const found = plugins.find(p => p.name === 'nover');
     assert.ok(!found, 'Should reject manifest without version');
