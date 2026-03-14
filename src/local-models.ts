@@ -4,6 +4,7 @@
  */
 
 import { execSync } from 'child_process';
+import * as fs from 'fs';
 
 export interface VRAMInfo {
   totalMB: number;
