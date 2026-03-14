@@ -18,6 +18,7 @@ import { UserProfile } from '../user-profile';
 import { MemoryManager } from '../memory';
 import { loadConfig, saveConfig as saveSetupConfig, isFirstRun, detectLocalServers, SavedConfig } from '../setup';
 import { codebotPath } from '../paths';
+import { RiskScorer } from '../risk';
 
 /** Load API key availability from config + env */
 function detectAvailableProviders(): Record<string, boolean> {
@@ -487,6 +488,34 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
     });
   });
 
+
+  // ── Risk ──
+  server.route('GET', '/api/risk/summary', (_req, res) => {
+    const scorer = (server as unknown as Record<string, unknown>)._riskScorer as RiskScorer | undefined;
+    if (!scorer) {
+      DashboardServer.json(res, {
+        total: 0, green: 0, yellow: 0, orange: 0, red: 0, average: 0, peak: 0,
+        message: 'No risk data yet. Risk scoring activates when the agent runs.',
+      });
+      return;
+    }
+    DashboardServer.json(res, scorer.getRiskSummary());
+  });
+
+  server.route('GET', '/api/risk/history', (req, res) => {
+    const query = DashboardServer.parseQuery(req.url || '');
+    const limit = Math.min(500, Math.max(1, parseInt(query.limit || '100', 10)));
+    const scorer = (server as unknown as Record<string, unknown>)._riskScorer as RiskScorer | undefined;
+    if (!scorer) {
+      DashboardServer.json(res, { history: [], total: 0 });
+      return;
+    }
+    const history = scorer.getHistory();
+    DashboardServer.json(res, {
+      history: history.slice(-limit).map(a => ({ score: a.score, level: a.level, factors: a.factors.length })),
+      total: history.length,
+    });
+  });
 
   // ── Constitutional Safety (CORD + VIGIL) ──
   server.route('GET', '/api/constitutional', (_req, res) => {

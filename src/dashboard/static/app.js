@@ -222,6 +222,7 @@ const App = {
       case 'workflows': this.initWorkflows(); break;
       case 'memory': this.initMemory(); break;
       case 'swarm': this.initSwarm(); break;
+      case 'risk': this.loadRisk(); break;
     }
   },
 
@@ -1695,6 +1696,69 @@ const App = {
   renderEmpty(title, desc) {
     return '<div class="empty-state"><div class="empty-title">' + this.escapeHtml(title) + '</div>' +
       (desc ? '<div class="empty-desc">' + this.escapeHtml(desc) + '</div>' : '') + '</div>';
+  },
+  // ===========================================================
+  // RISK
+  // ===========================================================
+
+  async loadRisk() {
+    try {
+      var data = await this.fetch('/api/risk/summary');
+      document.getElementById('risk-total').textContent = data.total || 0;
+      document.getElementById('risk-average').textContent = data.average || 0;
+      document.getElementById('risk-peak').textContent = data.peak || 0;
+
+      // Update bar chart
+      var total = data.total || 1;
+      var levels = ['green', 'yellow', 'orange', 'red'];
+      for (var i = 0; i < levels.length; i++) {
+        var l = levels[i];
+        var count = data[l] || 0;
+        var pct = Math.round((count / total) * 100);
+        var bar = document.getElementById('risk-bar-' + l);
+        var countEl = document.getElementById('risk-count-' + l);
+        if (bar) bar.style.width = pct + '%';
+        if (countEl) countEl.textContent = count;
+      }
+
+      // Color the average
+      var avgEl = document.getElementById('risk-average');
+      if (avgEl) {
+        var avg = data.average || 0;
+        avgEl.style.color = avg <= 25 ? '#39ff14' : avg <= 50 ? '#ffd700' : avg <= 75 ? '#ff6b35' : '#ff073a';
+      }
+
+      // Status
+      var status = document.getElementById('risk-status');
+      if (status && data.total > 0) {
+        status.textContent = data.total + ' assessments | avg ' + data.average;
+      }
+    } catch (err) {
+      console.warn('Risk load error:', err);
+    }
+
+    // Load recent history
+    try {
+      var hist = await this.fetch('/api/risk/history?limit=50');
+      var feed = document.getElementById('risk-feed');
+      if (feed && hist.history) {
+        if (hist.history.length === 0) {
+          feed.innerHTML = '<div class="empty-state">No risk assessments yet. Run the agent to generate risk data.</div>';
+        } else {
+          feed.innerHTML = hist.history.reverse().map(function(a, i) {
+            var colors = { green: '#39ff14', yellow: '#ffd700', orange: '#ff6b35', red: '#ff073a' };
+            var color = colors[a.level] || '#888';
+            return '<div class="security-entry">' +
+              '<span class="security-decision" style="color:' + color + '">' + a.level.toUpperCase() + '</span>' +
+              '<span class="security-score">Score: ' + a.score + '</span>' +
+              '<span class="security-factors">' + a.factors + ' factors</span>' +
+              '</div>';
+          }).join('');
+        }
+      }
+    } catch (err) {
+      console.warn('Risk history error:', err);
+    }
   },
 };
 

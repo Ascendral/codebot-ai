@@ -10,6 +10,7 @@
  */
 
 import type { ConstitutionalResult } from './constitutional/types';
+import type { PolicyRisk } from './policy';
 
 // ── Types ──
 
@@ -113,6 +114,11 @@ const NETWORK_TOOLS = new Set(['web_fetch', 'http_client', 'browser', 'web_searc
 
 export class RiskScorer {
   private sessionHistory: RiskAssessment[] = [];
+  private policyRisk: PolicyRisk | undefined;
+
+  constructor(policyRisk?: PolicyRisk) {
+    this.policyRisk = policyRisk;
+  }
 
   /**
    * Assess risk for a tool call.
@@ -140,7 +146,7 @@ export class RiskScorer {
         factors.reduce((sum, f) => sum + f.weighted, 0)
       ));
 
-      const level = scoreToLevel(score);
+      const level = scoreToLevel(score, this.policyRisk?.thresholds);
       const assessment: RiskAssessment = { score, level, factors };
       this.sessionHistory.push(assessment);
       return assessment;
@@ -175,7 +181,7 @@ export class RiskScorer {
         factors.reduce((sum, f) => sum + f.weighted, 0)
       ));
 
-      const level = scoreToLevel(score);
+      const level = scoreToLevel(score, this.policyRisk?.thresholds);
       const assessment: RiskAssessment = { score, level, factors };
       this.sessionHistory.push(assessment);
       return assessment;
@@ -231,6 +237,26 @@ export class RiskScorer {
     const color = colorMap[level] || '';
     const reset = '\x1b[0m';
     return `${color}[Risk: ${score} ${level}]${reset}`;
+  }
+
+  /** Get a summary of risk distribution for dashboard display */
+  getRiskSummary(): { total: number; green: number; yellow: number; orange: number; red: number; average: number; peak: number } {
+    const counts = { total: this.sessionHistory.length, green: 0, yellow: 0, orange: 0, red: 0, average: 0, peak: 0 };
+    if (counts.total === 0) return counts;
+    let sum = 0;
+    for (const a of this.sessionHistory) {
+      counts[a.level]++;
+      sum += a.score;
+      if (a.score > counts.peak) counts.peak = a.score;
+    }
+    counts.average = Math.round(sum / counts.total);
+    return counts;
+  }
+
+  /** Check if a score should be auto-blocked by policy */
+  shouldAutoBlock(score: number): boolean {
+    const threshold = this.policyRisk?.auto_block_above;
+    return typeof threshold === 'number' && threshold > 0 && score >= threshold;
   }
 
   // ── Factor Scorers ──
@@ -476,9 +502,12 @@ export class RiskScorer {
 
 // ── Helpers ──
 
-function scoreToLevel(score: number): 'green' | 'yellow' | 'orange' | 'red' {
-  if (score <= 25) return 'green';
-  if (score <= 50) return 'yellow';
-  if (score <= 75) return 'orange';
+function scoreToLevel(score: number, thresholds?: PolicyRisk['thresholds']): 'green' | 'yellow' | 'orange' | 'red' {
+  const y = thresholds?.yellow ?? 25;
+  const o = thresholds?.orange ?? 50;
+  const r = thresholds?.red ?? 75;
+  if (score <= y) return 'green';
+  if (score <= o) return 'yellow';
+  if (score <= r) return 'orange';
   return 'red';
 }

@@ -7,7 +7,7 @@
   <meta http-equiv="pragma" content="no-cache">
   <meta http-equiv="expires" content="0">
   <title>CodeBot AI — v2</title>
-  <link rel="stylesheet" href="style.css?v=31">
+  <link rel="stylesheet" href="style.css?v=32">
   <link rel="icon" href="favicon.svg?v=20" type="image/svg+xml">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#00d4ff">
@@ -256,6 +256,56 @@
 
 
 
+        <!-- Risk Panel -->
+        <div id="panel-risk" class="panel">
+          <div class="panel-title-row">
+            <h2>Risk</h2>
+            <div id="risk-status" class="panel-stats"></div>
+          </div>
+          <div class="risk-overview">
+            <div class="security-stat-grid">
+              <div class="security-stat">
+                <div class="stat-value" id="risk-total">0</div>
+                <div class="stat-label">Assessments</div>
+              </div>
+              <div class="security-stat">
+                <div class="stat-value" id="risk-average" style="color:#00d4ff">0</div>
+                <div class="stat-label">Avg Score</div>
+              </div>
+              <div class="security-stat">
+                <div class="stat-value" id="risk-peak" style="color:#ff6b35">0</div>
+                <div class="stat-label">Peak</div>
+              </div>
+            </div>
+            <div class="risk-bar-chart">
+              <div class="risk-bar-row">
+                <span class="risk-bar-label">Green</span>
+                <div class="risk-bar-track"><div class="risk-bar-fill risk-green" id="risk-bar-green" style="width:0%"></div></div>
+                <span class="risk-bar-count" id="risk-count-green">0</span>
+              </div>
+              <div class="risk-bar-row">
+                <span class="risk-bar-label">Yellow</span>
+                <div class="risk-bar-track"><div class="risk-bar-fill risk-yellow" id="risk-bar-yellow" style="width:0%"></div></div>
+                <span class="risk-bar-count" id="risk-count-yellow">0</span>
+              </div>
+              <div class="risk-bar-row">
+                <span class="risk-bar-label">Orange</span>
+                <div class="risk-bar-track"><div class="risk-bar-fill risk-orange" id="risk-bar-orange" style="width:0%"></div></div>
+                <span class="risk-bar-count" id="risk-count-orange">0</span>
+              </div>
+              <div class="risk-bar-row">
+                <span class="risk-bar-label">Red</span>
+                <div class="risk-bar-track"><div class="risk-bar-fill risk-red" id="risk-bar-red" style="width:0%"></div></div>
+                <span class="risk-bar-count" id="risk-count-red">0</span>
+              </div>
+            </div>
+          </div>
+          <div class="security-section">
+            <h3>Recent Assessments</h3>
+            <div id="risk-feed" class="security-feed"></div>
+          </div>
+        </div>
+
         <!-- Security Panel (CORD + VIGIL) -->
         <div id="panel-security" class="panel">
           <div class="panel-title-row">
@@ -339,6 +389,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><line x1="12" y1="7" x2="5" y2="17"/><line x1="12" y1="7" x2="19" y2="17"/><line x1="7" y1="19" x2="17" y2="19"/></svg>
         <span>Swarm</span>
       </button>
+      <button class="nav-pill" data-panel="risk">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span>Risk</span>
+      </button>
       <button class="nav-pill" data-panel="security">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         <span>Security</span>
@@ -346,7 +400,7 @@
     </nav>
   </div>
 
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=32"></script>
   <script>
   // Kill any leftover service workers — they cause more problems than they solve
   if ('serviceWorker' in navigator) {

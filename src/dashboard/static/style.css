@@ -2117,3 +2117,43 @@ body.chat-expanded .card-grid {
 .onboarding-tips strong {
   color: var(--accent-light);
 }
+
+
+/* ── Risk Panel ── */
+.risk-overview { margin-bottom: 20px; }
+.risk-bar-chart { margin-top: 16px; }
+.risk-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.risk-bar-label {
+  width: 56px;
+  font-size: 12px;
+  color: #aaa;
+  text-align: right;
+}
+.risk-bar-track {
+  flex: 1;
+  height: 18px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.risk-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  min-width: 0;
+}
+.risk-bar-fill.risk-green { background: #39ff14; }
+.risk-bar-fill.risk-yellow { background: #ffd700; }
+.risk-bar-fill.risk-orange { background: #ff6b35; }
+.risk-bar-fill.risk-red { background: #ff073a; }
+.risk-bar-count {
+  width: 32px;
+  font-size: 12px;
+  color: #888;
+  text-align: left;
+}

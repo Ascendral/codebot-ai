@@ -87,6 +87,15 @@ export interface PolicyConstitutional {
   hard_block_enabled?: boolean;
 }
 
+export interface PolicyRisk {
+  /** Override risk level thresholds (default: green≤25, yellow≤50, orange≤75, red>75) */
+  thresholds?: { yellow?: number; orange?: number; red?: number };
+  /** Override factor weights (must sum to 100). Keys: permission_level, file_path, command, network, data_volume, cumulative */
+  weights?: Record<string, number>;
+  /** Actions blocked above this score (0 = no auto-block) */
+  auto_block_above?: number;
+}
+
 export interface Policy {
   version?: string;
   execution?: PolicyExecution;
@@ -98,6 +107,7 @@ export interface Policy {
   limits?: PolicyLimits;
   rbac?: PolicyRbac;
   constitutional?: PolicyConstitutional;
+  risk?: PolicyRisk;
 }
 
 // ── Default Policy ──
@@ -153,6 +163,7 @@ export const DEFAULT_POLICY: Required<Policy> = {
     roles: {},
     default_role: undefined,
   },
+  risk: {},
 };
 
 // ── Policy Loader ──
@@ -190,7 +201,7 @@ function loadPolicyFile(filePath: string): Policy | null {
 
 /** Known top-level policy fields for typo detection */
 const KNOWN_POLICY_FIELDS = new Set([
-  'version', 'execution', 'filesystem', 'tools', 'secrets', 'git', 'mcp', 'limits', 'rbac',
+  'version', 'execution', 'filesystem', 'tools', 'secrets', 'git', 'mcp', 'limits', 'rbac', 'risk', 'constitutional',
 ]);
 
 /**
@@ -214,6 +225,7 @@ function validatePolicy(obj: unknown): boolean {
   if (p.mcp !== undefined && typeof p.mcp !== 'object') return false;
   if (p.limits !== undefined && typeof p.limits !== 'object') return false;
   if (p.rbac !== undefined && typeof p.rbac !== 'object') return false;
+  if (p.risk !== undefined && typeof p.risk !== 'object') return false;
 
   // Warn about unknown top-level fields (catches typos like "filesytem")
   for (const key of Object.keys(p)) {
