@@ -342,7 +342,16 @@ export async function main() {
   }
 
   if (typeof args.message === 'string') { await runOnce(agent, args.message); printSessionSummary(agent); return; }
-  if (!process.stdin.isTTY) { const input = await readStdin(); if (input.trim()) { await runOnce(agent, input.trim()); printSessionSummary(agent); } return; }
+  if (!process.stdin.isTTY) {
+    if (args.dashboard) {
+      // Dashboard mode with no TTY (backgrounded, launched from .app, etc.)
+      // Keep process alive — the HTTP server IS the product, REPL is optional.
+      console.log(c('   Dashboard-only mode — no REPL, serving on port 3120.', 'dim'));
+      await new Promise(() => {}); // Block forever — HTTP server keeps running
+      return;
+    }
+    const input = await readStdin(); if (input.trim()) { await runOnce(agent, input.trim()); printSessionSummary(agent); } return;
+  }
 
   const scheduler = new Scheduler(agent, (text) => process.stdout.write(text));
   scheduler.start();
