@@ -7,7 +7,7 @@
   <meta http-equiv="pragma" content="no-cache">
   <meta http-equiv="expires" content="0">
   <title>CodeBot AI — v2</title>
-  <link rel="stylesheet" href="style.css?v=33">
+  <link rel="stylesheet" href="style.css?v=34">
   <link rel="icon" href="favicon.svg?v=20" type="image/svg+xml">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#00d4ff">
@@ -288,6 +288,21 @@
               <button id="codeagi-stream-btn" class="btn-primary codeagi-stream-btn" style="background:#a855f7"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg> Stream Cycle</button>
               <button id="codeagi-refresh-btn" class="btn-secondary">Refresh</button>
             </div>
+            <!-- Continuous Mode -->
+            <div class="codeagi-continuous-row">
+              <label class="codeagi-toggle-label">
+                <input type="checkbox" id="codeagi-continuous-toggle" />
+                <span class="codeagi-toggle-switch"></span>
+                <span>Continuous Mode</span>
+              </label>
+              <select id="codeagi-continuous-interval" class="tool-select" style="width:auto;min-width:100px">
+                <option value="30">30s</option>
+                <option value="60" selected>1 min</option>
+                <option value="120">2 min</option>
+                <option value="300">5 min</option>
+              </select>
+              <span id="codeagi-continuous-status" class="hint-muted"></span>
+            </div>
             <!-- Cognition Phase Badges -->
             <div id="codeagi-phase-bar" class="codeagi-phase-bar" style="display:none">
               <div class="codeagi-phase-badge pending" data-phase="plan"><span class="phase-dot"></span>Plan</div>
@@ -335,6 +350,60 @@
           </div>
           <div id="codeagi-tab-traces" class="codeagi-tab-content" style="display:none">
             <div id="codeagi-traces" class="codeagi-traces"></div>
+          </div>
+        </div>
+
+        <!-- Models Panel -->
+        <div id="panel-models" class="panel">
+          <div class="panel-title-row">
+            <h2>Models</h2>
+            <div id="models-status" class="panel-stats"></div>
+          </div>
+          <div class="models-vram-card">
+            <div class="security-stat-grid">
+              <div class="security-stat">
+                <div class="stat-value" id="models-vram-total">--</div>
+                <div class="stat-label">VRAM (MB)</div>
+              </div>
+              <div class="security-stat">
+                <div class="stat-value" id="models-vram-source" style="color:#06b6d4;font-size:0.85rem">--</div>
+                <div class="stat-label">Source</div>
+              </div>
+              <div class="security-stat">
+                <div class="stat-value" id="models-gpu-name" style="color:#a855f7;font-size:0.85rem">--</div>
+                <div class="stat-label">GPU</div>
+              </div>
+            </div>
+            <div class="models-vram-bar">
+              <div class="models-vram-fill" id="models-vram-fill" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="models-section">
+            <h3>Quantization Advisor</h3>
+            <div class="models-recommend-row">
+              <select id="models-recommend-select" class="tool-select">
+                <option value="">Select a model...</option>
+                <option value="llama3:8b">Llama 3 8B</option>
+                <option value="llama3:70b">Llama 3 70B</option>
+                <option value="codellama:7b">CodeLlama 7B</option>
+                <option value="codellama:34b">CodeLlama 34B</option>
+                <option value="mistral:7b">Mistral 7B</option>
+                <option value="mixtral:8x7b">Mixtral 8x7B</option>
+                <option value="qwen3:14b">Qwen 3 14B</option>
+                <option value="qwen3:32b">Qwen 3 32B</option>
+                <option value="deepseek-coder:6.7b">DeepSeek Coder 6.7B</option>
+                <option value="deepseek-coder:33b">DeepSeek Coder 33B</option>
+                <option value="phi3:3.8b">Phi 3 3.8B</option>
+                <option value="gemma2:9b">Gemma 2 9B</option>
+                <option value="gemma2:27b">Gemma 2 27B</option>
+              </select>
+              <button id="models-recommend-btn" class="btn-action">Check</button>
+            </div>
+            <div id="models-recommend-result" class="cmd-output" style="display:none"></div>
+          </div>
+          <div class="models-section">
+            <h3>Local Models <span id="models-local-count" class="hint-muted"></span></h3>
+            <div id="models-local-list" class="models-local-list"></div>
           </div>
         </div>
 
@@ -475,6 +544,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
         <span>CodeAGI</span>
       </button>
+      <button class="nav-pill" data-panel="models">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+        <span>Models</span>
+      </button>
       <button class="nav-pill" data-panel="risk">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <span>Risk</span>
@@ -490,7 +563,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=33"></script>
+  <script src="app.js?v=34"></script>
   <script>
   // Kill any leftover service workers — they cause more problems than they solve
   if ('serviceWorker' in navigator) {

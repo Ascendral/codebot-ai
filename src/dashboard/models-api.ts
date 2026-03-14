@@ -71,6 +71,7 @@ export function registerModelRoutes(server: DashboardServer): void {
       ollamaOnline = true;
       modelCount = (data.models || []).length;
     } catch { /* offline */ }
-    DashboardServer.json(res, { vram, ollamaOnline, modelCount });
+    const claudeConfigured = !!(process.env.ANTHROPIC_API_KEY);
+    DashboardServer.json(res, { vram, ollamaOnline, modelCount, claudeConfigured });
   });
 }

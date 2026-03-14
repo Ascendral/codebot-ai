@@ -227,6 +227,7 @@ const App = {
       case 'memory': this.initMemory(); break;
       case 'swarm': this.initSwarm(); break;
       case 'risk': this.loadRisk(); break;
+      case 'models': this.initModels(); break;
       case 'codeagi': this.initPanelCodeagi(); break;
     }
   },
@@ -1868,6 +1869,7 @@ const App = {
         self.loadCodeAGIMemory(tab.dataset.mem);
       };
     });
+    this.setupCodeAGIContinuous();
   },
 
   async createCodeAGIMission() {
