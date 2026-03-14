@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codeagi"
+version = "0.1.0"
+description = "Experimental autonomous cognition runtime for persistent agent research"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Ascendral" }]
+license = { text = "All rights reserved." }
+dependencies = []
+
+[project.scripts]
+codeagi = "codeagi.interfaces.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Ascendral/codeagi"
+Repository = "https://github.com/Ascendral/codeagi"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["codeagi*"]

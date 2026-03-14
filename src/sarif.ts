@@ -179,7 +179,7 @@ export function exportSarif(entries: AuditEntry[], options?: SarifExportOptions)
           driver: {
             name: 'CodeBot',
             version,
-            informationUri: 'https://github.com/zanderone1980/codebot-ai',
+            informationUri: 'https://github.com/Ascendral/codebot-ai',
             rules: RULES,
           },
         },
@@ -202,7 +202,7 @@ export function exportSarif(entries: AuditEntry[], options?: SarifExportOptions)
           driver: {
             name: 'CodeBot',
             version: options?.version || '1.9.0',
-            informationUri: 'https://github.com/zanderone1980/codebot-ai',
+            informationUri: 'https://github.com/Ascendral/codebot-ai',
             rules: RULES,
           },
         },

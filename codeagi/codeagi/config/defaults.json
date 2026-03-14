@@ -1,0 +1,15 @@
+{
+  "storage": {
+    "runtime_root": "~/CodeAGI/runtime",
+    "long_term_root": "~/CodeAGI/long-term"
+  },
+  "workspace": {
+    "root": "~/CodeAGI/workspace"
+  },
+  "runtime": {
+    "max_cycle_steps": 3,
+    "mission_file": "state/missions.json",
+    "task_file": "state/tasks.json",
+    "world_state_file": "state/world_state.json"
+  }
+}

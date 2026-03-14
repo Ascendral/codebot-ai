@@ -16,12 +16,12 @@ describe('ReviewContext', () => {
   it('validates complete review context', () => {
     const ctx: ReviewContext = {
       token: 'ghp_test123',
-      owner: 'zanderone1980',
+      owner: 'Ascendral',
       repo: 'codebot-ai',
       pullNumber: 42,
     };
 
-    assert.strictEqual(ctx.owner, 'zanderone1980');
+    assert.strictEqual(ctx.owner, 'Ascendral');
     assert.strictEqual(ctx.repo, 'codebot-ai');
     assert.strictEqual(ctx.pullNumber, 42);
     assert.ok(ctx.token.length > 0, 'Token should not be empty');

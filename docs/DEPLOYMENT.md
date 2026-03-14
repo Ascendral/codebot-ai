@@ -15,7 +15,7 @@ npx codebot-ai "explain this codebase"
 
 ### From source
 ```bash
-git clone https://github.com/zanderone1980/codebot-ai.git
+git clone https://github.com/Ascendral/codebot-ai.git
 cd codebot-ai
 npm install && npm run build
 node dist/cli.js --setup
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: zanderone1980/codebot-ai/actions/codebot@v2
+      - uses: Ascendral/codebot-ai/actions/codebot@v2
         with:
           task: review
           api-key: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -7,8 +7,8 @@
 **Run AI-assisted development entirely on your machine. No API keys required. Policy-governed, audit-trailed, sandboxed — built for teams that take code security seriously.**
 
 [![npm version](https://img.shields.io/npm/v/codebot-ai.svg?style=flat-square&color=6366f1)](https://www.npmjs.com/package/codebot-ai)
-[![CI](https://github.com/zanderone1980/codebot-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/zanderone1980/codebot-ai/actions/workflows/ci.yml)
-[![license](https://img.shields.io/npm/l/codebot-ai.svg?style=flat-square)](https://github.com/zanderone1980/codebot-ai/blob/main/LICENSE)
+[![CI](https://github.com/Ascendral/codebot-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/Ascendral/codebot-ai/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/codebot-ai.svg?style=flat-square)](https://github.com/Ascendral/codebot-ai/blob/main/LICENSE)
 ![tests](https://img.shields.io/badge/tests-1217%20passing-22c55e?style=flat-square)
 ![tools](https://img.shields.io/badge/tools-31-6366f1?style=flat-square)
 ![swarm](https://img.shields.io/badge/swarm-multi--LLM-f59e0b?style=flat-square)
@@ -236,7 +236,7 @@ Sidebar chat panel, inline diff preview, status bar (tokens, cost, risk level), 
 ### GitHub Action
 
 ```yaml
-- uses: zanderone1980/codebot-ai/actions/codebot@v2
+- uses: Ascendral/codebot-ai/actions/codebot@v2
   with:
     task: review    # or: fix, scan
     api-key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -362,7 +362,7 @@ echo "explain this error" | codebot            # Pipe mode
 ## Build from Source
 
 ```bash
-git clone https://github.com/zanderone1980/codebot-ai.git
+git clone https://github.com/Ascendral/codebot-ai.git
 cd codebot-ai
 npm install && npm run build
 ./bin/codebot
@@ -372,7 +372,7 @@ npm install && npm run build
 
 <div align="center">
 
-**[npm](https://www.npmjs.com/package/codebot-ai)** · **[GitHub](https://github.com/zanderone1980/codebot-ai)** · **[Changelog](CHANGELOG.md)** · **[Docs](docs/)** · **[Security](SECURITY.md)**
+**[npm](https://www.npmjs.com/package/codebot-ai)** · **[GitHub](https://github.com/Ascendral/codebot-ai)** · **[Changelog](CHANGELOG.md)** · **[Docs](docs/)** · **[Security](SECURITY.md)**
 
 MIT — [Ascendral Software Development & Innovation](https://github.com/AscendralSoftware)
 

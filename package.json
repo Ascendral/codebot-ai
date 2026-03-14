@@ -62,11 +62,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zanderone1980/codebot-ai.git"
+    "url": "git+https://github.com/Ascendral/codebot-ai.git"
   },
-  "homepage": "https://github.com/zanderone1980/codebot-ai#readme",
+  "homepage": "https://github.com/Ascendral/codebot-ai#readme",
   "bugs": {
-    "url": "https://github.com/zanderone1980/codebot-ai/issues"
+    "url": "https://github.com/Ascendral/codebot-ai/issues"
   },
   "engines": {
     "node": ">=18.0.0"

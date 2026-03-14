@@ -122,5 +122,5 @@ We may update this privacy policy from time to time. Changes will be noted in th
 ### 10. Contact
 
 For privacy-related questions:
-- Open an issue: https://github.com/zanderone1980/codebot-ai/issues
+- Open an issue: https://github.com/Ascendral/codebot-ai/issues
 - Email: privacy@ascendral.com

@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.coverage
+htmlcov/
+build/
+dist/
+runtime/
+workspace/
+long-term/

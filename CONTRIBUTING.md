@@ -6,7 +6,7 @@ Thank you for your interest in contributing to CodeBot AI! This guide covers eve
 
 ```bash
 # Clone the repository
-git clone https://github.com/zanderone1980/codebot-ai.git
+git clone https://github.com/Ascendral/codebot-ai.git
 cd codebot-ai
 
 # Install dev dependencies
