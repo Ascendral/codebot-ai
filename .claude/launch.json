@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/zanderone/ClaudeWork/codebot-ai/bin/codebot", "--dashboard", "--provider", "ollama", "--model", "qwen3:14b"],
+      "port": 3120,
+      "autoPort": true
+    },
+    {
+      "name": "tsc-watch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/.bin/tsc", "--watch"],
+      "port": 0
+    }
+  ]
+}

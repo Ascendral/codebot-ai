@@ -17,7 +17,7 @@ mkdir -p "$HOME/.codebot"
 
 # Start detached — survives terminal close
 cd "$DIR"
-nohup node bin/codebot --dashboard --provider ollama --model qwen3:8b \
+nohup node bin/codebot --dashboard --provider ollama --model qwen3:14b \
   > "$LOGFILE" 2>&1 &
 
 echo $! > "$PIDFILE"
