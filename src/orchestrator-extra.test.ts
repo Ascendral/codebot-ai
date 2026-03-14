@@ -114,3 +114,19 @@ describe('Orchestrator — config immutability', () => {
     assert.strictEqual(orch.getResults().length, 1);
   });
 });
+
+describe('Orchestrator — delegateAll with empty tasks', () => {
+  it('returns empty results for empty task list', async () => {
+    const orch = makeOrchestrator();
+    const results = await orch.delegateAll([], successExecutor);
+    assert.strictEqual(results.length, 0);
+  });
+
+  it('handles single task through delegateAll', async () => {
+    const orch = makeOrchestrator();
+    const results = await orch.delegateAll([makeTask('Solo')], successExecutor);
+    assert.strictEqual(results.length, 1);
+    assert.strictEqual(results[0].status, 'success');
+    assert.ok(results[0].output.includes('Solo'));
+  });
+});
