@@ -454,7 +454,7 @@ export function registerCommandRoutes(
     if (agentBusy) {
       // Queue the message instead of rejecting
       const queuePromise = new Promise((resolve) => {
-        messageQueue.push({ message: body.message, mode: body.mode, resolve });
+        messageQueue.push({ message: body.message!, mode: body.mode, resolve });
       });
       broadcastStatus('queued', { position: messageQueue.length });
       DashboardServer.json(res, {
