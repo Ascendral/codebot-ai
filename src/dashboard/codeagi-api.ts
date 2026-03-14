@@ -151,6 +151,125 @@ export function registerCodeAGIRoutes(server: DashboardServer): void {
     DashboardServer.json(res, result);
   });
 
+
+  // ── GET /api/codeagi/run/stream ── SSE stream for cognition cycle
+  server.route('GET', '/api/codeagi/run/stream', (req, res) => {
+    const url = new URL(req.url || '/', `http://${req.headers.host}`);
+    const maxCycles = parseInt(url.searchParams.get('max_cycles') || '1', 10);
+
+    DashboardServer.sseHeaders(res);
+    let closed = false;
+    res.on('close', () => { closed = true; });
+
+    // Cognition phases we detect from CodeAGI stdout
+    const PHASES = ['plan', 'verify', 'critique', 'execute', 'reflect'];
+    const phasePatterns: Record<string, RegExp> = {
+      plan: /\b(plan|planning|decompos)\b/i,
+      verify: /\b(verif|check|validat)\b/i,
+      critique: /\b(critiqu|review|evaluat)\b/i,
+      execute: /\b(execut|action|running|apply|writ)\b/i,
+      reflect: /\b(reflect|learn|consolidat|summar)\b/i,
+    };
+
+    function detectPhase(text: string): string | null {
+      // Check JSON payloads first
+      try {
+        const obj = JSON.parse(text);
+        for (const phase of PHASES) {
+          if (obj[phase] || obj[phase + '_result'] || obj.phase === phase) return phase;
+        }
+        if (obj.action_outcome) return 'execute';
+        if (obj.verification) return 'verify';
+        if (obj.status === 'idle' || obj.cycle_trace) return 'complete';
+      } catch {
+        // Not JSON — use regex
+        for (const phase of PHASES) {
+          if (phasePatterns[phase].test(text)) return phase;
+        }
+      }
+      return null;
+    }
+
+    DashboardServer.sseSend(res, {
+      type: 'phases_init',
+      phases: PHASES,
+      text: `Starting CodeAGI cognition cycle (max_cycles: ${maxCycles})...`,
+    });
+
+    const proc = spawn('python3', ['-m', 'codeagi', 'run', '--max-cycles', String(maxCycles)], {
+      cwd: CODEAGI_ROOT,
+      env: { ...process.env, PYTHONPATH: CODEAGI_ROOT, PYTHONUNBUFFERED: '1' },
+    });
+
+    let outputBuffer = '';
+    let activePhase: string | null = null;
+
+    proc.stdout.on('data', (data: Buffer) => {
+      if (closed) return;
+      outputBuffer += data.toString();
+      const lines = outputBuffer.split('\n');
+      outputBuffer = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const phase = detectPhase(line);
+        if (phase && phase !== activePhase) {
+          // Mark previous phase done
+          if (activePhase) {
+            DashboardServer.sseSend(res, { type: 'phase', phase: activePhase, status: 'done' });
+          }
+          activePhase = phase;
+          DashboardServer.sseSend(res, { type: 'phase', phase, status: 'running' });
+        }
+        // Try to parse as JSON
+        try {
+          const parsed = JSON.parse(line);
+          DashboardServer.sseSend(res, { type: 'cycle_data', data: parsed, phase: activePhase });
+        } catch {
+          DashboardServer.sseSend(res, { type: 'log', text: line, phase: activePhase });
+        }
+      }
+    });
+
+    proc.stderr.on('data', (data: Buffer) => {
+      if (closed) return;
+      const text = data.toString();
+      if (!text.includes('DeprecationWarning') && !text.includes('FutureWarning')) {
+        DashboardServer.sseSend(res, { type: 'stderr', text: text.trim() });
+      }
+    });
+
+    proc.on('close', (code: number | null) => {
+      if (closed) return;
+      if (activePhase) {
+        DashboardServer.sseSend(res, { type: 'phase', phase: activePhase, status: 'done' });
+      }
+      DashboardServer.sseSend(res, {
+        type: 'phase', phase: 'complete', status: 'done',
+      });
+      DashboardServer.sseSend(res, {
+        type: 'complete',
+        text: code === 0 ? 'Cognition cycle completed successfully' : `Cycle exited with code ${code}`,
+        exitCode: code,
+      });
+      DashboardServer.sseClose(res);
+    });
+
+    proc.on('error', (err: Error) => {
+      if (closed) return;
+      DashboardServer.sseSend(res, { type: 'error', text: err.message });
+      DashboardServer.sseClose(res);
+    });
+
+    // 5 minute timeout
+    setTimeout(() => {
+      if (!closed) {
+        proc.kill('SIGTERM');
+        DashboardServer.sseSend(res, { type: 'error', text: 'Run timed out after 5 minutes' });
+        DashboardServer.sseClose(res);
+      }
+    }, 300_000);
+  });
+
   // ── POST /api/codeagi/run ── Run a cycle (SSE stream)
   server.route('POST', '/api/codeagi/run', async (req, res) => {
     let body: any = {};

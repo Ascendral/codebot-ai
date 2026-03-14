@@ -2297,3 +2297,30 @@ body.chat-expanded .card-grid {
 .queue-icon {
   margin-right: 6px;
 }
+
+/* ── CodeAGI Phase Badges ── */
+.codeagi-phase-bar { display: flex; align-items: center; gap: 0; margin-top: 0.8rem; flex-wrap: wrap; }
+.codeagi-phase-badge { display: flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dim); transition: all 0.3s ease; }
+.codeagi-phase-badge .phase-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); transition: all 0.3s ease; }
+.codeagi-phase-badge.pending { opacity: 0.5; }
+.codeagi-phase-badge.pending .phase-dot { background: #555; }
+.codeagi-phase-badge.running { opacity: 1; border-color: #a855f7; color: #a855f7; background: rgba(168, 85, 247, 0.1); }
+.codeagi-phase-badge.running .phase-dot { background: #a855f7; animation: pulse 1.2s infinite; }
+.codeagi-phase-badge.done { opacity: 1; border-color: #00ff41; color: #00ff41; background: rgba(0, 255, 65, 0.08); }
+.codeagi-phase-badge.done .phase-dot { background: #00ff41; }
+.codeagi-phase-badge[data-phase="plan"].running { border-color: #a855f7; color: #a855f7; background: rgba(168, 85, 247, 0.1); }
+.codeagi-phase-badge[data-phase="plan"].running .phase-dot { background: #a855f7; }
+.codeagi-phase-badge[data-phase="verify"].running { border-color: #06b6d4; color: #06b6d4; background: rgba(6, 182, 212, 0.1); }
+.codeagi-phase-badge[data-phase="verify"].running .phase-dot { background: #06b6d4; }
+.codeagi-phase-badge[data-phase="critique"].running { border-color: #f59e0b; color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+.codeagi-phase-badge[data-phase="critique"].running .phase-dot { background: #f59e0b; }
+.codeagi-phase-badge[data-phase="execute"].running { border-color: #00ff41; color: #00ff41; background: rgba(0, 255, 65, 0.1); }
+.codeagi-phase-badge[data-phase="execute"].running .phase-dot { background: #00ff41; }
+.codeagi-phase-badge[data-phase="reflect"].running { border-color: #ec4899; color: #ec4899; background: rgba(236, 72, 153, 0.1); }
+.codeagi-phase-badge[data-phase="reflect"].running .phase-dot { background: #ec4899; }
+.codeagi-phase-badge[data-phase="complete"].done { border-color: #0096ff; color: #0096ff; background: rgba(0, 150, 255, 0.1); }
+.codeagi-phase-badge[data-phase="complete"].done .phase-dot { background: #0096ff; }
+.codeagi-phase-connector { width: 20px; height: 2px; background: var(--border); flex-shrink: 0; }
+.codeagi-stream-btn { display: inline-flex; align-items: center; gap: 0.4rem; }
+.codeagi-stream-log { max-height: 500px; overflow-y: auto; font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.6; }
+@media (max-width: 600px) { .codeagi-phase-bar { gap: 0.2rem; } .codeagi-phase-connector { width: 8px; } .codeagi-phase-badge { padding: 0.2rem 0.5rem; font-size: 0.65rem; } }

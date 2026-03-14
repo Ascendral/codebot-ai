@@ -1845,6 +1845,8 @@ const App = {
     if (addTaskBtn) addTaskBtn.onclick = function() { self.addCodeAGITask(); };
     var runBtn = document.getElementById('codeagi-run-btn');
     if (runBtn) runBtn.onclick = function() { self.runCodeAGICycle(); };
+    var streamBtn = document.getElementById('codeagi-stream-btn');
+    if (streamBtn) streamBtn.onclick = function() { self.runCodeAGIStream(); };
     var refreshBtn = document.getElementById('codeagi-refresh-btn');
     if (refreshBtn) refreshBtn.onclick = function() { self.loadCodeAGIMissions(); self.loadCodeAGIWorkspace(); };
     document.querySelectorAll('.codeagi-tab').forEach(function(tab) {
@@ -1994,6 +1996,105 @@ const App = {
     container.appendChild(step);
     container.scrollTop = container.scrollHeight;
   },
+
+  async runCodeAGIStream() {
+    var streamBtn = document.getElementById('codeagi-stream-btn');
+    var phaseBar = document.getElementById('codeagi-phase-bar');
+    var streamOutput = document.getElementById('codeagi-stream-output');
+    var streamLog = document.getElementById('codeagi-stream-log');
+    if (!phaseBar || !streamLog || !streamOutput) return;
+
+    // Disable button
+    streamBtn.disabled = true;
+    streamBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg> Streaming...';
+
+    // Show phase bar and stream output
+    phaseBar.style.display = 'flex';
+    streamOutput.style.display = 'block';
+    streamLog.innerHTML = '';
+
+    // Reset all badges to pending
+    phaseBar.querySelectorAll('.codeagi-phase-badge').forEach(function(b) {
+      b.className = 'codeagi-phase-badge pending';
+    });
+
+    var self = this;
+    var abortController = new AbortController();
+
+    try {
+      var base = window.location.origin;
+      var headers = {};
+      if (window.__CODEBOT_TOKEN) headers['Authorization'] = 'Bearer ' + window.__CODEBOT_TOKEN;
+
+      var res = await fetch(base + '/api/codeagi/run/stream?max_cycles=1', {
+        headers: headers,
+        signal: abortController.signal,
+      });
+
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = '';
+
+      while (true) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        buffer += decoder.decode(chunk.value, { stream: true });
+        var lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (var i = 0; i < lines.length; i++) {
+          if (!lines[i].startsWith('data: ')) continue;
+          var payload = lines[i].slice(6);
+          if (payload === '[DONE]') break;
+          try {
+            var ev = JSON.parse(payload);
+            self.handleStreamEvent(phaseBar, streamLog, ev);
+          } catch(e) {}
+        }
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        self.appendStreamLog(streamLog, 'error', err.message);
+      }
+    } finally {
+      streamBtn.disabled = false;
+      streamBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg> Stream Cycle';
+      self.loadCodeAGIMissions();
+      self.loadCodeAGIWorkspace();
+    }
+  },
+
+  handleStreamEvent(phaseBar, streamLog, ev) {
+    // Update phase badges
+    if (ev.type === 'phase') {
+      var badge = phaseBar.querySelector('[data-phase="' + ev.phase + '"]');
+      if (badge) {
+        badge.className = 'codeagi-phase-badge ' + ev.status;
+      }
+    }
+
+    // Render log entries
+    if (ev.type === 'phases_init') {
+      this.appendStreamLog(streamLog, 'status', ev.text);
+    } else if (ev.type === 'cycle_data' && ev.data) {
+      this.appendCodeAGIStep(streamLog, ev);
+    } else if (ev.type === 'log' || ev.type === 'stderr') {
+      this.appendStreamLog(streamLog, ev.phase || 'log', ev.text);
+    } else if (ev.type === 'complete') {
+      this.appendStreamLog(streamLog, 'complete', ev.text);
+    } else if (ev.type === 'error') {
+      this.appendStreamLog(streamLog, 'error', ev.text);
+    }
+  },
+
+  appendStreamLog(container, phase, text) {
+    var entry = document.createElement('div');
+    entry.className = 'codeagi-step ' + (phase || '');
+    var label = phase ? '<div class="codeagi-step-label">' + this.escapeHtml(phase) + '</div>' : '';
+    entry.innerHTML = label + '<div>' + this.escapeHtml(text || '') + '</div>';
+    container.appendChild(entry);
+    container.scrollTop = container.scrollHeight;
+  },
+
 
   async loadCodeAGIWorkspace(subdir) {
     var filesEl = document.getElementById('codeagi-workspace-files');

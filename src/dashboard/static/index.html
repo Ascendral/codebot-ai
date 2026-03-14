@@ -285,7 +285,22 @@
           <div class="codeagi-section">
             <div class="codeagi-run-row">
               <button id="codeagi-run-btn" class="btn-primary codeagi-run-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Run Cycle</button>
+              <button id="codeagi-stream-btn" class="btn-primary codeagi-stream-btn" style="background:#a855f7"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg> Stream Cycle</button>
               <button id="codeagi-refresh-btn" class="btn-secondary">Refresh</button>
+            </div>
+            <!-- Cognition Phase Badges -->
+            <div id="codeagi-phase-bar" class="codeagi-phase-bar" style="display:none">
+              <div class="codeagi-phase-badge pending" data-phase="plan"><span class="phase-dot"></span>Plan</div>
+              <div class="codeagi-phase-connector"></div>
+              <div class="codeagi-phase-badge pending" data-phase="verify"><span class="phase-dot"></span>Verify</div>
+              <div class="codeagi-phase-connector"></div>
+              <div class="codeagi-phase-badge pending" data-phase="critique"><span class="phase-dot"></span>Critique</div>
+              <div class="codeagi-phase-connector"></div>
+              <div class="codeagi-phase-badge pending" data-phase="execute"><span class="phase-dot"></span>Execute</div>
+              <div class="codeagi-phase-connector"></div>
+              <div class="codeagi-phase-badge pending" data-phase="reflect"><span class="phase-dot"></span>Reflect</div>
+              <div class="codeagi-phase-connector"></div>
+              <div class="codeagi-phase-badge pending" data-phase="complete"><span class="phase-dot"></span>Complete</div>
             </div>
           </div>
           <div class="codeagi-section">
@@ -295,6 +310,10 @@
           <div id="codeagi-cycle-output" class="codeagi-section" style="display:none">
             <h3>Cycle Output</h3>
             <div id="codeagi-cycle-steps" class="codeagi-cycle-steps"></div>
+          </div>
+          <div id="codeagi-stream-output" class="codeagi-section" style="display:none">
+            <h3>Live Cognition Stream</h3>
+            <div id="codeagi-stream-log" class="codeagi-stream-log"></div>
           </div>
           <div class="codeagi-tabs">
             <button class="codeagi-tab active" data-tab="workspace">Workspace</button>
