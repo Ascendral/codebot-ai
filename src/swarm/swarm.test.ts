@@ -7,34 +7,33 @@ import { createStrategy } from './strategies';
 
 describe('ContextBus', () => {
   it('creates with empty state', () => {
-    const bus = new ContextBus();
+    const bus = new ContextBus('test-swarm');
     assert.deepStrictEqual(bus.getAllMessages(), []);
   });
 
   it('posts and retrieves messages', () => {
-    const bus = new ContextBus();
-    bus.post('agent-1', 'contribution', { content: 'hello' });
+    const bus = new ContextBus('test-swarm');
+    bus.post({ fromAgentId: 'agent-1', fromRole: 'coder', type: 'contribution', target: '*', payload: { summary: 'test', content: 'hello' } });
     const msgs = bus.getAllMessages();
     assert.strictEqual(msgs.length, 1);
     assert.strictEqual(msgs[0].fromAgentId, 'agent-1');
     assert.strictEqual(msgs[0].type, 'contribution');
   });
 
-  it('filters messages by agent', () => {
-    const bus = new ContextBus();
-    bus.post('agent-1', 'contribution', { content: 'a' });
-    bus.post('agent-2', 'contribution', { content: 'b' });
-    const msgs = bus.getMessagesFrom('agent-1');
+  it('filters messages by type', () => {
+    const bus = new ContextBus('test-swarm');
+    bus.post({ fromAgentId: 'agent-1', fromRole: 'coder', type: 'contribution', target: '*', payload: { summary: 's', content: 'work' } });
+    bus.post({ fromAgentId: 'agent-1', fromRole: 'coder', type: 'request', target: '*', payload: { summary: 's', content: 'help' } });
+    const msgs = bus.getByType('request');
     assert.strictEqual(msgs.length, 1);
-    assert.strictEqual(msgs[0].payload.content, 'a');
+    assert.strictEqual(msgs[0].payload.content, 'help');
   });
 
-  it('filters messages by type', () => {
-    const bus = new ContextBus();
-    bus.post('agent-1', 'contribution', { content: 'work' });
-    bus.post('agent-1', 'request', { content: 'help' });
-    const msgs = bus.getMessagesByType('request');
-    assert.strictEqual(msgs.length, 1);
+  it('assigns unique IDs to messages', () => {
+    const bus = new ContextBus('test-swarm');
+    const m1 = bus.post({ fromAgentId: 'a', fromRole: 'coder', type: 'contribution', target: '*', payload: { summary: 's', content: 'a' } });
+    const m2 = bus.post({ fromAgentId: 'b', fromRole: 'coder', type: 'contribution', target: '*', payload: { summary: 's', content: 'b' } });
+    assert.notStrictEqual(m1.id, m2.id);
   });
 });
 
@@ -47,7 +46,6 @@ describe('Roles', () => {
   });
 
   it('getToolsForRole returns filtered tools', () => {
-    // Pass empty tool array — should return empty
     const tools = getToolsForRole('coder', []);
     assert.ok(Array.isArray(tools));
   });
@@ -68,28 +66,28 @@ describe('SwarmScorer', () => {
 
 describe('Strategy creation', () => {
   it('creates debate strategy', () => {
-    const strategy = createStrategy('debate');
-    assert.ok(strategy);
+    const s = createStrategy('debate');
+    assert.ok(s);
   });
 
   it('creates pipeline strategy', () => {
-    const strategy = createStrategy('pipeline');
-    assert.ok(strategy);
+    const s = createStrategy('pipeline');
+    assert.ok(s);
   });
 
   it('creates moa strategy', () => {
-    const strategy = createStrategy('moa');
-    assert.ok(strategy);
+    const s = createStrategy('moa');
+    assert.ok(s);
   });
 
   it('creates fan-out strategy', () => {
-    const strategy = createStrategy('fan-out');
-    assert.ok(strategy);
+    const s = createStrategy('fan-out');
+    assert.ok(s);
   });
 
   it('creates generator-critic strategy', () => {
-    const strategy = createStrategy('generator-critic');
-    assert.ok(strategy);
+    const s = createStrategy('generator-critic');
+    assert.ok(s);
   });
 
   it('throws on unknown strategy', () => {
