@@ -21,6 +21,7 @@ import { ConstitutionalLayer, ConstitutionalResult } from './constitutional';
 import { SparkSoul } from './spark-soul';
 import { isLikelyDeveloper } from './intent';
 import { UserProfile } from './user-profile';
+import { getRecoverySuggestion, formatRecoveryHint } from './recovery';
 
 /** Permission callback type — risk and sandbox info are optional for backwards compat */
 type AskPermissionFn = (
@@ -652,7 +653,10 @@ export class Agent {
           // SPARK: record failure
           if (this.sparkSoul) { try { this.sparkSoul.recordOutcome(toolName, prep.args, false, errMsg, latencyMs); } catch {} }
 
-          return { content: `Error: ${errMsg}`, is_error: true };
+          // Append recovery hint if a known pattern matches
+          const recovery = getRecoverySuggestion(errMsg);
+          const hint = recovery ? `\n${formatRecoveryHint(recovery)}` : '';
+          return { content: `Error: ${errMsg}${hint}`, is_error: true };
         }
       };
 

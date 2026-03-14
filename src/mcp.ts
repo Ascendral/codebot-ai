@@ -186,6 +186,40 @@ function mcpToolToTool(connection: MCPConnection, def: MCPToolDef): Tool {
 }
 
 /** Load MCP config and connect to all servers, returning Tool wrappers */
+
+/** Validate MCP config structure (lightweight, no external deps) */
+function validateMcpConfig(config: unknown, configPath: string): MCPConfig | null {
+  if (!config || typeof config !== 'object') {
+    console.warn(`MCP warning: ${configPath} is not a valid object`);
+    return null;
+  }
+  const c = config as Record<string, unknown>;
+  if (!Array.isArray(c.servers)) {
+    console.warn(`MCP warning: ${configPath} missing "servers" array`);
+    return null;
+  }
+  const known = new Set(['servers']);
+  for (const key of Object.keys(c)) {
+    if (!known.has(key)) {
+      console.warn(`MCP warning: ${configPath} has unknown field "${key}"`);
+    }
+  }
+  for (let i = 0; i < c.servers.length; i++) {
+    const s = c.servers[i] as Record<string, unknown>;
+    if (!s || typeof s !== 'object') {
+      console.warn(`MCP warning: ${configPath} servers[${i}] is not an object — skipping`);
+      continue;
+    }
+    if (typeof s.name !== 'string' || !s.name) {
+      console.warn(`MCP warning: ${configPath} servers[${i}] missing "name"`);
+    }
+    if (typeof s.command !== 'string' || !s.command) {
+      console.warn(`MCP warning: ${configPath} servers[${i}] missing "command"`);
+    }
+  }
+  return config as MCPConfig;
+}
+
 export async function loadMCPTools(projectRoot?: string): Promise<{ tools: Tool[]; cleanup: () => void }> {
   const tools: Tool[] = [];
   const connections: MCPConnection[] = [];
@@ -200,10 +234,13 @@ export async function loadMCPTools(projectRoot?: string): Promise<{ tools: Tool[
   for (const configPath of configPaths) {
     if (!fs.existsSync(configPath)) continue;
 
-    let config: MCPConfig;
+    let config: MCPConfig | null;
     try {
-      config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      config = validateMcpConfig(raw, configPath);
+      if (!config) continue;
     } catch {
+      console.warn(`MCP warning: failed to parse ${configPath}`);
       continue;
     }
 

@@ -87,6 +87,9 @@ export function renderEvent(event: AgentEvent, agent?: Agent) {
       break;
     case 'error':
       console.error(UI.red + `\n\u2717 ${event.error}` + UI.reset);
+      if (verbose && (event as any).stack) {
+        console.error(UI.dim + (event as any).stack + UI.reset);
+      }
       break;
     case 'stream_progress':
       break;

@@ -28,6 +28,33 @@ interface PluginManifest {
   hash: string; // "sha256:abc123..."
 }
 
+
+/** Validate plugin manifest fields (lightweight, no external deps) */
+function validateManifest(manifest: Record<string, unknown>, fileName: string): string | null {
+  if (typeof manifest.name !== 'string' || !manifest.name) {
+    return `Plugin skipped (${fileName}): manifest "name" must be a non-empty string`;
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(manifest.name)) {
+    return `Plugin skipped (${fileName}): manifest "name" contains invalid characters (use a-z, 0-9, - _)`;
+  }
+  if (typeof manifest.version !== 'string' || !/^\d+\.\d+/.test(manifest.version)) {
+    return `Plugin skipped (${fileName}): manifest "version" must be a semver string (e.g. "1.0.0")`;
+  }
+  if (typeof manifest.hash !== 'string' || !manifest.hash.startsWith('sha256:')) {
+    return `Plugin skipped (${fileName}): manifest "hash" must start with "sha256:"`;
+  }
+  if (manifest.hash.length !== 71) { // "sha256:" (7) + 64 hex chars
+    return `Plugin skipped (${fileName}): manifest "hash" must be sha256:<64 hex chars>`;
+  }
+  const known = new Set(['name', 'version', 'hash', 'description', 'author', 'permissions']);
+  for (const key of Object.keys(manifest)) {
+    if (!known.has(key)) {
+      console.warn(`Plugin warning (${fileName}): unknown manifest field "${key}"`);
+    }
+  }
+  return null; // valid
+}
+
 export function loadPlugins(projectRoot?: string): Tool[] {
   const plugins: Tool[] = [];
   const dirs = [
@@ -69,8 +96,9 @@ export function loadPlugins(projectRoot?: string): Tool[] {
           continue;
         }
 
-        if (!manifest.hash || !manifest.hash.startsWith('sha256:')) {
-          console.error(`Plugin skipped (${entry.name}): manifest missing valid sha256 hash`);
+        const validationError = validateManifest(manifest as unknown as Record<string, unknown>, entry.name);
+        if (validationError) {
+          console.error(validationError);
           continue;
         }
 
