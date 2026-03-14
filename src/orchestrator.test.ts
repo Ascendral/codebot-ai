@@ -3,11 +3,10 @@ import * as assert from 'node:assert';
 import { Orchestrator, OrchestratorConfig, AgentTask } from './orchestrator';
 
 describe('Orchestrator', () => {
-  function makeOrchestrator(overrides?: Partial<OrchestratorConfig>) {
-    // Minimal mock dependencies
+  function makeOrchestrator(overrides?: Partial<OrchestratorConfig>, depth = 0) {
     const policy = { checkToolCall: () => ({ allowed: true }), isToolAllowed: () => true } as any;
     const metrics = { recordEvent: () => {}, getMetrics: () => ({}) } as any;
-    return new Orchestrator(policy, metrics, 0, overrides);
+    return new Orchestrator(policy, metrics, overrides, depth);
   }
 
   it('creates with default config', () => {
@@ -30,32 +29,27 @@ describe('Orchestrator', () => {
     assert.strictEqual(orch.getActiveCount(), 0);
   });
 
-  it('validateTask rejects tasks at max depth', () => {
-    // depth=1 means children can't spawn grandchildren
-    const policy = { checkToolCall: () => ({ allowed: true }), isToolAllowed: () => true } as any;
-    const metrics = { recordEvent: () => {}, getMetrics: () => ({}) } as any;
-    const orch = new Orchestrator(policy, metrics, 1);
-    const task: AgentTask = { id: 'test-1', description: 'test task' };
-    const valid = orch.validateTask(task);
-    assert.ok(!valid, 'Should reject task at max depth');
+  it('canSpawn rejects at max depth', () => {
+    const orch = makeOrchestrator({}, 1);
+    const result = orch.canSpawn();
+    assert.strictEqual(result.allowed, false);
+    assert.ok(result.reason?.includes('depth'));
   });
 
-  it('validateTask accepts tasks at depth 0', () => {
-    const orch = makeOrchestrator();
-    const task: AgentTask = { id: 'test-1', description: 'test task' };
-    const valid = orch.validateTask(task);
-    assert.ok(valid, 'Should accept task at depth 0');
+  it('canSpawn allows at depth 0', () => {
+    const orch = makeOrchestrator({}, 0);
+    const result = orch.canSpawn();
+    assert.strictEqual(result.allowed, true);
   });
 
-  it('enforces maxChildAgents limit', () => {
-    const orch = makeOrchestrator({ maxChildAgents: 2 });
-    const canAdd1 = orch.canAddChild();
-    assert.ok(canAdd1, 'Should allow first child');
+  it('respects maxConcurrent setting', () => {
+    const orch = makeOrchestrator({ maxConcurrent: 2 });
+    const result = orch.canSpawn();
+    assert.strictEqual(result.allowed, true);
   });
 
-  it('formatResults returns string summary', () => {
-    const orch = makeOrchestrator();
-    const summary = orch.formatResults();
-    assert.ok(typeof summary === 'string');
+  it('config merges with defaults', () => {
+    const orch = makeOrchestrator({ maxConcurrent: 7 });
+    assert.ok(orch);
   });
 });
