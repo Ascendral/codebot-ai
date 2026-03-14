@@ -55,29 +55,29 @@ describe('selectModel', () => {
   };
 
   it('selects fast model for fast tier', () => {
-    const result = selectModel(config, 'fast', 'default-model');
+    const result = selectModel('fast', config, 'default-model');
     assert.strictEqual(result, 'haiku');
   });
 
   it('selects standard model for standard tier', () => {
-    const result = selectModel(config, 'standard', 'default-model');
+    const result = selectModel('standard', config, 'default-model');
     assert.strictEqual(result, 'sonnet');
   });
 
   it('selects powerful model for powerful tier', () => {
-    const result = selectModel(config, 'powerful', 'default-model');
+    const result = selectModel('powerful', config, 'default-model');
     assert.strictEqual(result, 'opus');
   });
 
   it('falls back to default when disabled', () => {
     const disabled: RouterConfig = { enabled: false };
-    const result = selectModel(disabled, 'powerful', 'default-model');
+    const result = selectModel('powerful', disabled, 'default-model');
     assert.strictEqual(result, 'default-model');
   });
 
   it('falls back to default when tier model is missing', () => {
     const partial: RouterConfig = { enabled: true, fastModel: 'haiku' };
-    const result = selectModel(partial, 'powerful', 'default-model');
+    const result = selectModel('powerful', partial, 'default-model');
     assert.strictEqual(result, 'default-model');
   });
 });
