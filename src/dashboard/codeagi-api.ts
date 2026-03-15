@@ -8,9 +8,9 @@ import { DashboardServer } from './server';
 import { spawn, execFileSync } from 'child_process';
 import * as path from 'path';
 
-const CODEAGI_ROOT = path.join(process.env.HOME || '~', 'ClaudeWork', 'CodeAGI');
-const CODEAGI_WORKSPACE = path.join(process.env.HOME || '~', 'CodeAGI', 'workspace');
-const CODEAGI_RUNTIME = path.join(process.env.HOME || '~', 'CodeAGI', 'runtime');
+const CODEAGI_ROOT = process.env.CODEAGI_ROOT || path.join(process.env.HOME || '~', 'ClaudeWork', 'CodeAGI');
+const CODEAGI_WORKSPACE = process.env.CODEAGI_WORKSPACE || path.join(CODEAGI_ROOT, 'workspace');
+const CODEAGI_RUNTIME = process.env.CODEAGI_RUNTIME || path.join(CODEAGI_ROOT, 'runtime');
 
 /** Run a codeagi CLI command and return JSON output */
 function codeagiExec(args: string[]): any {

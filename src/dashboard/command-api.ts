@@ -21,49 +21,6 @@ import { LLMProvider, Message } from '../types';
 import { getProactiveEngine } from '../proactive';
 import { loadWorkflows, getWorkflow, resolveWorkflowPrompt, WORKFLOW_CATEGORIES } from '../workflows';
 
-/** Load API keys from ~/.codebot/config.json + environment */
-function loadApiKeys(): Record<string, string> {
-  const keys: Record<string, string> = {};
-
-  // 1. Read from ~/.codebot/config.json
-  try {
-    const configPath = codebotPath('config.json');
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    if (config.apiKey && config.provider) {
-      const providerInfo = PROVIDER_DEFAULTS[config.provider];
-      if (providerInfo) {
-        keys[providerInfo.envKey] = config.apiKey;
-      }
-    }
-  } catch { /* no config */ }
-
-  // 2. Environment variables override config
-  for (const [, info] of Object.entries(PROVIDER_DEFAULTS)) {
-    const envVal = process.env[info.envKey];
-    if (envVal && envVal.length > 5) {
-      keys[info.envKey] = envVal;
-    }
-  }
-
-  // 3. Check for OAuth token as Anthropic fallback
-  const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN;
-  if (oauthToken && oauthToken.length > 5 && !keys['ANTHROPIC_API_KEY']) {
-    keys['ANTHROPIC_API_KEY'] = oauthToken;
-  }
-
-  return keys;
-}
-
-const API_KEYS = loadApiKeys();
-
-
-
-
-
-
-
-
-
 /** Quick-action definitions: AI prompt (agent) + shell command (standalone) */
 const QUICK_ACTIONS: Record<string, { prompt: string; command: string }> = {
   'git-status':   { prompt: 'Run git status and show me the result briefly.',                      command: 'git status' },
@@ -437,27 +394,21 @@ export function registerCommandRoutes(
     });
   });
 
-  // ── POST /api/notifications/:id/dismiss ──
-  server.route('POST', '/api/notifications/', async (req, res) => {
-    const url = new URL(req.url || '', 'http://localhost');
-    const parts = url.pathname.split('/').filter(Boolean);
-    // api/notifications/<id>/dismiss  OR  api/notifications/dismiss-all
+  // ── POST /api/notifications/dismiss-all ──
+  server.route('POST', '/api/notifications/dismiss-all', (_req, res) => {
     const engine = getProactiveEngine();
+    const count = engine.dismissAll();
+    DashboardServer.json(res, { dismissed: count });
+  });
 
-    if (parts[2] === 'dismiss-all') {
-      const count = engine.dismissAll();
-      DashboardServer.json(res, { dismissed: count });
-      return;
-    }
-
-    const id = parts[2] || '';
-    const action = parts[3] || '';
-
-    if (action === 'dismiss') {
-      const ok = engine.dismiss(id);
+  // ── POST /api/notifications/:id/:action ──
+  server.route('POST', '/api/notifications/:id/:action', (_req, res, params) => {
+    const engine = getProactiveEngine();
+    if (params.action === 'dismiss') {
+      const ok = engine.dismiss(params.id);
       DashboardServer.json(res, { dismissed: ok });
-    } else if (action === 'read') {
-      const ok = engine.markRead(id);
+    } else if (params.action === 'read') {
+      const ok = engine.markRead(params.id);
       DashboardServer.json(res, { read: ok });
     } else {
       DashboardServer.error(res, 400, 'Unknown action. Use /dismiss or /read');
@@ -505,38 +456,25 @@ export function registerCommandRoutes(
   });
 
   // ── GET /api/workflows/:name ──
-  server.route('GET', '/api/workflows/', (req, res) => {
-    const url = new URL(req.url || '', 'http://localhost');
-    const parts = url.pathname.split('/');
-    const name = parts[parts.length - 1];
-    if (!name) {
-      DashboardServer.error(res, 400, 'Missing workflow name');
-      return;
-    }
-    const workflow = getWorkflow(name);
+  server.route('GET', '/api/workflows/:name', (_req, res, params) => {
+    const workflow = getWorkflow(params.name);
     if (!workflow) {
-      DashboardServer.error(res, 404, 'Workflow "' + name + '" not found');
+      DashboardServer.error(res, 404, 'Workflow "' + params.name + '" not found');
       return;
     }
     DashboardServer.json(res, { workflow });
   });
 
   // ── POST /api/workflows/:name/run (SSE stream) ──
-  server.route('POST', '/api/workflows/', async (req, res) => {
+  server.route('POST', '/api/workflows/:name/run', async (req, res, params) => {
     if (!agent) {
       DashboardServer.error(res, 503, 'Agent not available');
       return;
     }
 
-    // Extract workflow name from URL path
-    const url = new URL(req.url || '', 'http://localhost');
-    const pathParts = url.pathname.split('/').filter(Boolean);
-    // Expected: api, workflows, <name>, run
-    const name = pathParts.length >= 3 ? pathParts[2] : '';
-
-    const workflow = getWorkflow(name);
+    const workflow = getWorkflow(params.name);
     if (!workflow) {
-      DashboardServer.error(res, 404, 'Workflow "' + name + '" not found');
+      DashboardServer.error(res, 404, 'Workflow "' + params.name + '" not found');
       return;
     }
 
