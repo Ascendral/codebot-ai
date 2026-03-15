@@ -251,6 +251,12 @@ export class GoalDecomposer {
 
     // Skip dependents since this goal failed
     this.skipDependents(tree, goalId);
+
+    // Check if parent can resolve now
+    if (node.parentId) {
+      this.checkParentCompletion(tree, node.parentId);
+    }
+
     this.updateReadyStates(tree);
   }
 
@@ -362,10 +368,13 @@ export class GoalDecomposer {
     const parent = tree.nodes.get(parentId);
     if (!parent) return;
 
-    const allDone = parent.subtasks.every(id => {
+    const terminalStatuses = new Set(['completed', 'skipped', 'failed']);
+    const allTerminal = parent.subtasks.every(id => {
       const child = tree.nodes.get(id);
-      return child && (child.status === 'completed' || child.status === 'skipped');
+      return child && terminalStatuses.has(child.status);
     });
+
+    if (!allTerminal) return; // Wait for all children to finish
 
     const anyFailed = parent.subtasks.some(id => {
       const child = tree.nodes.get(id);
@@ -376,7 +385,7 @@ export class GoalDecomposer {
       parent.status = 'failed';
       parent.error = 'One or more subtasks failed';
       parent.completedAt = new Date().toISOString();
-    } else if (allDone) {
+    } else {
       parent.status = 'completed';
       parent.completedAt = new Date().toISOString();
       // Collect subtask outputs
