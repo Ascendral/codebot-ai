@@ -34,6 +34,14 @@ export interface SkillDefinition {
   /** JSON Schema for skill input parameters */
   parameters?: Record<string, unknown>;
   steps: SkillStep[];
+  // Shared metadata (used by skill_forge for cross-system reinforcement)
+  author?: 'codebot' | 'codeagi' | 'user';
+  confidence?: number;
+  use_count?: number;
+  origin?: string;
+  source_procedure_id?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /** Built-in skill definitions (used when ~/.codebot/skills/ is empty or missing) */

@@ -44,6 +44,7 @@ import { GoogleCalendarConnector } from '../connectors/google-calendar';
 import { NotionConnector } from '../connectors/notion';
 import { GoogleDriveConnector } from '../connectors/google-drive';
 import { DeepResearchTool } from './research';
+import { SkillForgeTool } from './skill-forge';
 
 export { EditFileTool } from './edit';
 
@@ -99,6 +100,7 @@ export class ToolRegistry {
       this.register(new AppConnectorTool(vault, connectorRegistry));
       this.register(new GraphicsTool());
       this.register(new DeepResearchTool());
+      this.register(new SkillForgeTool());
     } catch { /* connectors unavailable */ }
   }
 
