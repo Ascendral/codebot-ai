@@ -32,6 +32,8 @@ function codeagiExec(args: string[]): any {
 /** List files in workspace directory */
 function listWorkspace(subdir?: string): any {
   const dir = subdir ? path.join(CODEAGI_WORKSPACE, subdir) : CODEAGI_WORKSPACE;
+  const resolved = path.resolve(dir);
+  if (!resolved.startsWith(path.resolve(CODEAGI_WORKSPACE))) return { error: 'Access denied: path outside workspace' };
   try {
     const fs = require('fs');
     if (!fs.existsSync(dir)) return { files: [], error: 'Directory not found' };
@@ -52,6 +54,8 @@ function listWorkspace(subdir?: string): any {
 /** Read a workspace file */
 function readWorkspaceFile(filePath: string): any {
   const full = path.join(CODEAGI_WORKSPACE, filePath);
+  const resolved = path.resolve(full);
+  if (!resolved.startsWith(path.resolve(CODEAGI_WORKSPACE))) return { error: 'Access denied: path outside workspace' };
   try {
     const fs = require('fs');
     if (!fs.existsSync(full)) return { error: 'File not found' };
@@ -121,7 +125,8 @@ export function registerCodeAGIRoutes(server: DashboardServer): void {
     let body: any;
     try {
       const chunks: Buffer[] = [];
-      for await (const chunk of req) chunks.push(chunk as Buffer);
+      let size = 0;
+      for await (const chunk of req) { chunks.push(chunk as Buffer); size += (chunk as Buffer).length; if (size > 1_000_000) { DashboardServer.error(res, 413, 'Request body too large'); return; } }
       body = JSON.parse(Buffer.concat(chunks).toString());
     } catch { DashboardServer.error(res, 400, 'Invalid JSON'); return; }
     
@@ -136,7 +141,8 @@ export function registerCodeAGIRoutes(server: DashboardServer): void {
     let body: any;
     try {
       const chunks: Buffer[] = [];
-      for await (const chunk of req) chunks.push(chunk as Buffer);
+      let size = 0;
+      for await (const chunk of req) { chunks.push(chunk as Buffer); size += (chunk as Buffer).length; if (size > 1_000_000) { DashboardServer.error(res, 413, 'Request body too large'); return; } }
       body = JSON.parse(Buffer.concat(chunks).toString());
     } catch { DashboardServer.error(res, 400, 'Invalid JSON'); return; }
 
@@ -161,7 +167,7 @@ export function registerCodeAGIRoutes(server: DashboardServer): void {
 
     DashboardServer.sseHeaders(res);
     let closed = false;
-    res.on('close', () => { closed = true; });
+    res.on('close', () => { closed = true; if (proc) { try { proc.kill(); } catch {} } });
 
     // Cognition phases we detect from CodeAGI stdout
     const PHASES = ['plan', 'verify', 'critique', 'execute', 'reflect'];

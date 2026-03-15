@@ -351,12 +351,16 @@ export class DashboardServer {
         const tokenScript = `<script>window.__CODEBOT_TOKEN="${this.authToken}";</script>`;
         content = Buffer.from(html.replace('</head>', `${tokenScript}\n</head>`));
       }
-      res.writeHead(200, {
+      const headers: Record<string, string | number> = {
         'Content-Type': mime,
         'Content-Length': Buffer.isBuffer(content) ? content.length : Buffer.byteLength(content),
         'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Access-Control-Allow-Origin': '*',
-      });
+      };
+      // Don't allow cross-origin access to index.html (contains auth token)
+      if (path.basename(fullPath) !== 'index.html') {
+        headers['Access-Control-Allow-Origin'] = '*';
+      }
+      res.writeHead(200, headers);
       res.end(content);
       return true;
     } catch {

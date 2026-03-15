@@ -1122,9 +1122,7 @@ const App = {
       chatContainer.appendChild(indicator);
       chatContainer.scrollTop = chatContainer.scrollHeight;
 
-      // Expand chat layout
-      this.chatInitialized = false;
-      this.initChat();
+      // Expand chat layout (keep existing listeners, don't re-init)
       var logoArea = document.getElementById('logo-area');
       if (logoArea) logoArea.classList.add('faded');
       document.body.classList.add('chat-expanded');
@@ -1333,12 +1331,22 @@ const App = {
       btn.addEventListener('click', () => App.runQuickAction(btn.dataset.action));
     });
 
-    // Tool runner
-    if (this.agentConnected) {
-      this.loadToolList();
-      document.getElementById('tool-select').addEventListener('change', (e) => App.onToolSelected(e.target.value));
-      document.getElementById('tool-run-btn').addEventListener('click', () => App.executeSelectedTool());
+    // Tool runner - wire up listeners unconditionally, load list when connected
+    var toolSelect = document.getElementById('tool-select');
+    var toolRunBtn = document.getElementById('tool-run-btn');
+    if (toolSelect) toolSelect.addEventListener('change', (e) => App.onToolSelected(e.target.value));
+    if (toolRunBtn) toolRunBtn.addEventListener('click', () => App.executeSelectedTool());
+
+    // Load tool list (retries if agent not yet connected)
+    var self = this;
+    function tryLoadTools() {
+      if (self.agentConnected) {
+        self.loadToolList();
+      } else {
+        setTimeout(tryLoadTools, 2000);
+      }
     }
+    tryLoadTools();
   },
 
   async runQuickAction(action) {
@@ -1577,12 +1585,7 @@ const App = {
     return JSON.stringify(msg.content || '');
   },
 
-  formatBytes(bytes) {
-    if (!bytes || bytes === 0) return '0 B';
-    const units = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
-  },
+
 
   relativeTime(iso) {
     const now = Date.now();
@@ -1645,7 +1648,6 @@ const App = {
         self.loadCodeAGIMemory(tab.dataset.mem);
       };
     });
-    this.setupCodeAGIContinuous();
   },
 
   async createCodeAGIMission() {
@@ -1927,7 +1929,7 @@ const App = {
       if (type === 'reflections') {
         container.innerHTML = items.map(function(r) { return '<div class="codeagi-memory-item"><div class="codeagi-memory-item-title">' + (r.summary || r.next_action || 'Reflection') + '</div>' + (r.lessons && r.lessons.length ? '<div class="codeagi-memory-item-body">Lessons: ' + r.lessons.join(', ') + '</div>' : '') + '<div class="codeagi-memory-item-meta">' + (r.mission_id || '') + ' \u00B7 ' + (r.created_at || '') + '</div></div>'; }).join('');
       } else if (type === 'semantic') {
-        container.innerHTML = items.map(function(f) { return '<div class="codeagi-memory-item"><div class="codeagi-memory-item-title">' + (f.content || f.fact || JSON.stringify(f).substring(0, 100)) + '</div>' + (f.tags ? '<div class="codeagi-memory-item-body">Tags: ' + (Array.isArray(f.tags) ? f.tags.join(', ') : f.tags) + '</div>' : '') + '<div class="codeagi-memory-item-meta">Confidence: ' + (f.confidence || '?') + '</div></div>'; }).join('');
+        container.innerHTML = items.map(function(f) { return '<div class="codeagi-memory-item"><div class="codeagi-memory-item-title">' + App.escapeHtml(f.content || f.fact || JSON.stringify(f).substring(0, 100)) + '</div>' + (f.tags ? '<div class="codeagi-memory-item-body">Tags: ' + App.escapeHtml(Array.isArray(f.tags) ? f.tags.join(', ') : String(f.tags)) + '</div>' : '') + '<div class="codeagi-memory-item-meta">Confidence: ' + App.escapeHtml(String(f.confidence || '?')) + '</div></div>'; }).join('');
       } else if (type === 'procedures') {
         container.innerHTML = items.map(function(p) { return '<div class="codeagi-memory-item"><div class="codeagi-memory-item-title">' + (p.title || 'Procedure') + '</div><div class="codeagi-memory-item-body">Trigger: ' + (p.trigger || '?') + '</div>' + (p.steps ? '<div class="codeagi-memory-item-body">' + p.steps.join(' \u2192 ') + '</div>' : '') + '<div class="codeagi-memory-item-meta">Uses: ' + (p.use_count || 0) + '</div></div>'; }).join('');
       }

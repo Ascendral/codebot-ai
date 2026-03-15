@@ -350,7 +350,9 @@ export function registerCommandRoutes(
         }
       } finally {
         agentBusy = false;
+        broadcastStatus(messageQueue.length > 0 ? 'queued' : 'idle');
         if (!closed) DashboardServer.sseClose(res);
+        if (messageQueue.length > 0) setTimeout(processQueue, 100);
       }
       return;
     }
@@ -514,7 +516,9 @@ export function registerCommandRoutes(
       }
     } finally {
       agentBusy = false;
+      broadcastStatus(messageQueue.length > 0 ? 'queued' : 'idle');
       if (!closed) DashboardServer.sseClose(res);
+      if (messageQueue.length > 0) setTimeout(processQueue, 100);
     }
   });
 
