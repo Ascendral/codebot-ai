@@ -136,33 +136,37 @@ export class Agent {
       }
     } catch { /* plugins unavailable */ }
 
-    // Load app connectors and skills
+    // Load app connectors (each wrapped individually so one failure doesn't kill all)
     try {
       const { VaultManager } = require('./vault');
       const { ConnectorRegistry } = require('./connectors/registry');
-      const { GitHubConnector } = require('./connectors/github');
-      const { SlackConnector } = require('./connectors/slack');
-      const { JiraConnector } = require('./connectors/jira');
-      const { LinearConnector } = require('./connectors/linear');
-      const { OpenAIImagesConnector } = require('./connectors/openai-images');
-      const { ReplicateConnector } = require('./connectors/replicate');
       const { AppConnectorTool } = require('./tools/app-connector');
-      const { loadSkills, skillToTool } = require('./skills');
 
       const vault = new VaultManager();
       const connectorRegistry = new ConnectorRegistry(vault);
-      connectorRegistry.register(new GitHubConnector());
-      connectorRegistry.register(new SlackConnector());
-      connectorRegistry.register(new JiraConnector());
-      connectorRegistry.register(new LinearConnector());
-      connectorRegistry.register(new OpenAIImagesConnector());
-      connectorRegistry.register(new ReplicateConnector());
 
-      const { GraphicsTool } = require('./tools/graphics');
+      const connectorModules: Array<[string, string]> = [
+        ['./connectors/github', 'GitHubConnector'],
+        ['./connectors/slack', 'SlackConnector'],
+        ['./connectors/jira', 'JiraConnector'],
+        ['./connectors/linear', 'LinearConnector'],
+        ['./connectors/openai-images', 'OpenAIImagesConnector'],
+        ['./connectors/replicate', 'ReplicateConnector'],
+      ];
+      for (const [mod, cls] of connectorModules) {
+        try {
+          const m = require(mod);
+          connectorRegistry.register(new m[cls]());
+        } catch { /* connector unavailable */ }
+      }
+
       this.tools.register(new AppConnectorTool(vault, connectorRegistry));
-      this.tools.register(new GraphicsTool());
+      try { const { GraphicsTool } = require('./tools/graphics'); this.tools.register(new GraphicsTool()); } catch {}
+    } catch { /* connector infrastructure unavailable */ }
 
-      // Register skills as tools
+    // Load skills as tools (independent of connectors)
+    try {
+      const { loadSkills, skillToTool } = require('./skills');
       const skills = loadSkills();
       for (const skill of skills) {
         const toolExec = async (name: string, args: Record<string, unknown>) => {
@@ -172,7 +176,7 @@ export class Agent {
         };
         this.tools.register(skillToTool(skill, toolExec));
       }
-    } catch { /* connectors/skills unavailable */ }
+    } catch { /* skills unavailable */ }
 
     const supportsTools = getModelInfo(opts.model).supportsToolCalling;
     this.messages.push({
