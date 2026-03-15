@@ -3,13 +3,46 @@
  *
  * Pattern-match common errors and return actionable fix suggestions.
  * Used by the agent to emit recovery hints alongside error events.
- * Zero dependencies.
+ *
+ * RecoveryAction extends RecoverySuggestion with auto-executable fields
+ * so the self-monitoring system can trigger fixes autonomously.
  */
 
 export interface RecoverySuggestion {
   pattern: string;
   suggestion: string;
   command?: string;
+}
+
+export interface RecoveryAction extends RecoverySuggestion {
+  /** Tool to invoke for autonomous fix */
+  tool: string;
+  /** Arguments for the tool */
+  args: Record<string, unknown>;
+  /** Whether this action can be auto-executed without user confirmation */
+  autoExecutable: boolean;
+  /** Risk score 0-1 — higher values need more caution */
+  risk: number;
+}
+
+/**
+ * Convert a RecoverySuggestion into an auto-executable RecoveryAction
+ * when the pattern supports it.
+ */
+export function toRecoveryAction(suggestion: RecoverySuggestion): RecoveryAction | null {
+  if (!suggestion.command) return null;
+
+  // Only auto-execute low-risk commands
+  const lowRiskCommands = ['codebot --setup', 'ollama serve', 'npm run build', 'npm test'];
+  const isLowRisk = lowRiskCommands.some(cmd => suggestion.command?.includes(cmd));
+
+  return {
+    ...suggestion,
+    tool: 'execute',
+    args: { command: suggestion.command },
+    autoExecutable: isLowRisk,
+    risk: isLowRisk ? 0.2 : 0.5,
+  };
 }
 
 const RECOVERY_PATTERNS: Array<{
