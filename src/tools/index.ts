@@ -45,6 +45,7 @@ import { NotionConnector } from '../connectors/notion';
 import { GoogleDriveConnector } from '../connectors/google-drive';
 import { DeepResearchTool } from './research';
 import { SkillForgeTool } from './skill-forge';
+import { DecomposeGoalTool } from './decompose-goal';
 
 export { EditFileTool } from './edit';
 
@@ -101,6 +102,7 @@ export class ToolRegistry {
       this.register(new GraphicsTool());
       this.register(new DeepResearchTool());
       this.register(new SkillForgeTool());
+      this.register(new DecomposeGoalTool());
     } catch { /* connectors unavailable */ }
   }
 
