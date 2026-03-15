@@ -23,6 +23,7 @@ import { registerCodeAGIRoutes } from './dashboard/codeagi-api';
 import { registerModelRoutes } from './dashboard/models-api';
 import { VERSION } from './index';
 import { SolveCommand } from './solve';
+import { Daemon } from './daemon';
 
 // Decomposed modules
 import { parseArgs, showHelp } from './cli/args';
@@ -218,6 +219,21 @@ export async function main() {
     });
     console.log(c('\n  CodeBot AI — Issue Solver\n', 'bold'));
     for await (const event of solver.run(solveUrl)) { renderSolveEvent(event, !!args.json); }
+    return;
+  }
+
+  // ── Daemon mode ──
+  if (args.daemon) {
+    const config = await resolveConfig(args);
+    const provider = createProvider(config);
+    const agent = new Agent({
+      provider, model: config.model, providerName: config.provider,
+      maxIterations: config.maxIterations, autoApprove: true,
+    });
+    const daemon = new Daemon({ projectRoot: process.cwd() });
+    console.log(c('  CodeBot Daemon starting...', 'cyan'));
+    console.log(c('  Press Ctrl+C to stop.', 'dim'));
+    await daemon.start();
     return;
   }
 

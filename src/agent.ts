@@ -24,6 +24,8 @@ import { UserProfile } from './user-profile';
 import { validateToolArgs, repairToolCallMessages } from './agent/message-repair';
 import { PreparedCall, ToolOutput, ToolExecutorDeps, executeToolBatch, TOOL_TYPE_MAP, SEQUENTIAL_TOOLS } from './agent/tool-executor';
 import { buildSystemPrompt } from './agent/prompt-builder';
+import { ExecutionAuditor } from './execution-auditor';
+import { CrossSessionLearning } from './cross-session';
 
 /** Permission callback type — risk and sandbox info are optional for backwards compat */
 type AskPermissionFn = (
@@ -56,6 +58,11 @@ export class Agent {
   private constitutional: ConstitutionalLayer | null = null;
   private sparkSoul: SparkSoul | null = null;
   private userProfile: UserProfile;
+  private executionAuditor: ExecutionAuditor;
+  private crossSession: CrossSessionLearning;
+  private sessionToolCalls: Array<{ tool: string; success: boolean }> = [];
+  private sessionStartedAt: string = new Date().toISOString();
+  private sessionGoal: string = '';
 
   private projectRoot: string;
   private branchCreated: boolean = false;
@@ -107,6 +114,10 @@ export class Agent {
     }
 
     this.userProfile = new UserProfile();
+
+    // Autonomy systems: execution auditing + cross-session learning
+    this.executionAuditor = new ExecutionAuditor();
+    this.crossSession = new CrossSessionLearning();
 
     // Initialize SPARK soul
     try {
@@ -188,6 +199,7 @@ export class Agent {
   async *run(userMessage: string): AsyncGenerator<AgentEvent> {
     const userMsg: Message = { role: 'user', content: userMessage };
     this.messages.push(userMsg);
+    if (!this.sessionGoal) this.sessionGoal = userMessage.substring(0, 200);
     this.onMessage?.(userMsg);
 
     if (!this.context.fitsInBudget(this.messages)) {
@@ -340,6 +352,7 @@ export class Agent {
       // No tool calls = conversation turn done
       if (toolCalls.length === 0) {
         if (this.sparkSoul) { try { this.sparkSoul.finalizeSession(); } catch {} }
+        this.recordSessionEpisode(true);
         yield { type: 'done' };
         return;
       }
@@ -492,8 +505,24 @@ export class Agent {
 
         if (prep.denied) {
           yield { type: 'tool_result', toolResult: { name: toolName, result: 'Permission denied.' } };
+          this.sessionToolCalls.push({ tool: toolName, success: false });
         } else {
           yield { type: 'tool_result', toolResult: { name: toolName, result: output.content, is_error: output.is_error } };
+          this.sessionToolCalls.push({ tool: toolName, success: !output.is_error });
+
+          // Execution auditing: detect anomalies in tool execution patterns
+          const anomalies = this.executionAuditor.record({
+            toolName,
+            success: !output.is_error,
+            durationMs: 0,
+            errorMessage: output.is_error ? output.content : undefined,
+            timestamp: new Date().toISOString(),
+          });
+          for (const anomaly of anomalies) {
+            if (anomaly.severity === 'critical') {
+              yield { type: 'error', error: `[ExecutionAuditor] ${anomaly.type}: ${anomaly.description}` };
+            }
+          }
         }
       }
 
@@ -511,6 +540,7 @@ export class Agent {
     }
 
     if (this.sparkSoul) { try { this.sparkSoul.finalizeSession(); } catch {} }
+    this.recordSessionEpisode(false);
     yield { type: 'error', error: `Max iterations (${this.maxIterations}) reached.` };
   }
 
@@ -644,6 +674,23 @@ export class Agent {
     return null;
   }
 
+  /** Record cross-session episode when session ends */
+  private recordSessionEpisode(success: boolean): void {
+    try {
+      const summary = this.tokenTracker.getSummary();
+      const episode = this.crossSession.buildEpisode({
+        sessionId: summary.startTime,
+        projectRoot: this.projectRoot,
+        startedAt: this.sessionStartedAt,
+        goal: this.sessionGoal,
+        toolCalls: this.sessionToolCalls,
+        success,
+        outcomes: success ? ['Session completed successfully'] : ['Session ended (max iterations or error)'],
+        tokenUsage: { input: summary.totalInputTokens, output: summary.totalOutputTokens },
+      });
+      this.crossSession.recordEpisode(episode);
+    } catch { /* cross-session recording should never crash the agent */ }
+  }
 }
 
 const PERMISSION_TIMEOUT_MS = 30_000;

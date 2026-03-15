@@ -7,6 +7,7 @@ import { getProactiveEngine } from './proactive';
 import { codebotPath } from './paths';
 import { warnNonFatal } from './warn';
 import { SelfMonitor, HealthReport } from './self-monitor';
+import { SkillEvolution } from './skill-evolution';
 
 
 
@@ -18,11 +19,15 @@ export class Scheduler {
   private onOutput?: (text: string) => void;
   private selfMonitor: SelfMonitor;
   private lastHealthReport: HealthReport | null = null;
+  private skillEvolution: SkillEvolution;
+  private skillEvolutionInterval: ReturnType<typeof setInterval> | null = null;
+  private lastEvolutionRun: number = 0;
 
   constructor(agent: Agent, onOutput?: (text: string) => void) {
     this.agent = agent;
     this.onOutput = onOutput;
     this.selfMonitor = new SelfMonitor();
+    this.skillEvolution = new SkillEvolution();
   }
 
   /** Start the scheduler — checks routines every 60 seconds */
@@ -34,6 +39,9 @@ export class Scheduler {
 
     // Health check every 5 minutes
     this.healthInterval = setInterval(() => this.healthTick(), 5 * 60_000);
+
+    // Skill evolution every 6 hours
+    this.skillEvolutionInterval = setInterval(() => this.skillEvolutionTick(), 6 * 60 * 60_000);
 
     // Also do an immediate check
     this.tick();
@@ -48,6 +56,10 @@ export class Scheduler {
     if (this.healthInterval) {
       clearInterval(this.healthInterval);
       this.healthInterval = null;
+    }
+    if (this.skillEvolutionInterval) {
+      clearInterval(this.skillEvolutionInterval);
+      this.skillEvolutionInterval = null;
     }
   }
 
@@ -144,6 +156,22 @@ export class Scheduler {
         }
       }
     } catch { /* health check should never crash the scheduler */ }
+  }
+
+  /** Run skill evolution cycle */
+  private async skillEvolutionTick(): Promise<void> {
+    try {
+      const now = Date.now();
+      // Don't run more than once per 6 hours
+      if (now - this.lastEvolutionRun < 6 * 60 * 60_000) return;
+      this.lastEvolutionRun = now;
+
+      this.onOutput?.('\n[SKILLS] Running skill evolution cycle...\n');
+      const report = await this.skillEvolution.evolve();
+      if (report.tested.length > 0 || report.retired.length > 0 || report.evolved.length > 0) {
+        this.onOutput?.(`[SKILLS] Evolution: ${report.tested.length} tested, ${report.retired.length} retired, ${report.evolved.length} evolved, ${report.composed.length} composed\n`);
+      }
+    } catch { /* skill evolution should never crash the scheduler */ }
   }
 
   /** Get the self-monitor instance */

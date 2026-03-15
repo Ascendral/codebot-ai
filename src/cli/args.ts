@@ -88,6 +88,10 @@ export function parseArgs(argv: string[]): Record<string, string | boolean> {
       result.dashboard = true;
       continue;
     }
+    if (arg === '--daemon') {
+      result.daemon = true;
+      continue;
+    }
     if (arg === '--host') {
       const next = argv[i + 1];
       if (next && !next.startsWith('--')) {
@@ -185,6 +189,7 @@ ${c('Options:', 'bold')}
   --base-url <url>     LLM API base URL (auto-detects Ollama/LM Studio/vLLM + cloud)
   --api-key <key>      API key (or set provider-specific env var)
   --dashboard          Start web dashboard on port 3120
+  --daemon             Start persistent background daemon
   --host <addr>        Dashboard bind address (default: 127.0.0.1, use 0.0.0.0 for LAN)
   --tui                Full-screen TUI mode with panels
   --no-stream          Suppress streaming progress indicators

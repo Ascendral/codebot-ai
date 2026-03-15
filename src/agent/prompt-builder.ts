@@ -10,6 +10,7 @@ import { isLikelyDeveloper } from '../intent';
 import { UserProfile } from '../user-profile';
 import { SparkSoul } from '../spark-soul';
 import { ToolRegistry } from '../tools';
+import { CrossSessionLearning } from '../cross-session';
 
 export function buildSystemPrompt(opts: {
   projectRoot: string;
@@ -36,6 +37,13 @@ export function buildSystemPrompt(opts: {
   if (opts.sparkSoul) {
     try { sparkBlock = opts.sparkSoul.getPromptBlock(opts.messages[opts.messages.length - 1]?.content as string); } catch {}
   }
+
+  let crossSessionBlock = '';
+  try {
+    const crossSession = new CrossSessionLearning();
+    crossSessionBlock = crossSession.buildPromptBlock();
+    if (crossSessionBlock) crossSessionBlock = '\n' + crossSessionBlock + '\n';
+  } catch {}
 
   let prompt = `You are CodeBot, a fully autonomous AI agent. You help with ANY task: coding, research, sending emails, posting on social media, web automation, and anything else that can be accomplished with a computer.
 
@@ -70,7 +78,7 @@ Skills:
 - Email: navigate to Gmail/email, compose and send messages through the browser interface.
 - Routines: use the routine tool to schedule recurring tasks (daily posts, email checks, etc.).
 
-${repoMap}${memoryBlock}${sparkBlock}${opts.userProfile.getPromptBlock()}`;
+${repoMap}${memoryBlock}${sparkBlock}${crossSessionBlock}${opts.userProfile.getPromptBlock()}`;
 
   if (!isLikelyDeveloper(opts.messages as Array<{ role: string; content: string | unknown }>)) {
     prompt += `\n\nIMPORTANT — NON-TECHNICAL USER DETECTED:
