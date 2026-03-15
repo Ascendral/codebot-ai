@@ -23,7 +23,6 @@
   "exclude": [
     "node_modules",
     "dist",
-    "src/games",
-    "src/**/*.test.ts"
+    "src/games"
   ]
 }
