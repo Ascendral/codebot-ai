@@ -187,6 +187,7 @@ export class DashboardServer {
 
   /** Send JSON response */
   static json(res: http.ServerResponse, data: unknown, status: number = 200): void {
+    if (res.writableEnded || res.destroyed) return;
     const body = JSON.stringify(data);
     res.writeHead(status, {
       'Content-Type': 'application/json; charset=utf-8',
@@ -200,6 +201,7 @@ export class DashboardServer {
 
   /** Send error response */
   static error(res: http.ServerResponse, status: number, message: string): void {
+    if (res.writableEnded || res.destroyed) return;
     DashboardServer.json(res, { error: message }, status);
   }
 
@@ -210,10 +212,14 @@ export class DashboardServer {
       let size = 0;
       const MAX_BODY = 1024 * 1024; // 1MB limit
 
+      req.on('error', reject);
+
       req.on('data', (chunk: Buffer) => {
         size += chunk.length;
         if (size > MAX_BODY) {
           reject(new Error('Request body too large'));
+          req.removeAllListeners('data');
+          req.resume();
           return;
         }
         chunks.push(chunk);
@@ -227,8 +233,6 @@ export class DashboardServer {
           reject(new Error('Invalid JSON body'));
         }
       });
-
-      req.on('error', reject);
     });
   }
 
@@ -339,7 +343,7 @@ export class DashboardServer {
       const ext = path.extname(fullPath).toLowerCase();
       const mime = MIME_TYPES[ext] || 'application/octet-stream';
 
-      let content: Buffer | string = fs.readFileSync(fullPath);
+      let content: Buffer | string = await fs.promises.readFile(fullPath);
 
       // Inject auth token into index.html so the frontend JS can use it
       if (path.basename(fullPath) === 'index.html') {
