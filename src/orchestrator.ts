@@ -11,7 +11,7 @@
  *                                   └── Child Agent C (tests/)
  *
  * Design constraints:
- *   - Max depth: 1 (parent → child, no grandchildren in v1)
+ *   - Max depth: configurable (default 3 for goal decomposition)
  *   - Policy inheritance: children can't exceed parent permissions
  *   - Fail-open: child errors don't crash the parent
  *   - Results merge back into parent conversation
@@ -59,6 +59,8 @@ export interface OrchestratorConfig {
   defaultMaxIterations: number;
   /** Timeout per child in ms */
   childTimeoutMs: number;
+  /** Maximum agent nesting depth (default 3 for goal decomposition) */
+  maxDepth: number;
 }
 
 const DEFAULT_CONFIG: OrchestratorConfig = {
@@ -66,6 +68,7 @@ const DEFAULT_CONFIG: OrchestratorConfig = {
   maxChildAgents: 5,
   defaultMaxIterations: 20,
   childTimeoutMs: 120_000, // 2 minutes
+  maxDepth: 3,
 };
 
 // ── Orchestrator ──
@@ -92,9 +95,9 @@ export class Orchestrator {
 
   /** Check if spawning a child agent is allowed */
   canSpawn(): { allowed: boolean; reason?: string } {
-    // Depth limit: no grandchildren
-    if (this.depth >= 1) {
-      return { allowed: false, reason: 'Maximum agent depth reached (no grandchildren in v1)' };
+    // Depth limit: configurable (was hardcoded to 1 in v1)
+    if (this.depth >= this.config.maxDepth) {
+      return { allowed: false, reason: `Maximum agent depth reached (${this.config.maxDepth})` };
     }
 
     // Concurrency limit
