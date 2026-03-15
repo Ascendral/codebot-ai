@@ -230,7 +230,7 @@ export async function main() {
       provider, model: config.model, providerName: config.provider,
       maxIterations: config.maxIterations, autoApprove: true,
     });
-    const daemon = new Daemon({ projectRoot: process.cwd() });
+    const daemon = new Daemon();
     console.log(c('  CodeBot Daemon starting...', 'cyan'));
     console.log(c('  Press Ctrl+C to stop.', 'dim'));
     await daemon.start();
