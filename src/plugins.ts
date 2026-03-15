@@ -55,6 +55,46 @@ function validateManifest(manifest: Record<string, unknown>, fileName: string): 
   return null; // valid
 }
 
+/** Blocklist of dangerous Node.js APIs that plugins must not use. */
+const BLOCKED_APIS = [
+  'child_process',
+  'eval(',
+  'new Function(',
+  'require("fs")',
+  "require('fs')",
+  'require("net")',
+  "require('net')",
+  'require("http")',
+  "require('http')",
+  'require("https")',
+  "require('https')",
+  'require("dgram")',
+  "require('dgram')",
+  'process.exit',
+  'process.kill',
+  'process.env',
+  'exec(',
+  'execSync(',
+  'spawn(',
+  'spawnSync(',
+  'import("fs")',
+  'import("net")',
+  'import("child_process")',
+];
+
+/**
+ * Check if plugin source code is safe to execute.
+ * Returns null if safe, or an error message if blocked.
+ */
+export function isPluginSafe(sourceCode: string): string | null {
+  for (const blocked of BLOCKED_APIS) {
+    if (sourceCode.includes(blocked)) {
+      return `Plugin contains blocked API: "${blocked}". Plugins cannot use filesystem, network, process, or eval APIs.`;
+    }
+  }
+  return null;
+}
+
 export function loadPlugins(projectRoot?: string): Tool[] {
   const plugins: Tool[] = [];
   const dirs = [
@@ -104,6 +144,13 @@ export function loadPlugins(projectRoot?: string): Tool[] {
 
         // Compute SHA-256 of the plugin file
         const pluginContent = fs.readFileSync(pluginPath);
+
+        // Safety check: scan source for blocked APIs before loading
+        const safetyError = isPluginSafe(pluginContent.toString('utf-8'));
+        if (safetyError) {
+          console.error(`Plugin blocked (${entry.name}): ${safetyError}`);
+          continue;
+        }
         const computedHash = 'sha256:' + crypto.createHash('sha256').update(pluginContent).digest('hex');
 
         if (computedHash !== manifest.hash) {
