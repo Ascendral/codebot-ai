@@ -197,36 +197,31 @@ const App = {
   },
 
   showPanel(name) {
-    // Update nav pills
     document.querySelectorAll('.nav-pill').forEach(pill =>
       pill.classList.toggle('active', pill.dataset.panel === name)
     );
-    // Update panels
     document.querySelectorAll('.panel').forEach(panel =>
       panel.classList.toggle('active', panel.id === 'panel-' + name)
     );
-
-    // Fade logo when chat has messages
     const logoArea = document.getElementById('logo-area');
     const chatMsgs = document.getElementById('chat-messages');
     const hasMessages = chatMsgs && chatMsgs.children.length > 0;
     if (logoArea) {
-      logoArea.classList.toggle('faded', name === 'chat' && hasMessages);
+      logoArea.classList.remove('faded', 'compact');
+      if (name === 'chat' && hasMessages) {
+        logoArea.classList.add('faded');
+      } else if (name !== 'chat') {
+        logoArea.classList.add('compact');
+      }
     }
-    // Expand layout when chat is active with messages
-    document.body.classList.toggle('chat-expanded', name === 'chat' && hasMessages);
-
-    // Load data for panels
+    document.body.classList.toggle('chat-expanded', name !== 'chat' || hasMessages);
     switch (name) {
       case 'chat': this.initChat(); break;
       case 'sessions': this.loadSessions(); break;
       case 'terminal': this.initTerminal(); break;
       case 'tools': this.initTools(); break;
-      // metrics removed
       case 'workflows': this.initWorkflows(); break;
       case 'memory': this.initMemory(); break;
-      case 'risk': this.loadRisk(); break;
-      case 'models': this.initModels(); break;
       case 'codeagi': this.initPanelCodeagi(); break;
     }
   },
@@ -1607,72 +1602,7 @@ const App = {
   renderEmpty(title, desc) {
     return '<div class="empty-state"><div class="empty-title">' + this.escapeHtml(title) + '</div>' +
       (desc ? '<div class="empty-desc">' + this.escapeHtml(desc) + '</div>' : '') + '</div>';
-  },
-  // ===========================================================
-  // RISK
-  // ===========================================================
-
-  async loadRisk() {
-    try {
-      var data = await this.fetch('/api/risk/summary');
-      document.getElementById('risk-total').textContent = data.total || 0;
-      document.getElementById('risk-average').textContent = data.average || 0;
-      document.getElementById('risk-peak').textContent = data.peak || 0;
-
-      // Update bar chart
-      var total = data.total || 1;
-      var levels = ['green', 'yellow', 'orange', 'red'];
-      for (var i = 0; i < levels.length; i++) {
-        var l = levels[i];
-        var count = data[l] || 0;
-        var pct = Math.round((count / total) * 100);
-        var bar = document.getElementById('risk-bar-' + l);
-        var countEl = document.getElementById('risk-count-' + l);
-        if (bar) bar.style.width = pct + '%';
-        if (countEl) countEl.textContent = count;
-      }
-
-      // Color the average
-      var avgEl = document.getElementById('risk-average');
-      if (avgEl) {
-        var avg = data.average || 0;
-        avgEl.style.color = avg <= 25 ? '#39ff14' : avg <= 50 ? '#ffd700' : avg <= 75 ? '#ff6b35' : '#ff073a';
-      }
-
-      // Status
-      var status = document.getElementById('risk-status');
-      if (status && data.total > 0) {
-        status.textContent = data.total + ' assessments | avg ' + data.average;
-      }
-    } catch (err) {
-      console.warn('Risk load error:', err);
-    }
-
-    // Load recent history
-    try {
-      var hist = await this.fetch('/api/risk/history?limit=50');
-      var feed = document.getElementById('risk-feed');
-      if (feed && hist.history) {
-        if (hist.history.length === 0) {
-          feed.innerHTML = '<div class="empty-state">No risk assessments yet. Run the agent to generate risk data.</div>';
-        } else {
-          feed.innerHTML = hist.history.reverse().map(function(a, i) {
-            var colors = { green: '#39ff14', yellow: '#ffd700', orange: '#ff6b35', red: '#ff073a' };
-            var color = colors[a.level] || '#888';
-            return '<div class="security-entry">' +
-              '<span class="security-decision" style="color:' + color + '">' + a.level.toUpperCase() + '</span>' +
-              '<span class="security-score">Score: ' + a.score + '</span>' +
-              '<span class="security-factors">' + a.factors + ' factors</span>' +
-              '</div>';
-          }).join('');
-        }
-      }
-    } catch (err) {
-      console.warn('Risk history error:', err);
-    }
-  },
-
-  initPanelCodeagi() {
+  },  initPanelCodeagi() {
     this.codeagiSelectedMission = null;
     this.codeagiCurrentMemTab = 'reflections';
     this.loadCodeAGIMissions();
@@ -2021,198 +1951,7 @@ const App = {
   },
 
   formatFileSize(bytes) { if (bytes < 1024) return bytes + 'B'; if (bytes < 1048576) return (bytes / 1024).toFixed(1) + 'KB'; return (bytes / 1048576).toFixed(1) + 'MB'; },
-
-  escapeHtml(text) { if (!text) return ''; return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); },
-
 };
 
+
 document.addEventListener('DOMContentLoaded', () => App.init());
-
-
-// ── Security Panel (CORD + VIGIL) ──
-
-async function loadSecurityData() {
-  try {
-    const res = await apiFetch('/api/constitutional');
-    if (!res.ok) return;
-    const data = await res.json();
-
-    if (!data.enabled) {
-      document.getElementById('security-status').textContent = 'Not active';
-      document.getElementById('security-feed').innerHTML =
-        '<div style="color:#666;text-align:center;padding:2rem">Constitutional layer not active. Start an agent session to see CORD metrics.</div>';
-      return;
-    }
-
-    // Update stats
-    document.getElementById('sec-total').textContent = data.totalEvaluations || 0;
-    document.getElementById('sec-allow').textContent = (data.decisions && data.decisions.ALLOW) || 0;
-    document.getElementById('sec-challenge').textContent =
-      ((data.decisions && data.decisions.CHALLENGE) || 0) + ((data.decisions && data.decisions.CONTAIN) || 0);
-    document.getElementById('sec-block').textContent = (data.decisions && data.decisions.BLOCK) || 0;
-    document.getElementById('sec-hardblocks').textContent = data.hardBlocks || 0;
-    document.getElementById('sec-vigil-scans').textContent = data.vigilScans || 0;
-    document.getElementById('sec-escalations').textContent = data.escalations || 0;
-    document.getElementById('sec-canaries').textContent = data.canariesTriggered || 0;
-
-    // Update status badge
-    const blockRate = data.totalEvaluations > 0
-      ? Math.round(((data.decisions && data.decisions.BLOCK) || 0) / data.totalEvaluations * 100) : 0;
-    document.getElementById('security-status').textContent =
-      data.totalEvaluations + ' evals | ' + blockRate + '% blocked';
-
-    // Render recent decisions
-    const feed = document.getElementById('security-feed');
-    const decisions = data.recentDecisions || [];
-
-    if (decisions.length === 0) {
-      feed.innerHTML = '<div style="color:#666;text-align:center;padding:1rem">No decisions yet</div>';
-      return;
-    }
-
-    feed.innerHTML = decisions.slice().reverse().slice(0, 50).map(function(d) {
-      var cls = 'badge-' + (d.decision || 'allow').toLowerCase();
-      var time = new Date(d.timestamp).toLocaleTimeString();
-      var tool = d.tool || '-';
-      var explain = d.explanation || '';
-      return '<div class="security-entry">' +
-        '<span class="badge ' + cls + '">' + (d.decision || 'ALLOW') + '</span>' +
-        '<span class="entry-tool">' + escapeHtml(tool) + '</span>' +
-        '<span class="entry-explain">' + escapeHtml(explain) + '</span>' +
-        '<span class="entry-score">score:' + (d.score || 0) + '</span>' +
-        '<span class="entry-time">' + time + '</span>' +
-        '</div>';
-    }).join('');
-  } catch (e) {
-    // Silently fail
-  }
-}
-
-// Refresh security data when navigating to the panel
-try { (function() {
-  var origSwitch = switchPanel;
-  switchPanel = function(panel) {
-    origSwitch(panel);
-    if (panel === 'security') loadSecurityData();
-  };
-})(); } catch(e) {}
-
-// Auto-refresh security data every 5 seconds when on security panel
-(function() {
-  if (window.__securityRefreshInterval) return;
-  window.__securityRefreshInterval = setInterval(function() {
-    var secPanel = document.getElementById('panel-security');
-    if (secPanel && secPanel.classList.contains('active')) {
-      loadSecurityData();
-    }
-  }, 5000);
-})();
-
-
-// ── Risk Scoring Panel ──
-
-function initRisk() {
-  fetch('/api/metrics')
-    .then(function(res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
-    .then(function(metrics) { renderRiskPanel(metrics); })
-    .catch(function(e) { console.error('Risk panel error:', e); });
-}
-
-function renderRiskPanel(metrics) {
-    // Extract risk-related metrics
-    const toolCalls = metrics.tool_calls_total || {};
-    const securityBlocks = metrics.security_blocks_total || {};
-    const errors = metrics.errors_total || {};
-
-    // Calculate totals
-    let totalCalls = 0;
-    let totalBlocks = 0;
-    const toolScores = {};
-
-    for (const [key, count] of Object.entries(toolCalls)) {
-      totalCalls += count;
-      if (!toolScores[key]) toolScores[key] = { calls: 0, blocks: 0, errors: 0 };
-      toolScores[key].calls += count;
-    }
-
-    for (const [key, count] of Object.entries(securityBlocks)) {
-      totalBlocks += count;
-      const tool = key.split('{')[0] || key;
-      if (!toolScores[tool]) toolScores[tool] = { calls: 0, blocks: 0, errors: 0 };
-      toolScores[tool].blocks += count;
-    }
-
-    for (const [key, count] of Object.entries(errors)) {
-      const tool = key.split('{')[0] || key;
-      if (!toolScores[tool]) toolScores[tool] = { calls: 0, blocks: 0, errors: 0 };
-      toolScores[tool].errors += count;
-    }
-
-    // Compute per-tool risk scores (higher blocks/errors ratio = higher risk)
-    const toolRiskList = [];
-    for (const [tool, data] of Object.entries(toolScores)) {
-      const riskScore = data.calls > 0
-        ? Math.round(((data.blocks + data.errors) / data.calls) * 100)
-        : 0;
-      toolRiskList.push({ tool, ...data, riskScore });
-    }
-    toolRiskList.sort((a, b) => b.riskScore - a.riskScore);
-
-    // Distribution buckets
-    let low = 0, medium = 0, high = 0, critical = 0;
-    for (const t of toolRiskList) {
-      if (t.riskScore <= 25) low += t.calls;
-      else if (t.riskScore <= 50) medium += t.calls;
-      else if (t.riskScore <= 75) high += t.calls;
-      else critical += t.calls;
-    }
-
-    const total = Math.max(totalCalls, 1);
-    const blockRate = totalCalls > 0 ? ((totalBlocks / totalCalls) * 100).toFixed(1) : '0';
-    const avgScore = toolRiskList.length > 0
-      ? Math.round(toolRiskList.reduce((sum, t) => sum + t.riskScore, 0) / toolRiskList.length)
-      : 0;
-
-    // Update summary cards
-    document.getElementById('risk-total').textContent = totalCalls;
-    document.getElementById('risk-block-rate').textContent = blockRate + '%';
-    document.getElementById('risk-avg-score').textContent = avgScore;
-    document.getElementById('risk-high-count').textContent = high + critical;
-
-    // Update bars
-    document.getElementById('risk-bar-low').style.width = ((low / total) * 100) + '%';
-    document.getElementById('risk-bar-medium').style.width = ((medium / total) * 100) + '%';
-    document.getElementById('risk-bar-high').style.width = ((high / total) * 100) + '%';
-    document.getElementById('risk-bar-critical').style.width = ((critical / total) * 100) + '%';
-    document.getElementById('risk-count-low').textContent = low;
-    document.getElementById('risk-count-medium').textContent = medium;
-    document.getElementById('risk-count-high').textContent = high;
-    document.getElementById('risk-count-critical').textContent = critical;
-
-    // Top risk tools
-    const toolsEl = document.getElementById('risk-tools-list');
-    if (!toolsEl) return;
-    if (toolRiskList.length > 0) {
-      toolsEl.innerHTML = toolRiskList.slice(0, 12).map(t => {
-        const level = t.riskScore <= 25 ? 'low' : t.riskScore <= 50 ? 'medium' : t.riskScore <= 75 ? 'high' : 'critical';
-        return '<div class="risk-tool-card">' +
-          '<span class="risk-tool-name">' + t.tool + '</span>' +
-          '<span class="risk-tool-score ' + level + '">' + t.riskScore + '% risk</span>' +
-          '</div>';
-      }).join('');
-    }
-
-    // Recent high-risk (tools with blocks/errors)
-    const recentEl = document.getElementById('risk-recent-list');
-    if (!recentEl) return;
-    const highRisk = toolRiskList.filter(t => t.blocks > 0 || t.errors > 0);
-    if (highRisk.length > 0) {
-      recentEl.innerHTML = highRisk.slice(0, 10).map(t => {
-        const level = t.riskScore <= 25 ? 'low' : t.riskScore <= 50 ? 'medium' : t.riskScore <= 75 ? 'high' : 'critical';
-        return '<div class="risk-recent-item">' +
-          '<span class="risk-recent-tool">' + t.tool + ' — ' + t.blocks + ' blocks, ' + t.errors + ' errors / ' + t.calls + ' calls</span>' +
-          '<span class="risk-recent-score risk-tool-score ' + level + '">' + t.riskScore + '%</span>' +
-          '</div>';
-      }).join('');
-    }
-}
