@@ -4,19 +4,19 @@
 
 ---
 
-## Current State (v2.7.7) — SHIPPED
+## Current State (v2.8.0) — SHIPPED
 
 | Metric | Value |
 |--------|-------|
-| Version | 2.7.7 |
-| Tests | 1,217 passing (232 suites) |
+| Version | 2.8.0 |
+| Tests | 1,265 passing (242 suites) |
 | Tools | 31 built-in + MCP + plugins |
 | Connectors | 10 app integrations |
 | Providers | 8 LLM providers (local + cloud) |
 | Security | 8-layer stack: policy, RBAC, capabilities, risk scoring, path safety, secret detection, SSRF, sandbox |
 | Platforms | CLI, VS Code extension, GitHub Action, Web Dashboard |
 | CI | 3 OS (macOS, Linux, Windows) x 3 Node versions (18, 20, 22) |
-| npm | [codebot-ai@2.7.7](https://www.npmjs.com/package/codebot-ai) |
+| npm | [codebot-ai@2.8.0](https://www.npmjs.com/package/codebot-ai) |
 
 ### Completed Milestones
 
@@ -38,10 +38,11 @@
 | v2.5.2 | Command | Dashboard Command Center, terminal, quick actions, tool runner | 1,135 | Shipped |
 | v2.7.0 | Safety | Constitutional AI (CORD engine, VIGIL patrol), security dashboard | 1,168 | Shipped |
 | v2.7.7 | Hardening | Centralized CODEBOT_HOME paths, warnNonFatal, cli decomposition | 1,217 | Shipped |
+| v2.8.0 | Operational | Dashboard models panel, CodeAGI continuous mode, doc overhaul | 1,265 | Shipped |
 
 ---
 
-## Next: v2.8.0 — Operational Trust
+## Next: v2.9.0 — Operational Trust
 
 **Theme:** From "technically impressive" to "boringly reliable."
 
@@ -51,12 +52,11 @@
 - Error recovery suggestions (pattern-match common errors to actionable fixes)
 - Plugin schema validation (JSON Schema for manifests)
 - Risk scoring dashboard (configurable thresholds, history visualization)
-- Model management dashboard (installed models, VRAM detection, pull/delete)
 - Offline fallback cache for web tools
 
 ---
 
-## v2.9.0 — Teams and Ecosystem
+## v3.0.0 — Teams and Ecosystem
 
 **Theme:** Scale beyond a single developer.
 
@@ -86,5 +86,5 @@
 - **Auditable** — hash-chained SARIF-exportable audit trail
 - **Policy-driven** — declarative JSON security policies
 - **Provider-agnostic** — any LLM, local or cloud
-- **Tested** — 1,217 tests across 3 OS and 3 Node versions
+- **Tested** — 1,265 tests across 3 OS and 3 Node versions
 - **Enterprise-ready** — VS Code extension, GitHub Action, CI/CD integration

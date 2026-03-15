@@ -7,9 +7,12 @@
 The only AI coding agent that runs locally, works with any LLM, and enforces safety policies on every action it takes.
 
 [![npm version](https://img.shields.io/npm/v/codebot-ai.svg?style=flat-square&color=6366f1)](https://www.npmjs.com/package/codebot-ai)
+[![npm downloads](https://img.shields.io/npm/dw/codebot-ai.svg?style=flat-square&color=6366f1)](https://www.npmjs.com/package/codebot-ai)
 [![license](https://img.shields.io/npm/l/codebot-ai.svg?style=flat-square)](https://github.com/Ascendral/codebot-ai/blob/main/LICENSE)
-![tests](https://img.shields.io/badge/tests-1217%20passing-22c55e?style=flat-square)
+![tests](https://img.shields.io/badge/tests-1265%20passing-22c55e?style=flat-square)
 ![node](https://img.shields.io/node/v/codebot-ai.svg?style=flat-square)
+[![GitHub stars](https://img.shields.io/github/stars/Ascendral/codebot-ai?style=flat-square)](https://github.com/Ascendral/codebot-ai)
+[![last commit](https://img.shields.io/github/last-commit/Ascendral/codebot-ai?style=flat-square)](https://github.com/Ascendral/codebot-ai)
 
 </div>
 
@@ -23,7 +26,7 @@ That's fine for side projects. It's a dealbreaker for teams shipping production 
 
 **Governance-first architecture.** Every tool call passes through a constitutional safety engine ([CORD](https://github.com/Ascendral/artificial-persistent-intelligence)) that risk-scores actions across 14 dimensions before execution. Every action is logged to a SHA-256 hash-chained audit trail with SARIF export. Destructive operations require explicit approval. The agent can't bypass its own safety layer.
 
-**Any LLM, anywhere.** Run fully local with Ollama, LM Studio, or vLLM — zero API keys, code never leaves your machine. Or connect to Anthropic, OpenAI, Google, DeepSeek, Groq, Mistral, or xAI. Switch models mid-session. Mix local and cloud models in the same swarm.
+**Any LLM, anywhere.** Run fully local with Ollama, LM Studio, or vLLM — zero API keys, code never leaves your machine. Or connect to Anthropic, OpenAI, Google, DeepSeek, Groq, Mistral, or xAI. Switch models mid-session.
 
 **Zero external dependencies.** The entire agent runtime — HTTP server, policy engine, audit system, tool execution, provider abstraction — is built on Node.js built-ins. No Express, no Axios, no ORM. The dependency tree is the codebase.
 
@@ -33,6 +36,14 @@ codebot --setup                    # auto-detects local and cloud LLMs
 codebot "refactor auth to use JWT" # single task
 codebot --dashboard                # web UI at localhost:3120
 ```
+
+## Who This Is For
+
+- **Security-sensitive development teams** — code never leaves your machine with local LLMs
+- **Regulated industries** (finance, healthcare, government) — audit trail meets compliance requirements
+- **Teams that can't send code to third-party APIs** — fully self-hosted, no cloud dependency
+- **Solo developers** who want autonomous coding without subscription fees
+- **Internal platform teams** building custom dev tooling on top of an extensible agent
 
 ## Architecture
 
@@ -67,9 +78,7 @@ User ──> Agent Loop ──> Tool Router ──> CORD Safety Engine ──> E
 
 **10 app connectors** — GitHub, Jira, Linear, Slack, Gmail, Google Calendar, Notion, Google Drive, OpenAI Images, Replicate. Credentials stored in AES-256-GCM encrypted vault.
 
-**Multi-LLM Swarm** — launch multiple agents that collaborate using 6 strategies: debate, mixture-of-agents, pipeline, fan-out, generator-critic, or auto-routed.
-
-**Web dashboard** at localhost:3120 — sessions, audit trail, metrics, security feed, command center, swarm control.
+**Web dashboard** at localhost:3120 — sessions, audit trail, metrics, security feed, command center.
 
 <details>
 <summary><strong>All 31 tools</strong></summary>
@@ -139,7 +148,6 @@ Cloud providers route through OpenAI-compatible APIs. Local providers connect di
 | **Constitutional safety engine** | Yes | No | No | No |
 | **Cryptographic audit trail** | Yes | No | No | No |
 | **Sandboxed execution** | Yes | No | No | No |
-| **Multi-agent swarm** | Yes | No | No | No |
 | **Free / MIT** | Yes | $10-39/mo | $20/mo | $20/mo |
 
 ## Extensibility
@@ -169,7 +177,7 @@ for await (const event of agent.run('list all TypeScript files')) {
 
 ## Testing
 
-1,217 tests across 232 suites. CI runs on 3 OS (macOS, Linux, Windows) x 3 Node versions (18, 20, 22). Zero network calls in the test suite — all providers mocked. Security tests cover SSRF, path traversal, injection, and secret detection.
+1,265 tests across 242 suites. CI runs on 3 OS (macOS, Linux, Windows) x 3 Node versions (18, 20, 22). Zero network calls in the test suite — all providers mocked. Security tests cover SSRF, path traversal, injection, and secret detection.
 
 ```bash
 npm test

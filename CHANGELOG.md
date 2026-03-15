@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.8.0] — 2026-03-14
+
+### Added
+- **Dashboard Models panel** — VRAM detection card, quantization advisor, local model browser
+- **CodeAGI continuous mode** — auto-run mission cycles on a timer with SSE streaming, error-based auto-stop
+- **"Who This Is For" section** in README — clear user segments (security teams, regulated industries, solo devs)
+- **Dynamic badges** — npm downloads, GitHub stars, last commit
+
+### Changed
+- Tests: 1,217 → 1,265 (48 new tests across swarm strategies, router, scorer)
+- Removed swarm references from public docs (feature retained internally)
+- README restructured: cleaner messaging, safety and governance front-and-center
+- All version surfaces bumped to 2.8.0 (root, extension, action)
+
+### Fixed
+- ROADMAP and README test/suite counts synchronized to actual values (1,265 tests / 242 suites)
+
 ## [2.7.7] — 2026-03-07
 
 ### Fixed
