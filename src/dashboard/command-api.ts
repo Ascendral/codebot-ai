@@ -303,7 +303,7 @@ export function registerCommandRoutes(
         message: 'Message queued — agent will process it next',
       });
       // Process when agent is free
-      queuePromise.then(() => processQueue());
+      queuePromise.then(() => processQueue()).catch(() => {});
       return;
     }
 
@@ -329,6 +329,7 @@ export function registerCommandRoutes(
     try {
       for await (const event of agent.run(userMessage)) {
         if (closed) break;
+        if (res.writableEnded || res.destroyed) break;
         DashboardServer.sseSend(res, event);
         if (event.type === 'done' || event.type === 'error') break;
       }

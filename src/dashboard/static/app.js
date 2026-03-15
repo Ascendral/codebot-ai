@@ -227,7 +227,6 @@ const App = {
       case 'memory': this.initMemory(); break;
       case 'risk': this.loadRisk(); break;
       case 'models': this.initModels(); break;
-        case 'risk': this.initRisk(); break;
       case 'codeagi': this.initPanelCodeagi(); break;
     }
   },
@@ -238,6 +237,7 @@ const App = {
 
   async checkHealth() {
     const conn = document.getElementById('conn-indicator');
+    if (!conn) return;
     try {
       const data = await this.fetch('/api/health');
       conn.className = 'ok';
@@ -268,6 +268,7 @@ const App = {
 
     const input = document.getElementById('chat-input');
     const sendBtn = document.getElementById('chat-send');
+    if (!input || !sendBtn) return;
 
     const send = () => {
       const msg = input.value.trim();
@@ -310,6 +311,7 @@ const App = {
 
   appendChatMessage(role, content) {
     const container = document.getElementById('chat-messages');
+    if (!container) return document.createElement('div');
     const div = document.createElement('div');
     div.className = 'chat-msg ' + this.escapeHtml(role);
 
@@ -373,6 +375,7 @@ const App = {
           return;
         }
       }
+      if (!res.body) { contentEl.textContent = '(empty response)'; return; }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -442,6 +445,7 @@ const App = {
     try {
       var data = await this.fetch('/api/notifications');
       var badge = document.getElementById('notification-badge');
+      if (!badge) return;
       if (data.unreadCount > 0) {
         badge.textContent = data.unreadCount > 99 ? '99+' : data.unreadCount;
         badge.style.display = '';
@@ -2085,21 +2089,24 @@ async function loadSecurityData() {
 }
 
 // Refresh security data when navigating to the panel
-(function() {
+try { (function() {
   var origSwitch = switchPanel;
   switchPanel = function(panel) {
     origSwitch(panel);
     if (panel === 'security') loadSecurityData();
   };
-})();
+})(); } catch(e) {}
 
 // Auto-refresh security data every 5 seconds when on security panel
-setInterval(function() {
-  var secPanel = document.getElementById('panel-security');
-  if (secPanel && secPanel.classList.contains('active')) {
-    loadSecurityData();
-  }
-}, 5000);
+(function() {
+  if (window.__securityRefreshInterval) return;
+  window.__securityRefreshInterval = setInterval(function() {
+    var secPanel = document.getElementById('panel-security');
+    if (secPanel && secPanel.classList.contains('active')) {
+      loadSecurityData();
+    }
+  }, 5000);
+})();
 
 
 // ── Risk Scoring Panel ──
@@ -2184,6 +2191,7 @@ function renderRiskPanel(metrics) {
 
     // Top risk tools
     const toolsEl = document.getElementById('risk-tools-list');
+    if (!toolsEl) return;
     if (toolRiskList.length > 0) {
       toolsEl.innerHTML = toolRiskList.slice(0, 12).map(t => {
         const level = t.riskScore <= 25 ? 'low' : t.riskScore <= 50 ? 'medium' : t.riskScore <= 75 ? 'high' : 'critical';
@@ -2196,6 +2204,7 @@ function renderRiskPanel(metrics) {
 
     // Recent high-risk (tools with blocks/errors)
     const recentEl = document.getElementById('risk-recent-list');
+    if (!recentEl) return;
     const highRisk = toolRiskList.filter(t => t.blocks > 0 || t.errors > 0);
     if (highRisk.length > 0) {
       recentEl.innerHTML = highRisk.slice(0, 10).map(t => {

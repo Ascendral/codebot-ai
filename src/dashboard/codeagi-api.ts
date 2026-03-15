@@ -5,7 +5,7 @@
  */
 
 import { DashboardServer } from './server';
-import { spawn, execSync } from 'child_process';
+import { spawn, execFileSync } from 'child_process';
 import * as path from 'path';
 
 const CODEAGI_ROOT = path.join(process.env.HOME || '~', 'ClaudeWork', 'CodeAGI');
@@ -15,10 +15,12 @@ const CODEAGI_RUNTIME = path.join(process.env.HOME || '~', 'CodeAGI', 'runtime')
 /** Run a codeagi CLI command and return JSON output */
 function codeagiExec(args: string[]): any {
   try {
-    const result = execSync(
-      `cd ${CODEAGI_ROOT} && python3 -m codeagi ${args.join(' ')}`,
-      { timeout: 30_000, encoding: 'utf-8', env: { ...process.env, PYTHONPATH: CODEAGI_ROOT } }
-    );
+    const result = execFileSync('python3', ['-m', 'codeagi', ...args], {
+      cwd: CODEAGI_ROOT,
+      timeout: 30_000,
+      encoding: 'utf-8',
+      env: { ...process.env, PYTHONPATH: CODEAGI_ROOT },
+    });
     try { return JSON.parse(result.trim()); }
     catch { return { raw: result.trim() }; }
   } catch (err: unknown) {
@@ -206,6 +208,7 @@ export function registerCodeAGIRoutes(server: DashboardServer): void {
 
     proc.stdout.on('data', (data: Buffer) => {
       if (closed) return;
+      if (outputBuffer.length > 10 * 1024 * 1024) return; // stop accumulating beyond 10MB
       outputBuffer += data.toString();
       const lines = outputBuffer.split('\n');
       outputBuffer = lines.pop() || '';
@@ -295,6 +298,7 @@ export function registerCodeAGIRoutes(server: DashboardServer): void {
 
     proc.stdout.on('data', (data: Buffer) => {
       if (closed) return;
+      if (outputBuffer.length > 10 * 1024 * 1024) return; // stop accumulating beyond 10MB
       outputBuffer += data.toString();
       const lines = outputBuffer.split('\n');
       outputBuffer = lines.pop() || '';

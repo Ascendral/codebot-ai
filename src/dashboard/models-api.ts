@@ -10,16 +10,22 @@ import http from 'http';
 /** Fetch JSON from a URL (simple GET, no deps) */
 function fetchJSON(url: string, timeoutMs = 5000): Promise<any> {
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const settle = (fn: typeof resolve | typeof reject, val: any) => {
+      if (settled) return;
+      settled = true;
+      (fn as any)(val);
+    };
     const req = http.get(url, { timeout: timeoutMs }, (res) => {
       let data = '';
       res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
       res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch { reject(new Error('Invalid JSON from ' + url)); }
+        try { settle(resolve, JSON.parse(data)); }
+        catch { settle(reject, new Error('Invalid JSON from ' + url)); }
       });
     });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+    req.on('error', (err) => settle(reject, err));
+    req.on('timeout', () => { req.destroy(); settle(reject, new Error('Timeout')); });
   });
 }
 
