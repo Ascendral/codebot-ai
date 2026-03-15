@@ -46,6 +46,7 @@ import { GoogleDriveConnector } from '../connectors/google-drive';
 import { DeepResearchTool } from './research';
 import { SkillForgeTool } from './skill-forge';
 import { DecomposeGoalTool } from './decompose-goal';
+import { PluginForgeTool } from './plugin-forge';
 
 export { EditFileTool } from './edit';
 
@@ -103,6 +104,7 @@ export class ToolRegistry {
       this.register(new DeepResearchTool());
       this.register(new SkillForgeTool());
       this.register(new DecomposeGoalTool());
+      this.register(new PluginForgeTool());
     } catch { /* connectors unavailable */ }
   }
 

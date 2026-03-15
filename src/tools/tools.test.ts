@@ -5,7 +5,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { ToolRegistry } from './index';
 
-const TOTAL_TOOLS = 33;
+const TOTAL_TOOLS = 34;
 
 describe('ToolRegistry', () => {
   it(`registers all ${TOTAL_TOOLS} tools`, () => {
