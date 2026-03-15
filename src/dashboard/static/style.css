@@ -1282,78 +1282,6 @@ body.chat-expanded .card-grid {
   }
 }
 
-/* ── Security Panel (CORD + VIGIL) ── */
-.security-overview { margin-bottom: 1.5rem; }
-.security-stat-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-.security-stat {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px;
-  padding: 0.75rem;
-  text-align: center;
-}
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #e0e0e0;
-}
-.stat-label {
-  font-size: 0.7rem;
-  color: #888;
-  margin-top: 0.25rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.stat-allow { color: #4ade80; }
-.stat-challenge { color: #fbbf24; }
-.stat-block { color: #f87171; }
-
-.security-section { margin-top: 1rem; }
-.security-section h3 {
-  font-size: 0.85rem;
-  color: #aaa;
-  margin-bottom: 0.75rem;
-}
-.security-feed {
-  max-height: 400px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.security-entry {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 6px;
-  padding: 0.6rem 0.8rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.8rem;
-}
-.security-entry .badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  min-width: 60px;
-  text-align: center;
-}
-.badge-allow { background: rgba(74,222,128,0.15); color: #4ade80; }
-.badge-contain { background: rgba(96,165,250,0.15); color: #60a5fa; }
-.badge-challenge { background: rgba(251,191,36,0.15); color: #fbbf24; }
-.badge-block { background: rgba(248,113,113,0.15); color: #f87171; }
-.security-entry .entry-tool { color: #93c5fd; font-weight: 600; min-width: 80px; }
-.security-entry .entry-explain { color: #999; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.security-entry .entry-score { color: #888; font-size: 0.7rem; }
-.security-entry .entry-time { color: #666; font-size: 0.65rem; min-width: 50px; text-align: right; }
 
 
 /* ── New Chat Button ── */
@@ -1957,44 +1885,6 @@ body.chat-expanded .card-grid {
 }
 
 
-/* ── Risk Panel ── */
-.risk-overview { margin-bottom: 20px; }
-.risk-bar-chart { margin-top: 16px; }
-.risk-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-.risk-bar-label {
-  width: 56px;
-  font-size: 12px;
-  color: #aaa;
-  text-align: right;
-}
-.risk-bar-track {
-  flex: 1;
-  height: 18px;
-  background: rgba(255,255,255,0.06);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.risk-bar-fill {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.5s ease;
-  min-width: 0;
-}
-.risk-bar-fill.risk-green { background: #39ff14; }
-.risk-bar-fill.risk-yellow { background: #ffd700; }
-.risk-bar-fill.risk-orange { background: #ff6b35; }
-.risk-bar-fill.risk-red { background: #ff073a; }
-.risk-bar-count {
-  width: 32px;
-  font-size: 12px;
-  color: #888;
-  text-align: left;
-}
 
 /* CodeAGI Panel */
 .codeagi-section { margin-bottom: 1.2rem; }
@@ -2167,20 +2057,6 @@ body.chat-expanded .card-grid {
 @media (max-width: 600px) { .codeagi-phase-bar { gap: 0.2rem; } .codeagi-phase-connector { width: 8px; } .codeagi-phase-badge { padding: 0.2rem 0.5rem; font-size: 0.65rem; } }
 
 
-/* ── Models Panel ── */
-.models-vram-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
-.models-vram-bar { height: 8px; background: var(--bg-elevated); border-radius: 4px; margin-top: 1rem; overflow: hidden; }
-.models-vram-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #a855f7); border-radius: 4px; transition: width 0.5s ease; }
-.models-section { margin-bottom: 1.5rem; }
-.models-section h3 { font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem; }
-.models-recommend-row { display: flex; gap: 0.5rem; align-items: center; }
-.models-recommend-row .tool-select { flex: 1; }
-.models-local-list { display: flex; flex-direction: column; gap: 0.5rem; }
-.models-local-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.75rem 1rem; transition: border-color var(--transition); }
-.models-local-card:hover { border-color: var(--border-accent); }
-.models-local-name { font-weight: 600; font-size: 0.9rem; color: var(--text-primary); }
-.models-local-meta { display: flex; gap: 0.75rem; margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-muted); }
-.models-quant-badge { background: rgba(168, 85, 247, 0.15); color: #a855f7; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; }
 
 /* ── CodeAGI Continuous Mode ── */
 .codeagi-continuous-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.75rem; padding: 0.5rem 0; }
@@ -2190,31 +2066,3 @@ body.chat-expanded .card-grid {
 .codeagi-toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: var(--text-muted); border-radius: 50%; transition: transform var(--transition), background var(--transition); }
 .codeagi-toggle-label input:checked + .codeagi-toggle-switch { background: rgba(34, 197, 94, 0.2); border-color: #22c55e; }
 .codeagi-toggle-label input:checked + .codeagi-toggle-switch::after { transform: translateX(16px); background: #22c55e; }
-/* ── Risk Scoring Panel ── */
-.risk-summary-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
-.risk-stat-card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; text-align: center; }
-.risk-stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
-.risk-stat-value { font-size: 1.75rem; font-weight: 700; color: var(--text); }
-.risk-stat-value.risk-high { color: #ef4444; }
-.risk-bars { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 2rem; }
-.risk-bar-row { display: flex; align-items: center; gap: 0.75rem; }
-.risk-bar-label { width: 120px; font-size: 0.8rem; color: var(--text-muted); text-align: right; }
-.risk-bar-track { flex: 1; height: 24px; background: var(--bg-elevated); border-radius: 6px; overflow: hidden; }
-.risk-bar-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
-.risk-bar-fill.risk-low { background: #22c55e; }
-.risk-bar-fill.risk-medium { background: #f59e0b; }
-.risk-bar-fill.risk-high { background: #ef4444; }
-.risk-bar-fill.risk-critical { background: #dc2626; }
-.risk-bar-count { width: 40px; font-size: 0.8rem; color: var(--text-muted); }
-.risk-tools-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.75rem; margin-bottom: 2rem; }
-.risk-tool-card { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
-.risk-tool-name { font-weight: 600; font-size: 0.9rem; }
-.risk-tool-score { font-size: 0.8rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
-.risk-tool-score.low { background: rgba(34,197,94,0.15); color: #22c55e; }
-.risk-tool-score.medium { background: rgba(245,158,11,0.15); color: #f59e0b; }
-.risk-tool-score.high { background: rgba(239,68,68,0.15); color: #ef4444; }
-.risk-tool-score.critical { background: rgba(220,38,38,0.15); color: #dc2626; }
-.risk-recent { display: flex; flex-direction: column; gap: 0.5rem; }
-.risk-recent-item { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; }
-.risk-recent-tool { font-weight: 600; }
-.risk-recent-score { font-size: 0.8rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
