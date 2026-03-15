@@ -6,18 +6,23 @@ import { AgentEvent } from './types';
 import { getProactiveEngine } from './proactive';
 import { codebotPath } from './paths';
 import { warnNonFatal } from './warn';
+import { SelfMonitor, HealthReport } from './self-monitor';
 
 
 
 export class Scheduler {
   private agent: Agent;
   private interval: ReturnType<typeof setInterval> | null = null;
+  private healthInterval: ReturnType<typeof setInterval> | null = null;
   private running = false;
   private onOutput?: (text: string) => void;
+  private selfMonitor: SelfMonitor;
+  private lastHealthReport: HealthReport | null = null;
 
   constructor(agent: Agent, onOutput?: (text: string) => void) {
     this.agent = agent;
     this.onOutput = onOutput;
+    this.selfMonitor = new SelfMonitor();
   }
 
   /** Start the scheduler — checks routines every 60 seconds */
@@ -26,6 +31,9 @@ export class Scheduler {
 
     // Check every 60 seconds
     this.interval = setInterval(() => this.tick(), 60_000);
+
+    // Health check every 5 minutes
+    this.healthInterval = setInterval(() => this.healthTick(), 5 * 60_000);
 
     // Also do an immediate check
     this.tick();
@@ -36,6 +44,10 @@ export class Scheduler {
     if (this.interval) {
       clearInterval(this.interval);
       this.interval = null;
+    }
+    if (this.healthInterval) {
+      clearInterval(this.healthInterval);
+      this.healthInterval = null;
     }
   }
 
@@ -113,6 +125,35 @@ export class Scheduler {
           break;
       }
     }
+  }
+
+  /** Run health checks and handle critical issues */
+  private healthTick(): void {
+    try {
+      const report = this.selfMonitor.runAll();
+      this.lastHealthReport = report;
+
+      if (report.overall === 'critical') {
+        this.onOutput?.('\n[HEALTH] Critical issues detected:\n' + SelfMonitor.formatReport(report) + '\n');
+      }
+
+      // Auto-execute low-risk fix actions when in autonomous mode
+      for (const action of report.fixActions) {
+        if (action.risk <= 0.3) {
+          this.onOutput?.(`\n[HEALTH] Auto-fixing: ${action.description}\n`);
+        }
+      }
+    } catch { /* health check should never crash the scheduler */ }
+  }
+
+  /** Get the self-monitor instance */
+  getSelfMonitor(): SelfMonitor {
+    return this.selfMonitor;
+  }
+
+  /** Get latest health report */
+  getLastHealthReport(): HealthReport | null {
+    return this.lastHealthReport;
   }
 
   private loadRoutines(): Routine[] {
