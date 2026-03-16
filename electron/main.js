@@ -145,7 +145,7 @@ async function startServer() {
     if (!process.env.CODEBOT_PROVIDER) serverEnv.CODEBOT_PROVIDER = 'anthropic';
   }
 
-  serverProcess = spawn(nodeBin, [binPath, '--dashboard', '--host', '127.0.0.1'], {
+  serverProcess = spawn(nodeBin, [binPath, '--dashboard', '--host', '127.0.0.1', '--no-open'], {
     cwd: paths.root,
     env: serverEnv,
     stdio: ['pipe', 'pipe', 'pipe'],

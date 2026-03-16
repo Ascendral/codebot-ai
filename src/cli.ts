@@ -338,7 +338,9 @@ export async function main() {
         fs.writeFileSync(pidFile, String(process.pid), 'utf8');
       } catch { /* best-effort */ }
       const dashUrl = dashHost === '0.0.0.0' ? `http://localhost:${dashInfo.port}` : dashInfo.url;
-      try { const { exec } = require('child_process'); const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'; exec(`${openCmd} ${dashUrl}`); } catch { /* best-effort */ }
+      if (!args['no-open'] && !process.env.CODEBOT_NO_OPEN) {
+        try { const { exec } = require('child_process'); const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'; exec(`${openCmd} ${dashUrl}`); } catch { /* best-effort */ }
+      }
     } catch (err: unknown) {
       console.log(c(`   Dashboard failed: ${err instanceof Error ? err.message : String(err)}`, 'yellow'));
     }
