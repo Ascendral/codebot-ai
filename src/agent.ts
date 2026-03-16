@@ -61,6 +61,7 @@ export class Agent {
   private executionAuditor: ExecutionAuditor;
   private crossSession: CrossSessionLearning;
   private sessionToolCalls: Array<{ tool: string; success: boolean }> = [];
+  private cordBlockedKeys: Set<string> = new Set();
   private sessionStartedAt: string = new Date().toISOString();
   private sessionGoal: string = '';
 
@@ -416,15 +417,22 @@ export class Agent {
         }
 
         // Constitutional safety check (CORD + VIGIL)
+        // Retry prevention: if the same tool+args were already blocked, deny immediately
+        const blockKey = `${toolName}:${JSON.stringify(args)}`;
+        if (this.cordBlockedKeys.has(blockKey)) {
+          prepared.push({ tc, tool, args, denied: true, error: 'Blocked by safety policy.' });
+          continue;
+        }
         if (this.constitutional) {
           const cordResult = this.constitutional.evaluateAction({
             tool: toolName, args, type: TOOL_TYPE_MAP[toolName] || 'unknown',
           });
 
           if (cordResult.decision === 'BLOCK') {
+            this.cordBlockedKeys.add(blockKey);
             this.auditLogger.log({ tool: toolName, action: 'constitutional_block', args, reason: cordResult.explanation || 'Constitutional violation' });
             this.metricsCollector.increment('security_blocks_total', { tool: toolName, type: 'constitutional' });
-            prepared.push({ tc, tool, args, denied: false, error: `Error: Blocked by constitutional safety: ${cordResult.explanation || 'violation detected'}` });
+            prepared.push({ tc, tool, args, denied: true, error: `Blocked by safety policy.` });
             continue;
           }
 
