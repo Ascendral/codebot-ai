@@ -53,6 +53,26 @@ export class WriteFileTool implements Tool {
       }
     }
 
+
+    // Safety: protect critical project files from accidental overwrite
+    const basename = path.basename(filePath);
+    const PROTECTED_FILES = new Set([
+      'package.json', 'package-lock.json', 'tsconfig.json', 'tsconfig.build.json',
+      '.env', '.env.local', '.env.production', '.gitignore', '.npmrc',
+      'yarn.lock', 'pnpm-lock.yaml', 'Cargo.lock', 'go.sum',
+    ]);
+    if (existed && PROTECTED_FILES.has(basename)) {
+      // Only allow overwrite if content looks like an edit (not a complete replacement)
+      try {
+        const oldContent = fs.readFileSync(filePath, 'utf-8');
+        const oldName = JSON.parse(oldContent).name;
+        const newName = (() => { try { return JSON.parse(content).name; } catch { return null; } })();
+        if (oldName && newName && oldName !== newName) {
+          return `Error: Blocked — refusing to overwrite ${basename} (project name would change from "${oldName}" to "${newName}"). This looks like an accidental overwrite, not an edit. Use edit_file for targeted changes.`;
+        }
+      } catch { /* not JSON, allow */ }
+    }
+
     // Security: secret detection (warn but don't block)
     const secrets = scanForSecrets(content);
     let warning = '';
