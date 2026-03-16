@@ -13,8 +13,13 @@
   "author": "Ascendral",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^33.0.0",
-    "electron-builder": "^25.0.0"
+    "electron": "^41.0.2",
+    "electron-builder": "^26.8.1"
+  },
+  "overrides": {
+    "tar": "^7.4.0",
+    "yauzl": "^3.2.0",
+    "@tootallnate/once": "^2.0.0"
   },
   "build": {
     "appId": "com.ascendral.codebot",
@@ -31,8 +36,16 @@
     "dmg": {
       "title": "CodeBot AI",
       "contents": [
-        { "x": 130, "y": 220 },
-        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
       ]
     },
     "files": [
@@ -44,17 +57,23 @@
       {
         "from": "../dist",
         "to": "codebot/dist",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "../bin",
         "to": "codebot/bin",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "../node_modules",
         "to": "codebot/node_modules",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "../package.json",
