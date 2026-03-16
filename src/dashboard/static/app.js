@@ -129,10 +129,26 @@ const App = {
           }
         }
 
+        // Always show manual API key entry option
+        html += '<div class="onboarding-manual-key" style="margin-top:16px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;">';
         if ((!data.localServers || data.localServers.length === 0) && (!data.envProviders || data.envProviders.length === 0)) {
-          html += '<p class="onboarding-desc">No providers detected. You can set one up later.</p>';
-          html += '<button class="btn-continue" onclick="App.nextOnboardingStep()">Skip for Now</button>';
+          html += '<p class="onboarding-desc">No providers detected. Enter your API key to get started:</p>';
+        } else {
+          html += '<p class="onboarding-desc" style="font-size:0.85em;opacity:0.7;">Or enter a different API key:</p>';
         }
+        html += '<div style="display:flex;gap:8px;margin-top:8px;">' +
+          '<select id="onboard-provider-select" style="background:#1a1a2e;color:#e0e0e0;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:8px;font-size:0.9em;">' +
+            '<option value="anthropic">Anthropic (Claude)</option>' +
+            '<option value="openai">OpenAI (GPT)</option>' +
+          '</select>' +
+          '<input id="onboard-api-key" type="password" placeholder="Paste API key..." style="flex:1;background:#1a1a2e;color:#e0e0e0;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:8px;font-size:0.9em;" />' +
+          '<button class="btn-continue" onclick="App.saveOnboardingKey()" style="white-space:nowrap;">Save</button>' +
+          '</div>' +
+          '<p id="onboard-key-error" style="color:#ff6b6b;font-size:0.8em;margin-top:6px;display:none;"></p>';
+        if ((!data.localServers || data.localServers.length === 0) && (!data.envProviders || data.envProviders.length === 0)) {
+          html += '<button class="btn-continue" onclick="App.nextOnboardingStep()" style="margin-top:12px;opacity:0.5;font-size:0.85em;">Skip for Now</button>';
+        }
+        html += '</div>';
 
         el.innerHTML = html;
       } catch (err) {
@@ -156,6 +172,29 @@ const App = {
           '</ul>' +
         '</div>' +
         '<button class="btn-continue" onclick="App.finishOnboarding()">Start Using CodeBot</button>';
+    }
+  },
+
+  async saveOnboardingKey() {
+    var provider = document.getElementById('onboard-provider-select').value;
+    var key = document.getElementById('onboard-api-key').value.trim();
+    var errEl = document.getElementById('onboard-key-error');
+    if (!key) { errEl.textContent = 'Please enter an API key.'; errEl.style.display = ''; return; }
+    if (provider === 'anthropic' && !key.startsWith('sk-ant-')) {
+      errEl.textContent = 'Anthropic keys start with sk-ant-'; errEl.style.display = ''; return;
+    }
+    errEl.style.display = 'none';
+    try {
+      var model = provider === 'anthropic' ? 'claude-sonnet-4-6' : 'gpt-4o';
+      await apiFetch('/api/setup/provider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: provider, model: model, apiKey: key }),
+      });
+      this.onboardingStep = 2;
+      this.showOnboardingStep();
+    } catch (err) {
+      errEl.textContent = 'Failed to save: ' + err.message; errEl.style.display = '';
     }
   },
 
