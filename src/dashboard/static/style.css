@@ -2166,14 +2166,7 @@ body.chat-expanded .card-grid {
 }
 
 .chat-sidebar {
-  width: 240px;
-  min-width: 240px;
-  background: var(--bg-secondary);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  display: none;
 }
 
 .chat-sidebar-header {
@@ -2197,6 +2190,23 @@ body.chat-expanded .card-grid {
 }
 .new-chat-sidebar-btn:hover { background: var(--accent-light); }
 .new-chat-sidebar-btn svg { flex-shrink: 0; }
+
+.new-chat-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 8px auto 0;
+  padding: 6px 18px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-sm);
+  font-size: 0.8em;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.new-chat-btn:hover { color: var(--accent); border-color: var(--accent); }
 
 .chat-sidebar-list {
   flex: 1;
