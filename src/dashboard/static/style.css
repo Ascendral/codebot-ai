@@ -538,11 +538,11 @@ body.is-electron .agent-status {
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 6px;
   overflow-y: auto;
   flex: 1;
-  max-width: 580px;
+  max-width: 600px;
   margin: 0 auto;
 }
 
@@ -1323,8 +1323,8 @@ body.chat-expanded .chat-msg {
 
 /* Keep session cards compact even when chat-expanded widens center-stage */
 body.chat-expanded .card-grid {
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  max-width: 580px;
+  grid-template-columns: 1fr;
+  max-width: 600px;
 }
 
 /* Wider on large screens */
