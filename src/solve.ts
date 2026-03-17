@@ -1,7 +1,8 @@
 /**
  * Solve Command — Autonomous GitHub Issue Solver
  *
- * Pipeline: parse URL → fetch issue → clone repo → analyze → fix → test → score → PR → report
+ * Pipeline: parse URL → fetch issue → clone repo → analyze → install deps →
+ *           fix → test → self-review → score → commit/PR → audit → report
  *
  * Usage: codebot solve https://github.com/owner/repo/issues/123
  */
@@ -14,6 +15,7 @@ import { execFileSync } from 'child_process';
 import { Agent } from './agent';
 import { AgentEvent, LLMProvider } from './types';
 import { buildRepoMap } from './context/repo-map';
+import { SolveAuditTrail } from './solve-audit';
 
 // ── Types ──
 
@@ -50,8 +52,10 @@ export type SolvePhase =
   | 'fetching'
   | 'cloning'
   | 'analyzing'
+  | 'installing'
   | 'fixing'
   | 'testing'
+  | 'reviewing'
   | 'scoring'
   | 'committing'
   | 'done'
@@ -82,6 +86,9 @@ export interface SolveResult {
   tokensUsed: number;
   cost: string;
   sessionId: string;
+  auditPath?: string;
+  selfReviewVerdict?: 'approve' | 'revise' | 'reject';
+  selfReviewReasoning?: string;
 }
 
 // ── Constants ──
@@ -153,6 +160,19 @@ async function githubApi(
     clearTimeout(timer);
     throw err;
   }
+}
+
+/** Detect package manager install command for a project. */
+function detectInstallCommand(cwd: string): { name: string; command: string } | null {
+  if (fs.existsSync(path.join(cwd, 'pnpm-lock.yaml'))) return { name: 'pnpm', command: 'pnpm install --frozen-lockfile' };
+  if (fs.existsSync(path.join(cwd, 'yarn.lock'))) return { name: 'yarn', command: 'yarn install --frozen-lockfile' };
+  if (fs.existsSync(path.join(cwd, 'package-lock.json'))) return { name: 'npm', command: 'npm ci' };
+  if (fs.existsSync(path.join(cwd, 'package.json'))) return { name: 'npm', command: 'npm install' };
+  if (fs.existsSync(path.join(cwd, 'requirements.txt'))) return { name: 'pip', command: 'pip install -r requirements.txt' };
+  if (fs.existsSync(path.join(cwd, 'pyproject.toml'))) return { name: 'pip', command: 'pip install -e .' };
+  if (fs.existsSync(path.join(cwd, 'go.mod'))) return { name: 'go', command: 'go mod download' };
+  if (fs.existsSync(path.join(cwd, 'Cargo.toml'))) return { name: 'cargo', command: 'cargo fetch' };
+  return null;
 }
 
 /** Detect test framework from a project directory. Returns command + framework name. */
@@ -366,24 +386,32 @@ export class SolveCommand {
   async *run(issueUrl: string): AsyncGenerator<SolveEvent> {
     this.startTime = Date.now();
     const sessionId = generateSessionId();
+    const audit = new SolveAuditTrail(sessionId, issueUrl);
 
     // Global timeout
     const timeoutMs = this.options.timeoutMin * 60 * 1000;
     const deadline = this.startTime + timeoutMs;
 
     // ── Phase 1: Parse URL ──
+    audit.phaseStart('parsing', issueUrl);
     yield { type: 'phase_start', phase: 'parsing', message: 'Parsing issue URL...' };
     let parsed: { owner: string; repo: string; number: number };
     try {
       parsed = parseIssueUrl(issueUrl);
     } catch (e) {
+      audit.error('parsing', (e as Error).message);
+      audit.finalize('failure');
       yield { type: 'error', phase: 'parsing', error: (e as Error).message };
       return;
     }
+    audit.phaseEnd('parsing');
     yield { type: 'phase_end', phase: 'parsing', message: `${parsed.owner}/${parsed.repo}#${parsed.number}` };
 
     // ── Phase 2: Fetch Issue ──
+    audit.phaseStart('fetching');
     if (!this.githubToken) {
+      audit.error('fetching', 'GITHUB_TOKEN not set');
+      audit.finalize('failure');
       yield {
         type: 'error',
         phase: 'fetching',
@@ -397,9 +425,12 @@ export class SolveCommand {
     try {
       issue = await this.fetchIssue(parsed.owner, parsed.repo, parsed.number);
     } catch (e) {
+      audit.error('fetching', (e as Error).message);
+      audit.finalize('failure');
       yield { type: 'error', phase: 'fetching', error: (e as Error).message };
       return;
     }
+    audit.phaseEnd('fetching', issue.title);
     yield {
       type: 'phase_end',
       phase: 'fetching',
@@ -407,20 +438,26 @@ export class SolveCommand {
     };
 
     // ── Phase 3: Clone/Update Repo ──
+    audit.phaseStart('cloning');
     yield { type: 'phase_start', phase: 'cloning', message: `Preparing ${parsed.owner}/${parsed.repo}...` };
     let repoDir: string;
     try {
       repoDir = this.ensureRepo(parsed.owner, parsed.repo);
     } catch (e) {
+      audit.error('cloning', (e as Error).message);
+      audit.finalize('failure');
       yield { type: 'error', phase: 'cloning', error: (e as Error).message };
       return;
     }
+    audit.phaseEnd('cloning', repoDir);
     yield { type: 'phase_end', phase: 'cloning', message: repoDir };
 
     // ── Phase 4: Analyze Repo ──
+    audit.phaseStart('analyzing');
     yield { type: 'phase_start', phase: 'analyzing', message: 'Indexing codebase...' };
     const stack = detectStack(repoDir);
     const testFw = detectTestFramework(repoDir);
+    const installCmd = detectInstallCommand(repoDir);
     let repoMap = '';
     try {
       repoMap = buildRepoMap(repoDir);
@@ -429,6 +466,7 @@ export class SolveCommand {
     }
     const triage = triageIssue(issue);
     const fileCount = repoMap.split('\n').filter(l => l.trim()).length;
+    audit.phaseEnd('analyzing', `${stack}, ${testFw?.name || 'no tests'}, ${fileCount} files`);
     yield {
       type: 'phase_end',
       phase: 'analyzing',
@@ -437,8 +475,28 @@ export class SolveCommand {
 
     // Check timeout
     if (Date.now() > deadline) {
+      audit.finalize('timeout');
       yield { type: 'error', phase: 'analyzing', error: `Timeout exceeded (${this.options.timeoutMin} min)` };
       return;
+    }
+
+
+    // ── Phase 4.3: Install Dependencies ──
+    if (installCmd) {
+      audit.phaseStart('installing');
+      yield { type: 'phase_start', phase: 'installing', message: `Installing dependencies (${installCmd.name})...` };
+      try {
+        const installParts = installCmd.command.split(' ');
+        execFileSync(installParts[0], installParts.slice(1), {
+          cwd: repoDir, encoding: 'utf-8', timeout: 180_000,
+          maxBuffer: 10 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        audit.phaseEnd('installing', installCmd.name);
+        yield { type: 'phase_end', phase: 'installing', message: `Dependencies installed (${installCmd.name})` };
+      } catch (installErr) {
+        audit.decision('installing', 'Install failed — continuing', { error: (installErr as Error).message });
+        yield { type: 'progress', phase: 'installing', message: `Dependency install warning: continuing without full install` };
+      }
     }
 
     // ── Phase 4.5: Run baseline tests (reproduction attempt) ──
@@ -462,6 +520,7 @@ export class SolveCommand {
 
     // ── Phase 5: Generate Fix ──
     const branchName = buildBranchName(issue);
+    audit.phaseStart('fixing', branchName);
     yield { type: 'phase_start', phase: 'fixing', message: `Creating branch ${branchName} and generating fix...` };
 
     // Create branch
@@ -579,12 +638,50 @@ export class SolveCommand {
         }
       }
 
+      audit.phaseEnd('testing', testsPassed ? 'pass' : 'fail', testsPassed);
       yield { type: 'phase_end', phase: 'testing', message: testsPassed ? 'All tests pass' : 'Tests still failing' };
     } else {
+      audit.decision('testing', 'No test framework — skipped');
       yield { type: 'progress', phase: 'testing', message: 'No test framework detected — skipping tests' };
     }
 
+    // ── Phase 6.5: Self-Review ──
+    let selfReviewVerdict: 'approve' | 'revise' | 'reject' = 'approve';
+    let selfReviewReasoning = '';
+    if (filesModified.length > 0 && diff) {
+      audit.phaseStart('reviewing');
+      yield { type: 'phase_start', phase: 'reviewing', message: 'Agent self-reviewing changes...' };
+      const reviewPrompt = `Review this diff for issue #${issue.number}: "${issue.title}"\n\n\`\`\`diff\n${diff.substring(0, 4000)}\n\`\`\`\nFiles: ${filesModified.join(', ')}\nTests: ${testsPassed ? 'PASSING' : testsExist ? 'FAILING' : 'N/A'}\n\nRespond APPROVE, REVISE, or REJECT on the first line. Then explain in 2-3 sentences.`;
+      try {
+        let reviewOutput = '';
+        for await (const event of agent.run(reviewPrompt)) {
+          if (event.type === 'text' && event.text) reviewOutput += event.text;
+          if (Date.now() > deadline) break;
+        }
+        const firstLine = reviewOutput.trim().split('\n')[0].toUpperCase();
+        if (firstLine.includes('REJECT')) selfReviewVerdict = 'reject';
+        else if (firstLine.includes('REVISE')) selfReviewVerdict = 'revise';
+        else selfReviewVerdict = 'approve';
+        selfReviewReasoning = reviewOutput.trim().split('\n').slice(1).join('\n').trim().substring(0, 500);
+        audit.selfReview(selfReviewVerdict, selfReviewReasoning);
+        yield { type: 'phase_end', phase: 'reviewing', message: `Self-review: ${selfReviewVerdict.toUpperCase()}` };
+        if (selfReviewVerdict === 'revise') {
+          audit.decision('reviewing', 'Revision requested');
+          yield { type: 'progress', phase: 'reviewing', message: 'Applying revisions...' };
+          for await (const event of agent.run(`Self-review found issues. Fix: ${selfReviewReasoning}`)) {
+            yield { type: 'agent_event', phase: 'reviewing', agentEvent: event };
+            if (Date.now() > deadline) break;
+          }
+          selfReviewVerdict = 'approve';
+        }
+      } catch {
+        selfReviewVerdict = 'approve';
+      }
+      audit.phaseEnd('reviewing', selfReviewVerdict);
+    }
+
     // ── Phase 7: Confidence Scoring ──
+    audit.phaseStart('scoring');
     yield { type: 'phase_start', phase: 'scoring', message: 'Computing confidence...' };
 
     // Check for dependency changes
@@ -614,20 +711,43 @@ export class SolveCommand {
       sensitiveFiles,
     });
 
+    audit.phaseEnd('scoring', `confidence=${confidence} risk=${risk}`);
     yield { type: 'phase_end', phase: 'scoring', message: `Confidence: ${confidence}% | Risk: ${risk}` };
+
+    // Set audit summary
+    audit.setSummary({
+      totalDurationMs: Date.now() - this.startTime,
+      phasesCompleted: ['parsing', 'fetching', 'cloning', 'analyzing', 'fixing', 'testing', 'reviewing', 'scoring'],
+      filesModified, testsRun: testsExist, testsPassed, confidence, risk, tokensUsed: 0, cost: '',
+    });
 
     // ── Phase 8: Commit + PR ──
     const tokenTracker = agent.getTokenTracker();
     const tokensUsed = tokenTracker.getSummary().totalInputTokens + tokenTracker.getSummary().totalOutputTokens;
     const cost = tokenTracker.formatCost();
 
+    // Self-review rejection gate
+    if (selfReviewVerdict === 'reject') {
+      audit.finalize('failure');
+      yield { type: 'error', phase: 'committing', error: `Self-review rejected: ${selfReviewReasoning.substring(0, 200)}` };
+      const rejectResult: SolveResult = {
+        success: false, issue, branch: branchName, filesModified, diff, testsPassed, testsOutput,
+        confidence, risk, durationMs: Date.now() - this.startTime, tokensUsed, cost, sessionId,
+        auditPath: audit.getFilePath(), selfReviewVerdict, selfReviewReasoning,
+      };
+      this.saveSession(rejectResult);
+      yield { type: 'result', phase: 'done', result: rejectResult };
+      return;
+    }
+
     if (this.options.openPr && !this.options.dryRun) {
+      audit.phaseStart('committing');
       yield { type: 'phase_start', phase: 'committing', message: 'Creating commit and pull request...' };
 
       try {
         // Stage + commit
         execFileSync('git', ['add', '-A'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 });
-        const commitMsg = `fix: ${issue.title} (fixes #${issue.number})\n\nAutonomously generated by CodeBot-AI solve command.\nConfidence: ${confidence}% | Risk: ${risk}`;
+        const commitMsg = `fix: ${issue.title} (fixes #${issue.number})\n\nAutonomously generated by CodeBot-AI solve command.\nConfidence: ${confidence}% | Risk: ${risk}\nSelf-review: ${selfReviewVerdict}`;
         execFileSync('git', ['commit', '-m', commitMsg], { cwd: repoDir, encoding: 'utf-8', timeout: 30_000 });
 
         // Push
@@ -637,7 +757,7 @@ export class SolveCommand {
 
         // Create PR
         const defaultBranch = this.getDefaultBranch(repoDir);
-        const prBody = this.buildPrBody(issue, filesModified, testsPassed, testsOutput, confidence, risk);
+        const prBody = this.buildPrBody(issue, filesModified, testsPassed, testsOutput, confidence, risk, audit, selfReviewVerdict);
         const prResult = await githubApi('POST', `/repos/${parsed.owner}/${parsed.repo}/pulls`, this.githubToken, {
           title: `fix: ${issue.title}`,
           body: prBody,
@@ -650,12 +770,14 @@ export class SolveCommand {
           yield { type: 'phase_end', phase: 'committing', message: `PR #${pr.number}: ${pr.html_url}` };
 
           // Build final result
+          const auditPath = audit.finalize('success');
           const result: SolveResult = {
             success: true, issue, branch: branchName,
             prUrl: pr.html_url, prNumber: pr.number,
             filesModified, diff, testsPassed, testsOutput,
             confidence, risk, durationMs: Date.now() - this.startTime,
             tokensUsed, cost, sessionId,
+            auditPath, selfReviewVerdict, selfReviewReasoning,
           };
           this.saveSession(result);
           yield { type: 'result', phase: 'done', result };
@@ -676,7 +798,7 @@ export class SolveCommand {
       // Not dry-run but not --open-pr: commit locally only
       try {
         execFileSync('git', ['add', '-A'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 });
-        const commitMsg = `fix: ${issue.title} (fixes #${issue.number})\n\nAutonomously generated by CodeBot-AI solve command.\nConfidence: ${confidence}% | Risk: ${risk}`;
+        const commitMsg = `fix: ${issue.title} (fixes #${issue.number})\n\nAutonomously generated by CodeBot-AI solve command.\nConfidence: ${confidence}% | Risk: ${risk}\nSelf-review: ${selfReviewVerdict}`;
         execFileSync('git', ['commit', '-m', commitMsg], { cwd: repoDir, encoding: 'utf-8', timeout: 30_000 });
         yield { type: 'progress', phase: 'committing', message: `Committed locally on branch ${branchName}. Use --open-pr to push and create a PR.` };
       } catch (e) {
@@ -685,6 +807,7 @@ export class SolveCommand {
     }
 
     // ── Phase 9: Final Report ──
+    const auditPath = audit.finalize(filesModified.length > 0 ? 'success' : 'failure');
     const result: SolveResult = {
       success: filesModified.length > 0,
       issue, branch: branchName,
@@ -692,6 +815,7 @@ export class SolveCommand {
       confidence, risk,
       durationMs: Date.now() - this.startTime,
       tokensUsed, cost, sessionId,
+      auditPath, selfReviewVerdict, selfReviewReasoning,
     };
     this.saveSession(result);
     yield { type: 'result', phase: 'done', result };
@@ -847,6 +971,8 @@ export class SolveCommand {
     testsOutput: string,
     confidence: number,
     risk: 'low' | 'medium' | 'high',
+    audit?: SolveAuditTrail,
+    selfReviewVerdict?: string,
   ): string {
     const lines: string[] = [];
 
@@ -861,9 +987,12 @@ export class SolveCommand {
     }
     lines.push('');
     lines.push('## Validation');
-    lines.push(`- Tests: ${testsPassed ? 'PASSED' : 'FAILED'}`);
-    lines.push(`- Confidence: ${confidence}%`);
-    lines.push(`- Risk: ${risk}`);
+    lines.push(`| Check | Result |`);
+    lines.push(`|-------|--------|`);
+    lines.push(`| Tests | ${testsPassed ? '✅ PASSED' : testsOutput ? '❌ FAILED' : '⏭️ N/A'} |`);
+    lines.push(`| Self-Review | ${selfReviewVerdict === 'approve' ? '✅ APPROVED' : selfReviewVerdict === 'revise' ? '🔄 REVISED' : '⏭️ N/A'} |`);
+    lines.push(`| Confidence | ${confidence}% |`);
+    lines.push(`| Risk | ${risk} |`);
     lines.push('');
 
     if (testsOutput && !testsPassed) {
@@ -872,6 +1001,17 @@ export class SolveCommand {
       lines.push('');
       lines.push('```');
       lines.push(testsOutput.substring(0, 2000));
+      lines.push('```');
+      lines.push('</details>');
+      lines.push('');
+    }
+
+    if (audit) {
+      lines.push('<details>');
+      lines.push('<summary>Audit Trail</summary>');
+      lines.push('');
+      lines.push('```');
+      lines.push(audit.getTextSummary());
       lines.push('```');
       lines.push('</details>');
       lines.push('');

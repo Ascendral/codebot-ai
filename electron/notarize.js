@@ -1,5 +1,6 @@
-const { execSync } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
 exports.default = async function notarizing(context) {
   const { electronPlatformName, appOutDir } = context;
@@ -16,13 +17,27 @@ exports.default = async function notarizing(context) {
     { stdio: 'inherit' }
   );
 
-  console.log(`Submitting ${zipPath} for notarization...`);
+  const zipSize = (fs.statSync(zipPath).size / 1024 / 1024).toFixed(1);
+  console.log(`Submitting ${zipPath} (${zipSize}MB) for notarization...`);
 
+  // Use async spawn instead of execSync to avoid ETIMEDOUT on large bundles.
+  // execSync has a Node.js-level timeout that kills the process even when
+  // Apple is still processing — spawn has no such timeout issue.
   try {
-    execSync(
-      `xcrun notarytool submit "${zipPath}" --keychain-profile "codebot-notarize" --wait --timeout 30m`,
-      { stdio: 'inherit', timeout: 1800000 }
-    );
+    await new Promise((resolve, reject) => {
+      const proc = spawn('xcrun', [
+        'notarytool', 'submit', zipPath,
+        '--keychain-profile', 'codebot-notarize',
+        '--wait', '--timeout', '30m',
+      ], { stdio: 'inherit' });
+
+      proc.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`notarytool exited with code ${code}`));
+      });
+
+      proc.on('error', (err) => reject(err));
+    });
 
     console.log('Notarization succeeded. Stapling ticket...');
     execSync(`xcrun stapler staple "${appPath}"`, { stdio: 'inherit' });
@@ -32,6 +47,6 @@ exports.default = async function notarizing(context) {
     throw err;
   } finally {
     // Clean up zip
-    try { require('fs').unlinkSync(zipPath); } catch (_) {}
+    try { fs.unlinkSync(zipPath); } catch (_) {}
   }
 };
