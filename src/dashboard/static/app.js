@@ -392,7 +392,7 @@ const App = {
     }
 
     var toolIcon = this.getToolIcon(name);
-    div.innerHTML = '<div class="tool-call-header" onclick="this.parentElement.classList.toggle('expanded')">' +
+    div.innerHTML = '<div class="tool-call-header" onclick="this.parentElement.classList.toggle(&#39;expanded&#39;)">' +
       '<span class="tool-call-icon">' + toolIcon + '</span>' +
       '<span class="tool-call-name">' + this.escapeHtml(name) + '</span>' +
       '<span class="tool-call-status"><span class="tool-spinner"></span></span>' +
@@ -523,7 +523,18 @@ const App = {
         var cost = (totalTokens / 1000000 * 15).toFixed(4); // ~$15/M output tokens for Sonnet
         var usageDiv = document.createElement('div');
         usageDiv.className = 'chat-usage';
-        usageDiv.textContent = totalTokens + ' tokens (~
+        usageDiv.textContent = totalTokens + ' tokens (~$' + cost + ')';
+        assistantDiv.appendChild(usageDiv);
+      }
+    } catch (err) {
+      if (!hasError) {
+        contentEl.innerHTML = '<div class="chat-error-box">' +
+          '<div class="chat-error-icon">&#9888;</div>' +
+          '<div class="chat-error-text">' + App.escapeHtml(App.friendlyError(String(err))) + '</div>' +
+          '<button class="chat-retry-btn" onclick="App.retryLastMessage()">Retry</button>' +
+        '</div>';
+      }
+    }
   },
 
   friendlyError(msg) {
@@ -616,7 +627,7 @@ const App = {
       var breadcrumb = document.getElementById('file-breadcrumb');
       if (breadcrumb) {
         var parts = data.path.split('/').filter(Boolean);
-        var crumbs = '<span class="breadcrumb-item" onclick="App.browseDir('/')">root</span>';
+        var crumbs = '<span class="breadcrumb-item" onclick="App.browseDir(&#39;/&#39;)">root</span>';
         var built = '';
         for (var i = 0; i < parts.length; i++) {
           built += '/' + parts[i];
@@ -625,7 +636,7 @@ const App = {
           if (isLast) {
             crumbs += '<span class="breadcrumb-item active">' + this.escapeHtml(parts[i]) + '</span>';
           } else {
-            crumbs += '<span class="breadcrumb-item" onclick="App.browseDir('' + this.escapeHtml(built) + '')">' + this.escapeHtml(parts[i]) + '</span>';
+            crumbs += '<span class="breadcrumb-item" onclick="App.browseDir(&#39;' + this.escapeHtml(built) + '&#39;)">>' + this.escapeHtml(parts[i]) + '</span>';
           }
         }
         breadcrumb.innerHTML = crumbs;
@@ -636,15 +647,15 @@ const App = {
       if (!list) return;
       var html = '';
       if (data.parent) {
-        html += '<div class="file-item directory" onclick="App.browseDir('' + this.escapeHtml(data.parent) + '')"><span class="file-icon">&#128193;</span> <span class="file-name">..</span></div>';
+        html += '<div class="file-item directory" onclick="App.browseDir(&#39;' + this.escapeHtml(data.parent) + '&#39;)"><span class="file-icon">&#128193;</span> <span class="file-name">..</span></div>';
       }
       for (var j = 0; j < data.items.length; j++) {
         var item = data.items[j];
         if (item.type === 'directory') {
-          html += '<div class="file-item directory" onclick="App.browseDir('' + this.escapeHtml(item.path) + '')"><span class="file-icon">&#128193;</span> <span class="file-name">' + this.escapeHtml(item.name) + '</span></div>';
+          html += '<div class="file-item directory" onclick="App.browseDir(&#39;' + this.escapeHtml(item.path) + '&#39;)"><span class="file-icon">&#128193;</span> <span class="file-name">' + this.escapeHtml(item.name) + '</span></div>';
         } else {
           var sizeStr = item.size ? this.formatBytes(item.size) : '';
-          html += '<div class="file-item file" onclick="App.previewFile('' + this.escapeHtml(item.path) + '', '' + this.escapeHtml(item.name) + '')"><span class="file-icon">' + this.getFileIcon(item.ext) + '</span> <span class="file-name">' + this.escapeHtml(item.name) + '</span><span class="file-size">' + sizeStr + '</span></div>';
+          html += '<div class="file-item file" onclick="App.previewFile(&#39;' + this.escapeHtml(item.path) + '&#39;, &#39;' + this.escapeHtml(item.name) + '&#39;)"><span class="file-icon">' + this.getFileIcon(item.ext) + '</span> <span class="file-name">' + this.escapeHtml(item.name) + '</span><span class="file-size">' + sizeStr + '</span></div>';
         }
       }
       list.innerHTML = html;
@@ -898,10 +909,10 @@ const App = {
       var isActive = conv.id === activeId;
       var msgCount = conv.messages ? conv.messages.length : 0;
       var timeAgo = App.relativeTime(conv.updatedAt);
-      return '<div class="chat-sidebar-item' + (isActive ? ' active' : '') + '" onclick="App.switchConversation('' + conv.id + '')">' +
+      return '<div class="chat-sidebar-item' + (isActive ? ' active' : '') + '" onclick="App.switchConversation(&#39;' + conv.id + '&#39;)">' +
         '<div class="chat-sidebar-item-title">' + App.escapeHtml(conv.title) + '</div>' +
         '<div class="chat-sidebar-item-meta">' + msgCount + ' msgs &middot; ' + App.escapeHtml(timeAgo) + '</div>' +
-        '<button class="chat-sidebar-item-delete" onclick="App.deleteConversation('' + conv.id + '', event)" title="Delete">&times;</button>' +
+        '<button class="chat-sidebar-item-delete" onclick="App.deleteConversation(&#39;' + conv.id + '&#39;, event)" title="Delete">&times;</button>' +
       '</div>';
     }).join('');
   },
