@@ -270,8 +270,8 @@ export function registerCommandRoutes(
         position: messageQueue.length,
         message: 'Message queued — agent will process it next',
       });
-      // Process when agent is free
-      queuePromise.then(() => processQueue()).catch(() => {});
+      // finally block's setTimeout already calls processQueue when agent finishes
+      queuePromise.catch(() => {});
       return;
     }
 
@@ -296,13 +296,12 @@ export function registerCommandRoutes(
 
     try {
       for await (const event of agent.run(userMessage)) {
-        if (closed) break;
-        if (res.writableEnded || res.destroyed) break;
+        if (closed || res.writableEnded || res.destroyed) break;
         DashboardServer.sseSend(res, event);
         if (event.type === 'done' || event.type === 'error') break;
       }
     } catch (err: unknown) {
-      if (!closed) {
+      if (!closed && !res.writableEnded && !res.destroyed) {
         DashboardServer.sseSend(res, {
           type: 'error',
           text: err instanceof Error ? err.message : String(err),
@@ -310,9 +309,10 @@ export function registerCommandRoutes(
       }
     } finally {
       clearInterval(heartbeat);
+      closed = true;
       agentBusy = false;
       broadcastStatus(messageQueue.length > 0 ? 'queued' : 'idle');
-      if (!closed) DashboardServer.sseClose(res);
+      if (!res.writableEnded && !res.destroyed) DashboardServer.sseClose(res);
       // Process any queued messages
       if (messageQueue.length > 0) setTimeout(processQueue, 100);
     }
