@@ -144,7 +144,20 @@ export class AnthropicProvider implements LLMProvider {
 
     try {
       while (true) {
-        const { done, value } = await reader.read();
+        const CHUNK_TIMEOUT = 120_000;
+        let readResult: { done: boolean; value?: Uint8Array };
+        try {
+          readResult = await Promise.race([
+            reader.read(),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Stream chunk timeout after 120s')), CHUNK_TIMEOUT)
+            ),
+          ]);
+        } catch (err) {
+          yield { type: 'error', error: `Anthropic stream stalled: ${err instanceof Error ? err.message : String(err)}` };
+          break;
+        }
+        const { done, value } = readResult;
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
@@ -397,11 +410,12 @@ export class AnthropicProvider implements LLMProvider {
     for (const msg of apiMessages) {
       const last = merged[merged.length - 1];
       if (last && last.role === msg.role) {
-        // Merge content
-        const lastContent = typeof last.content === 'string' ? last.content : '';
-        const msgContent = typeof msg.content === 'string' ? msg.content : '';
+        // Merge content — only merge when both are strings; otherwise push separately
         if (typeof last.content === 'string' && typeof msg.content === 'string') {
-          last.content = lastContent + '\n' + msgContent;
+          last.content = last.content + '\n' + msg.content;
+        } else {
+          // Content types don't match (array vs string); push as separate entry
+          merged.push(msg);
         }
       } else {
         merged.push(msg);
