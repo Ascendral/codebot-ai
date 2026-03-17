@@ -203,7 +203,8 @@ export class Agent {
 
   /** Reset conversation state for a new chat */
   resetConversation() {
-    this.messages = [];
+    const system = this.messages[0];
+    this.messages = system?.role === 'system' ? [system] : [];
     this.cordBlockedKeys.clear();
     this.sessionToolCalls = [];
     this.sessionGoal = '';
