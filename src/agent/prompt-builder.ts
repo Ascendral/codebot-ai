@@ -35,7 +35,10 @@ export function buildSystemPrompt(opts: {
 
   let sparkBlock = '';
   if (opts.sparkSoul) {
-    try { sparkBlock = opts.sparkSoul.getPromptBlock(opts.messages[opts.messages.length - 1]?.content as string); } catch {}
+    try {
+      const lastMsg = opts.messages.length > 0 ? (opts.messages[opts.messages.length - 1]?.content as string) : '';
+      sparkBlock = opts.sparkSoul.getPromptBlock(lastMsg || '');
+    } catch {}
   }
 
   let crossSessionBlock = '';

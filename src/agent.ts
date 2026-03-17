@@ -725,15 +725,18 @@ async function defaultAskPermission(tool: string, args: Record<string, unknown>)
     })
     .join('\n');
 
+  let timerId: ReturnType<typeof setTimeout> | undefined;
+
   const userResponse = new Promise<boolean>(resolve => {
     rl.question(`\n⚡ ${tool}\n${summary}\nAllow? [y/N] (${PERMISSION_TIMEOUT_MS / 1000}s timeout) `, answer => {
+      if (timerId) clearTimeout(timerId);
       rl.close();
       resolve(answer.toLowerCase().startsWith('y'));
     });
   });
 
   const timeout = new Promise<boolean>(resolve => {
-    setTimeout(() => {
+    timerId = setTimeout(() => {
       rl.close();
       process.stdout.write('\n⏱ Permission timed out — denied by default.\n');
       resolve(false);
