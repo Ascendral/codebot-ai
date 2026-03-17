@@ -576,6 +576,41 @@ export class PolicyEnforcer {
 
     return false;
   }
+
+  /** Programmatically disable tools by name */
+  disableTools(names: string[]): void {
+    if (!this.policy.tools) this.policy.tools = {};
+    if (!this.policy.tools.disabled) this.policy.tools.disabled = [];
+    for (const name of names) {
+      if (!this.policy.tools.disabled.includes(name)) {
+        this.policy.tools.disabled.push(name);
+      }
+    }
+  }
+
+  /** Apply a named policy preset */
+  applyPreset(presetName: string): boolean {
+    try {
+      const { getPreset } = require('./policy-presets');
+      const preset = getPreset(presetName);
+      if (!preset) return false;
+      this.policy = this.deepMerge(this.policy, preset);
+      return true;
+    } catch { return false; }
+  }
+
+  private deepMerge(target: any, source: any): any {
+    const result = { ...target };
+    for (const key of Object.keys(source)) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        result[key] = this.deepMerge(result[key] || {}, source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    return result;
+  }
+
 }
 
 /**

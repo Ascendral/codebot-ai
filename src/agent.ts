@@ -325,7 +325,7 @@ export class Agent {
 
         // Fatal errors (missing API key, auth failure, billing, etc.) — stop immediately
         if (isFatalError(streamError)) {
-          this.recordSessionEpisode(false); return;
+          this.recordSessionEpisode(false); this.recordSessionEpisode(false); return;
         }
 
         // Provider rate limit backoff on 429
@@ -337,7 +337,7 @@ export class Agent {
         if (streamError === lastErrorMsg) {
           consecutiveErrors++;
           if (consecutiveErrors >= 3) {
-            this.recordSessionEpisode(false); yield { type: 'error', error: `Same error repeated ${consecutiveErrors} times — stopping. Fix the issue and try again.` };
+            this.recordSessionEpisode(false); this.recordSessionEpisode(false); yield { type: 'error', error: `Same error repeated ${consecutiveErrors} times — stopping. Fix the issue and try again.` };
             return;
           }
         } else {
@@ -375,7 +375,7 @@ export class Agent {
 
       // Cost budget check: stop if over limit
       if (this.tokenTracker.isOverBudget()) {
-        if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch {} } this.recordSessionEpisode(false); yield { type: 'error', error: `Cost limit exceeded ($${this.tokenTracker.getTotalCost().toFixed(4)} / $${this.policyEnforcer.getCostLimitUsd().toFixed(2)}). Stopping.` };
+        if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch {} } this.recordSessionEpisode(false); if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch {} } this.recordSessionEpisode(false); yield { type: 'error', error: `Cost limit exceeded ($${this.tokenTracker.getTotalCost().toFixed(4)} / $${this.policyEnforcer.getCostLimitUsd().toFixed(2)}). Stopping.` };
         return;
       }
 

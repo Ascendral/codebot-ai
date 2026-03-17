@@ -50,6 +50,21 @@ import { PluginForgeTool } from './plugin-forge';
 
 export { EditFileTool } from './edit';
 
+
+/** Tool tier categorization: core (essential), standard (useful dev), labs (experimental) */
+export const TOOL_TIERS: Record<string, 'core' | 'standard' | 'labs'> = {
+  read_file: 'core', write_file: 'core', edit_file: 'core', batch_edit: 'core',
+  execute: 'core', glob: 'core', grep: 'core', git: 'core',
+  test_runner: 'core', think: 'core', memory: 'core',
+  code_analysis: 'standard', multi_search: 'standard', diff_viewer: 'standard',
+  code_review: 'standard', package_manager: 'standard', task_planner: 'standard',
+  web_search: 'standard', web_fetch: 'standard', http_client: 'standard',
+  database: 'standard', pdf_extract: 'standard', image_info: 'standard',
+  browser: 'labs', docker: 'labs', ssh_remote: 'labs', routine: 'labs',
+  notification: 'labs', graphics: 'labs', research: 'labs',
+  skill_forge: 'labs', plugin_forge: 'labs', decompose_goal: 'labs', app: 'labs',
+};
+
 export class ToolRegistry {
   private tools: Map<string, Tool> = new Map();
 
@@ -148,4 +163,31 @@ export class ToolRegistry {
   all(): Tool[] {
     return Array.from(this.tools.values());
   }
+
+  /** Get tools by tier */
+  getToolsByTier(tier: 'core' | 'standard' | 'labs'): Tool[] {
+    return this.all().filter(t => (TOOL_TIERS[t.name] || 'unknown') === tier);
+  }
+
+  /** Get tier for a tool */
+  getToolTier(name: string): string {
+    return TOOL_TIERS[name] || 'unknown';
+  }
+
+  /** Get core tools only */
+  getCoreTools(): Tool[] {
+    return this.getToolsByTier('core');
+  }
+
+  /** Get tool counts by tier */
+  getToolCount(): { core: number; standard: number; labs: number; total: number } {
+    const all = this.all();
+    return {
+      core: all.filter(t => TOOL_TIERS[t.name] === 'core').length,
+      standard: all.filter(t => TOOL_TIERS[t.name] === 'standard').length,
+      labs: all.filter(t => TOOL_TIERS[t.name] === 'labs').length,
+      total: all.length,
+    };
+  }
+
 }

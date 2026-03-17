@@ -23,6 +23,7 @@ import { registerCodeAGIRoutes } from './dashboard/codeagi-api';
 import { registerModelRoutes } from './dashboard/models-api';
 import { VERSION } from './index';
 import { SolveCommand } from './solve';
+import { runTask } from './task-runner';
 import { Daemon } from './daemon';
 
 // Decomposed modules
@@ -221,6 +222,26 @@ export async function main() {
     console.log(c('\n  CodeBot AI — Issue Solver\n', 'bold'));
     for await (const event of solver.run(solveUrl)) { renderSolveEvent(event, !!args.json); }
     return;
+  }
+
+  // ── Task mode (headless) ──
+  if (args.task) {
+    const taskDesc = typeof args.task === 'string' ? args.task as string : (args.message as string);
+    if (!taskDesc) { console.error(c('Error: provide a task description.', 'red')); process.exit(1); }
+    const config = await resolveConfig(args);
+    const provider = createProvider(config);
+    const result = await runTask({
+      task: taskDesc,
+      provider,
+      model: config.model,
+      providerName: config.provider,
+      projectRoot: process.cwd(),
+      auditLogPath: typeof args['audit-log'] === 'string' ? args['audit-log'] as string : undefined,
+      outputFormat: (typeof args.output === 'string' ? args.output : 'text') as 'json' | 'text' | 'sarif',
+      maxCost: args['max-cost'] ? parseFloat(args['max-cost'] as string) : undefined,
+      preset: typeof args.preset === 'string' ? args.preset as string : undefined,
+    });
+    process.exit(result.status === 'completed' ? 0 : 1);
   }
 
   // ── Daemon mode ──

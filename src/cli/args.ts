@@ -122,6 +122,14 @@ export function parseArgs(argv: string[]): Record<string, string | boolean> {
       result.doctor = true;
       continue;
     }
+    if (arg === '--preset') { const next = argv[i + 1]; result.preset = next && !next.startsWith('--') ? next : true; if (typeof result.preset === 'string') i++; continue; }
+    if (arg === '--init-preset') { const next = argv[i + 1]; result['init-preset'] = next && !next.startsWith('--') ? next : true; if (typeof result['init-preset'] === 'string') i++; continue; }
+    if (arg === '--core-only') { result['core-only'] = true; continue; }
+    if (arg === '--task') { const next = argv[i + 1]; result.task = next && !next.startsWith('--') ? next : true; if (typeof result.task === 'string') i++; continue; }
+    if (arg === '--audit-log') { const next = argv[i + 1]; result['audit-log'] = next && !next.startsWith('--') ? next : ''; i++; continue; }
+    if (arg === '--output') { const next = argv[i + 1]; result.output = next || 'text'; i++; continue; }
+    if (arg === '--max-cost') { const next = argv[i + 1]; result['max-cost'] = next; i++; continue; }
+
     if (arg === '--solve') {
       const next = argv[i + 1];
       if (next && !next.startsWith('--')) {
