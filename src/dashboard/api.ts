@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { DashboardServer } from './server';
 import { VERSION } from '../index';
-import { PROVIDER_DEFAULTS } from '../providers/registry';
+import { PROVIDER_DEFAULTS, MODEL_REGISTRY } from '../providers/registry';
 import { SessionManager } from '../history';
 import { decryptLine } from '../encryption';
 import { UserProfile } from '../user-profile';
@@ -228,6 +228,28 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
     } catch {}
 
     DashboardServer.json(res, { envProviders, localServers });
+  });
+
+  server.route('GET', '/api/models/registry', (_req, res) => {
+    // Return all models grouped by provider, with env key availability
+    const groups: Record<string, Array<{ model: string; tools: boolean; vision: boolean; context: number }>> = {};
+    for (const [model, info] of Object.entries(MODEL_REGISTRY)) {
+      const provider = info.provider || 'local';
+      if (!groups[provider]) groups[provider] = [];
+      groups[provider].push({
+        model,
+        tools: info.supportsToolCalling,
+        vision: !!info.supportsVision,
+        context: info.contextWindow,
+      });
+    }
+    // Check which providers have API keys configured
+    const available: Record<string, boolean> = {};
+    for (const [name, info] of Object.entries(PROVIDER_DEFAULTS)) {
+      available[name] = !!(process.env[info.envKey] && process.env[info.envKey]!.length > 5);
+    }
+    const config = loadConfig();
+    DashboardServer.json(res, { groups, available, current: { provider: config.provider, model: config.model } });
   });
 
   server.route('POST', '/api/setup/provider', async (req, res) => {

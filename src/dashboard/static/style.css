@@ -2207,6 +2207,45 @@ body.chat-expanded .card-grid {
 }
 .new-chat-btn:hover { color: var(--accent); border-color: var(--accent); }
 
+.chat-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 8px auto 0;
+}
+
+.chat-controls-row .new-chat-btn {
+  margin: 0;
+}
+
+.model-select {
+  background: var(--bg-glass);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.75em;
+  font-family: var(--font-mono);
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+  max-width: 200px;
+}
+.model-select:hover, .model-select:focus {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  outline: none;
+}
+.model-select option {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.model-select optgroup {
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-style: normal;
+}
+
 .chat-sidebar-list {
   flex: 1;
   overflow-y: auto;

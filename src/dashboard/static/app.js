@@ -338,6 +338,9 @@ const App = {
       if (e.key === 'Enter') { e.preventDefault(); send(); }
     });
 
+    // Load model selector
+    this.loadModels();
+
     // Wire up suggestion chips
     var chips = document.querySelectorAll('.suggestion-chip');
     for (var i = 0; i < chips.length; i++) {
@@ -565,6 +568,70 @@ const App = {
     // Trigger the send
     var sendBtn = document.getElementById('chat-send');
     if (sendBtn) sendBtn.click();
+  },
+
+  loadModels() {
+    apiFetch('/api/models/registry').then(function(res) { return res.json(); }).then(function(data) {
+      var select = document.getElementById('model-select');
+      if (!select) return;
+      select.innerHTML = '';
+
+      var currentModel = data.current && data.current.model ? data.current.model : '';
+      var providerOrder = ['anthropic', 'openai', 'gemini', 'deepseek', 'groq', 'mistral', 'xai', 'local'];
+      var providerLabels = {
+        anthropic: 'Claude', openai: 'OpenAI', gemini: 'Google Gemini',
+        deepseek: 'DeepSeek', groq: 'Groq', mistral: 'Mistral', xai: 'xAI', local: 'Local (Ollama)'
+      };
+
+      providerOrder.forEach(function(provider) {
+        var models = data.groups[provider];
+        if (!models || models.length === 0) return;
+        var available = provider === 'local' || (data.available && data.available[provider]);
+        var label = providerLabels[provider] || provider;
+        if (!available) label += ' (no key)';
+
+        var group = document.createElement('optgroup');
+        group.label = label;
+        models.forEach(function(m) {
+          var opt = document.createElement('option');
+          opt.value = m.model;
+          opt.textContent = m.model;
+          if (!available) opt.disabled = true;
+          if (m.model === currentModel) opt.selected = true;
+          group.appendChild(opt);
+        });
+        select.appendChild(group);
+      });
+
+      if (!currentModel) {
+        var placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Select model...';
+        placeholder.selected = true;
+        select.insertBefore(placeholder, select.firstChild);
+      }
+    }).catch(function() {});
+  },
+
+  changeModel(model) {
+    if (!model) return;
+    // Detect provider from model name
+    var provider = 'local';
+    if (model.startsWith('claude')) provider = 'anthropic';
+    else if (model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4')) provider = 'openai';
+    else if (model.startsWith('gemini')) provider = 'gemini';
+    else if (model.startsWith('deepseek')) provider = 'deepseek';
+    else if (model.startsWith('grok')) provider = 'xai';
+    else if (model.startsWith('mistral') || model.startsWith('codestral')) provider = 'mistral';
+    else if (model.includes('groq') || model.startsWith('llama-')) provider = 'groq';
+
+    apiFetch('/api/setup/provider', {
+      method: 'POST',
+      body: JSON.stringify({ provider: provider, model: model }),
+    }).then(function() {
+      // Reset chat so new model takes effect
+      apiFetch('/api/command/chat/reset', { method: 'POST' }).catch(function() {});
+    }).catch(function() {});
   },
 
   newChat() {

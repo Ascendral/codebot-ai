@@ -7,8 +7,8 @@
   <meta http-equiv="pragma" content="no-cache">
   <meta http-equiv="expires" content="0">
   <title>CodeBot AI — v2</title>
-  <link rel="stylesheet" href="style.css?v=45">
-  <link rel="icon" href="favicon.svg?v=45" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css?v=46">
+  <link rel="icon" href="favicon.svg?v=46" type="image/svg+xml">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#00d4ff">
   <meta name="description" content="CodeBot AI Development Console">
@@ -56,7 +56,7 @@
     <div id="center-stage">
       <!-- Logo -->
       <div id="logo-area">
-        <img src="logo.svg?v=45" alt="CodeBot" id="logo-img" />
+        <img src="logo.svg?v=46" alt="CodeBot" id="logo-img" />
         <div id="logo-tagline">AI Development Console</div>
       </div>
 
@@ -75,10 +75,15 @@
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </button>
               </div>
-              <button id="new-chat-btn" class="new-chat-btn" onclick="App.newChat()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                New Chat
-              </button>
+              <div class="chat-controls-row">
+                <button id="new-chat-btn" class="new-chat-btn" onclick="App.newChat()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  New Chat
+                </button>
+                <select id="model-select" class="model-select" onchange="App.changeModel(this.value)">
+                  <option value="">Loading models...</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -435,7 +440,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=45"></script>
+  <script src="app.js?v=46"></script>
   <script>
   // Kill any leftover service workers — they cause more problems than they solve
   if ('serviceWorker' in navigator) {
