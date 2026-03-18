@@ -359,6 +359,10 @@ export function buildSolvePrompt(
   parts.push('4. Do NOT change unrelated code or add unnecessary refactoring');
   parts.push('5. If you need to add a test, add it alongside the fix');
   parts.push('6. Use the tools available: read_file, edit_file, write_file, grep, glob, execute');
+  parts.push('7. Do NOT run the test suite yourself — the pipeline runs tests automatically after your changes');
+  parts.push('8. If using execute, set timeout to at least 120000 for build/compile commands');
+  parts.push('7. Do NOT run the test suite yourself — the pipeline runs tests automatically after your changes');
+  parts.push('8. If using execute, set timeout to at least 120000 for build/compile commands');
 
   return parts.join('\n');
 }
