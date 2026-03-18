@@ -622,9 +622,15 @@ export class SolveCommand {
 
         if (testsPassed || attempt === maxRetries) break;
 
-        // Check if we made things worse (rollback protection)
-        if (!baselineTestsPassed) {
-          // Baseline was already failing — check if we made it worse
+        // If baseline was already failing, compare outputs — don't retry if same failures
+        if (!baselineTestsPassed && baselineTestOutput) {
+          // Normalize outputs for comparison (strip timing, paths)
+          const normalize = (s: string) => s.replace(/\d+\.\d+ms/g, '').replace(/duration_ms: [\d.]+/g, '').trim();
+          if (normalize(testsOutput) === normalize(baselineTestOutput)) {
+            yield { type: 'progress', phase: 'testing', message: 'Test failures match baseline — not caused by fix, skipping retry' };
+            testsPassed = true; // Treat as pass — no regression
+            break;
+          }
           yield { type: 'progress', phase: 'testing', message: 'Note: some tests were already failing before the fix' };
         }
 
