@@ -602,7 +602,7 @@ export class SolveCommand {
     let diff = '';
     try {
       diff = execFileSync('git', ['diff', '--stat'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 }).trim();
-      const fullDiff = execFileSync('git', ['diff'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 }).trim();
+      const fullDiff = execFileSync('git', ['diff', '--', '.', ':!.spark', ':!*.db', ':!*.db-shm', ':!*.db-wal'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 }).trim();
       if (fullDiff.length < 5000) diff = fullDiff;
     } catch { /* ignore */ }
 
