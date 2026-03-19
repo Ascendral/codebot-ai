@@ -58,6 +58,57 @@ function waitForServer(url, timeout) {
   });
 }
 
+// ── API Key Input Dialog ──
+function promptForApiKey() {
+  return new Promise((resolve) => {
+    const inputWin = new BrowserWindow({
+      width: 500, height: 220,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      title: 'Enter API Key',
+      webPreferences: { nodeIntegration: false, contextIsolation: true },
+      backgroundColor: '#1a1a2e',
+    });
+    inputWin.setMenuBarVisibility(false);
+    const html = `<!DOCTYPE html><html><head><style>
+      body { font-family: -apple-system, system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 20px; margin: 0; display: flex; flex-direction: column; justify-content: center; height: 100vh; box-sizing: border-box; }
+      h3 { margin: 0 0 12px 0; color: #00d4ff; font-size: 16px; }
+      input { width: 100%; padding: 10px; font-size: 14px; background: #0a0a1a; color: #fff; border: 1px solid #333; border-radius: 6px; box-sizing: border-box; font-family: monospace; }
+      input:focus { outline: none; border-color: #00d4ff; }
+      .btns { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
+      button { padding: 8px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+      .ok { background: #00d4ff; color: #000; font-weight: 600; }
+      .cancel { background: #333; color: #ccc; }
+    </style></head><body>
+      <h3>Anthropic API Key</h3>
+      <input id="key" type="password" placeholder="sk-ant-..." autofocus />
+      <div class="btns">
+        <button class="cancel" onclick="window.close()">Cancel</button>
+        <button class="ok" onclick="submitKey()">Save</button>
+      </div>
+      <script>
+        function submitKey() {
+          const k = document.getElementById('key').value.trim();
+          if (k) { document.title = 'KEY:' + k; }
+        }
+        document.getElementById('key').addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') submitKey();
+          if (e.key === 'Escape') window.close();
+        });
+      </script>
+    </body></html>`;
+    inputWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    inputWin.webContents.on('page-title-updated', (event, title) => {
+      if (title.startsWith('KEY:')) {
+        resolve(title.slice(4));
+        inputWin.close();
+      }
+    });
+    inputWin.on('closed', () => resolve(null));
+  });
+}
+
 // ── Start CodeBot Dashboard Server ──
 async function startServer() {
   const paths = getCodebotPaths();
@@ -131,6 +182,53 @@ async function startServer() {
       const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       if (config.apiKey) apiKey = config.apiKey;
     } catch { /* no config */ }
+  }
+
+  // Prompt user for API key if none found
+  if (!apiKey) {
+    const { response, checkboxChecked } = await dialog.showMessageBox({
+      type: 'question',
+      title: 'CodeBot AI — API Key Required',
+      message: 'No Anthropic API key found.',
+      detail: 'CodeBot needs a Claude API key to work.\n\nGet one at: console.anthropic.com\n\nPaste your key below or set ANTHROPIC_API_KEY in your environment.',
+      buttons: ['Enter Key', 'Open Console', 'Quit'],
+      defaultId: 0,
+    });
+    if (response === 1) {
+      shell.openExternal('https://console.anthropic.com');
+      // Give them time to get the key, then re-prompt
+      const retry = await dialog.showMessageBox({
+        type: 'question',
+        title: 'CodeBot AI — Enter API Key',
+        message: 'Paste your API key after getting it from the console.',
+        buttons: ['Enter Key', 'Quit'],
+        defaultId: 0,
+      });
+      if (retry.response === 1) { app.quit(); return false; }
+    } else if (response === 2) {
+      app.quit();
+      return false;
+    }
+    // Use a simple input prompt via a hidden window trick
+    const inputKey = await promptForApiKey();
+    if (inputKey) {
+      apiKey = inputKey;
+      // Save to config for next time
+      try {
+        const configDir = path.join(process.env.HOME || '', '.codebot');
+        if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
+        const configPath = path.join(configDir, 'config.json');
+        let config = {};
+        try { config = JSON.parse(fs.readFileSync(configPath, 'utf-8')); } catch {}
+        config.apiKey = apiKey;
+        config.provider = 'anthropic';
+        config.model = 'claude-sonnet-4-6';
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+      } catch { /* best effort save */ }
+    } else {
+      app.quit();
+      return false;
+    }
   }
 
   const serverEnv = {
@@ -220,8 +318,20 @@ function createWindow() {
     show: true,
   });
 
-  // Load dashboard directly — server is already ready by this point
+  // Load dashboard with retry on network errors
   mainWindow.loadURL(DASHBOARD_URL);
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    if (errorCode === -6 || errorDescription.includes('ERR_CONNECTION_REFUSED')) {
+      // Server not ready yet or crashed — retry after 2s
+      console.log('Dashboard load failed, retrying in 2s...');
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadURL(DASHBOARD_URL);
+        }
+      }, 2000);
+    }
+  });
 
   // Open external links in system browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

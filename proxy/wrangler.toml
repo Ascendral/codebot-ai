@@ -1,0 +1,15 @@
+name = "codebot-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Set these in Cloudflare dashboard > Workers > Settings > Variables
+# [vars]
+# ANTHROPIC_API_KEY = "sk-ant-..."
+# LICENSE_SECRET = "your-hmac-secret"
+
+# KV namespace for rate limiting — create via:
+# wrangler kv:namespace create "RATE_LIMITS"
+# Then uncomment and paste the ID below:
+# [[kv_namespaces]]
+# binding = "RATE_LIMITS"
+# id = "your-kv-namespace-id"
