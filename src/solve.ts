@@ -763,7 +763,19 @@ export class SolveCommand {
           }
         } catch { /* ignore */ }
 
+        // Ensure .spark is gitignored before staging
+        try {
+          const gi = path.join(repoDir, '.gitignore');
+          const giContent = fs.existsSync(gi) ? fs.readFileSync(gi, 'utf-8') : '';
+          if (!giContent.includes('.spark/')) {
+            fs.writeFileSync(gi, giContent.trimEnd() + '\n.spark/\n');
+          }
+        } catch { /* best effort */ }
         execFileSync('git', ['add', '-A'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 });
+        // Unstage any .spark files that slipped through
+        try {
+          execFileSync('git', ['reset', 'HEAD', '--', '.spark/'], { cwd: repoDir, encoding: 'utf-8', timeout: 5_000 });
+        } catch { /* no .spark files staged — fine */ }
 
         // Check if there's anything to commit
         const staged = execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 }).trim();
@@ -830,7 +842,19 @@ export class SolveCommand {
           }
         } catch { /* ignore */ }
 
+        // Ensure .spark is gitignored before staging
+        try {
+          const gi = path.join(repoDir, '.gitignore');
+          const giContent = fs.existsSync(gi) ? fs.readFileSync(gi, 'utf-8') : '';
+          if (!giContent.includes('.spark/')) {
+            fs.writeFileSync(gi, giContent.trimEnd() + '\n.spark/\n');
+          }
+        } catch { /* best effort */ }
         execFileSync('git', ['add', '-A'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 });
+        // Unstage any .spark files that slipped through
+        try {
+          execFileSync('git', ['reset', 'HEAD', '--', '.spark/'], { cwd: repoDir, encoding: 'utf-8', timeout: 5_000 });
+        } catch { /* no .spark files staged — fine */ }
         const staged2 = execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 }).trim();
         if (!staged2) {
           yield { type: 'progress', phase: 'committing', message: 'No source changes to commit (issue may already be fixed)' };
