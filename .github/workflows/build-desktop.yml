@@ -1,0 +1,95 @@
+name: Build Desktop Apps
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build CodeBot
+        run: npm run build
+
+      - name: Build Electron (Mac Universal)
+        working-directory: electron
+        run: |
+          npm ci
+          npm run build:dmg
+        env:
+          CSC_LINK: ${{ secrets.MAC_CERT_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodeBot-AI-mac-universal
+          path: electron/dist/*.dmg
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build CodeBot
+        run: npm run build
+
+      - name: Build Electron (Windows)
+        working-directory: electron
+        run: |
+          npm ci
+          npm run build:win
+
+      - name: Upload Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodeBot-AI-windows-x64
+          path: electron/dist/*.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build CodeBot
+        run: npm run build
+
+      - name: Build Electron (Linux)
+        working-directory: electron
+        run: |
+          npm ci
+          npm run build:linux
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodeBot-AI-linux-x64
+          path: electron/dist/*.AppImage
