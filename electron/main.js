@@ -13,6 +13,10 @@ let mainWindow = null;
 let serverProcess = null;
 let tray = null;
 let isQuitting = false;
+let serverCrashCount = 0;
+let lastCrashTime = 0;
+const MAX_AUTO_RESTARTS = 3;
+const CRASH_WINDOW_MS = 60_000;
 
 // ── Paths ──
 function getCodebotPaths() {
@@ -262,21 +266,44 @@ async function startServer() {
     dialog.showErrorBox('CodeBot AI', 'Failed to start server: ' + err.message);
   });
 
-  serverProcess.on('exit', (code) => {
-    console.log('Server process exited with code', code);
+  serverProcess.on('exit', (code, signal) => {
+    console.log('Server process exited with code', code, 'signal', signal);
     serverProcess = null;
-    if (!isQuitting) {
-      // Server crashed — show error and restart option
+    if (isQuitting) return;
+
+    const now = Date.now();
+    if (now - lastCrashTime > CRASH_WINDOW_MS) serverCrashCount = 0;
+    serverCrashCount++;
+    lastCrashTime = now;
+
+    if (serverCrashCount <= MAX_AUTO_RESTARTS) {
+      const delay = Math.min(1000 * Math.pow(2, serverCrashCount - 1), 10000);
+      console.log('Auto-restarting server (attempt ' + serverCrashCount + '/' + MAX_AUTO_RESTARTS + ') in ' + delay + 'ms...');
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('backend-status', { status: 'restarting', attempt: serverCrashCount });
+      }
+      setTimeout(() => {
+        startServer().then((ok) => {
+          if (ok && mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.loadURL(DASHBOARD_URL);
+            mainWindow.webContents.send('backend-status', { status: 'connected' });
+          }
+        });
+      }, delay);
+    } else {
+      const detail = 'Exit code: ' + (code || 'none') + ', Signal: ' + (signal || 'none') + '\n\nLikely causes: bad API key, missing dependency, or port conflict.';
       const choice = dialog.showMessageBoxSync(mainWindow, {
         type: 'error',
         title: 'CodeBot AI',
-        message: 'The CodeBot server stopped unexpectedly.',
+        message: 'Server crashed ' + serverCrashCount + ' times in the last minute.',
+        detail: detail,
         buttons: ['Restart', 'Quit'],
         defaultId: 0,
       });
+      serverCrashCount = 0;
       if (choice === 0) {
-        startServer().then(() => {
-          if (mainWindow) mainWindow.loadURL(DASHBOARD_URL);
+        startServer().then((ok) => {
+          if (ok && mainWindow && !mainWindow.isDestroyed()) mainWindow.loadURL(DASHBOARD_URL);
         });
       } else {
         app.quit();
@@ -321,17 +348,24 @@ function createWindow() {
   // Load dashboard with retry on network errors
   mainWindow.loadURL(DASHBOARD_URL);
 
+  let loadRetryCount = 0;
+  const MAX_LOAD_RETRIES = 8;
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    if (errorCode === -6 || errorDescription.includes('ERR_CONNECTION_REFUSED')) {
-      // Server not ready yet or crashed — retry after 2s
-      console.log('Dashboard load failed, retrying in 2s...');
-      setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.loadURL(DASHBOARD_URL);
-        }
-      }, 2000);
+    if (errorCode === -3) return; // navigation aborted, not an error
+    if (errorCode === -6 || errorDescription.includes('ERR_CONNECTION_REFUSED') || errorDescription.includes('ERR_CONNECTION_RESET')) {
+      loadRetryCount++;
+      if (loadRetryCount <= MAX_LOAD_RETRIES) {
+        const delay = Math.min(1000 * Math.pow(2, loadRetryCount - 1), 10000);
+        console.log('Dashboard load failed (' + errorDescription + '), retry ' + loadRetryCount + '/' + MAX_LOAD_RETRIES + ' in ' + delay + 'ms...');
+        setTimeout(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) mainWindow.loadURL(DASHBOARD_URL);
+        }, delay);
+      } else {
+        console.error('Dashboard failed to load after ' + MAX_LOAD_RETRIES + ' attempts');
+      }
     }
   });
+  mainWindow.webContents.on('did-finish-load', () => { loadRetryCount = 0; });
 
   // Open external links in system browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -564,4 +598,38 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+
+// ── Uncaught Exception Handling ──
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err);
+  try {
+    dialog.showErrorBox('CodeBot AI — Unexpected Error',
+      err.message + '\n\n' + (err.stack || '').split('\n').slice(0, 5).join('\n'));
+  } catch { /* dialog may not be available during shutdown */ }
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[WARN] Unhandled rejection:', reason);
+});
+
+// ── IPC Handlers ──
+const { ipcMain } = require('electron');
+
+ipcMain.handle('get-backend-status', () => {
+  return { alive: serverProcess !== null, crashCount: serverCrashCount };
+});
+
+ipcMain.handle('restart-backend', async () => {
+  if (serverProcess) {
+    serverProcess.kill('SIGTERM');
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  serverCrashCount = 0;
+  const ok = await startServer();
+  if (ok && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.loadURL(DASHBOARD_URL);
+  }
+  return ok;
 });
