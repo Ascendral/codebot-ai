@@ -36,7 +36,6 @@ const App = {
   toolsData: null,
   terminalHistory: [],
   terminalHistoryIndex: -1,
-  cmdInitialized: false,
   agentConnected: false,
   agentStatus: 'idle',
   agentStatusTimer: null,
@@ -186,11 +185,12 @@ const App = {
     errEl.style.display = 'none';
     try {
       var model = provider === 'anthropic' ? 'claude-sonnet-4-6' : 'gpt-4o';
-      await apiFetch('/api/setup/provider', {
+      var res = await apiFetch('/api/setup/provider', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: provider, model: model, apiKey: key }),
       });
+      if (!res.ok) { var errData = await res.json().catch(function() { return {}; }); throw new Error(errData.error || 'HTTP ' + res.status); }
       this.onboardingStep = 2;
       this.showOnboardingStep();
     } catch (err) {
@@ -203,12 +203,15 @@ const App = {
       var body = { provider: provider };
       if (model) body.model = model;
       if (baseUrl) body.baseUrl = baseUrl;
-      await apiFetch('/api/setup/provider', {
+      var res = await apiFetch('/api/setup/provider', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-    } catch (err) {}
+      if (!res.ok) { console.error('selectOnboardingProvider failed: HTTP ' + res.status); }
+    } catch (err) {
+      console.error('selectOnboardingProvider error:', err.message);
+    }
     this.onboardingStep = 2;
     this.showOnboardingStep();
   },
@@ -373,6 +376,7 @@ const App = {
 
   appendChatToolCall(name, args) {
     const container = document.getElementById('chat-messages');
+    if (!container) return document.createElement('div');
     const div = document.createElement('div');
     div.className = 'chat-msg tool-call';
     let argsStr = '';
@@ -430,6 +434,8 @@ const App = {
 
   async streamChat(message) {
     const container = document.getElementById('chat-messages');
+    var cancelBtn = document.getElementById('chat-cancel');
+    if (cancelBtn) cancelBtn.style.display = '';
     const assistantDiv = this.appendChatMessage('assistant', '');
     const contentEl = assistantDiv.querySelector('.chat-msg-content');
     contentEl.innerHTML = '<div class="chat-thinking"><span class="thinking-dot"></span><span class="thinking-dot"></span><span class="thinking-dot"></span></div>';
@@ -438,7 +444,8 @@ const App = {
     let hasError = false;
     try {
       // Chat uses SSE streaming — no timeout (agent can take minutes)
-      var chatController = new AbortController();
+      this.chatController = new AbortController();
+      var chatController = this.chatController;
       const res = await apiFetch('/api/command/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: message }),
@@ -521,13 +528,20 @@ const App = {
         assistantDiv.appendChild(usageDiv);
       }
     } catch (err) {
-      if (!hasError) {
+      if (!hasError && err.name !== 'AbortError') {
         contentEl.innerHTML = '<div class="chat-error-box">' +
           '<div class="chat-error-icon">&#9888;</div>' +
           '<div class="chat-error-text">' + App.escapeHtml(App.friendlyError(String(err))) + '</div>' +
           '<button class="chat-retry-btn" onclick="App.retryLastMessage()">Retry</button>' +
         '</div>';
       }
+      if (err.name === 'AbortError') {
+        contentEl.innerHTML = App.renderMarkdown(fullText) + '<div class="chat-cancelled">(cancelled)</div>';
+      }
+    } finally {
+      var cancelBtn2 = document.getElementById('chat-cancel');
+      if (cancelBtn2) cancelBtn2.style.display = 'none';
+      this.chatController = null;
     }
   },
 
@@ -553,6 +567,15 @@ const App = {
         if (last.querySelector('.chat-error-box')) last.remove();
       }
       this.streamChat(this.lastUserMessage);
+    }
+  },
+
+  chatController: null,
+
+  cancelChat() {
+    if (this.chatController) {
+      this.chatController.abort();
+      this.chatController = null;
     }
   },
 
@@ -614,7 +637,16 @@ const App = {
         select.insertBefore(placeholder, select.firstChild);
       }
       App._modelProviderAvailable = data.available || {};
-    }).catch(function() {});
+    }).catch(function(err) {
+      console.error('loadModels error:', err.message || err);
+      var select = document.getElementById('model-select');
+      if (select && select.options.length === 0) {
+        var placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Failed to load models';
+        select.appendChild(placeholder);
+      }
+    });
   },
 
   _detectProvider(model) {
@@ -660,6 +692,7 @@ const App = {
 
     apiFetch('/api/setup/provider', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider: provider, model: model }),
     }).then(function() {
       apiFetch('/api/command/chat/reset', { method: 'POST' }).catch(function() {});
@@ -668,7 +701,9 @@ const App = {
 
   newChat() {
     // Reset agent conversation on the server
-    apiFetch('/api/command/chat/reset', { method: 'POST' }).catch(function() {});
+    apiFetch('/api/command/chat/reset', { method: 'POST' }).catch(function(err) {
+      console.error('Chat reset failed:', err.message || err);
+    });
     this.lastUserMessage = null;
     this.activeConversationId = null;
 
@@ -889,9 +924,19 @@ const App = {
   },
 
   saveConversations() {
+    // Prune to max 50 conversations to prevent hitting 5MB localStorage limit
+    if (this.conversations.length > 50) {
+      this.conversations = this.conversations.slice(0, 50);
+    }
     try {
       localStorage.setItem('codebot_conversations', JSON.stringify(this.conversations));
-    } catch(e) {}
+    } catch(e) {
+      // If still too large, aggressively prune
+      if (this.conversations.length > 10) {
+        this.conversations = this.conversations.slice(0, 10);
+        try { localStorage.setItem('codebot_conversations', JSON.stringify(this.conversations)); } catch(e2) {}
+      }
+    }
   },
 
   createConversation() {
@@ -1015,9 +1060,12 @@ const App = {
     this.settingsLoaded = true;
     try {
       var data = await this.fetch('/api/setup/status');
-      if (data.provider) document.getElementById('settings-provider').value = data.provider;
-      if (data.model) document.getElementById('settings-model').value = data.model;
-      if (data.hasApiKey) document.getElementById('settings-api-key').placeholder = 'Key configured (hidden)';
+      var providerEl = document.getElementById('settings-provider');
+      var modelEl = document.getElementById('settings-model');
+      var keyEl = document.getElementById('settings-api-key');
+      if (data.provider && providerEl) providerEl.value = data.provider;
+      if (data.model && modelEl) modelEl.value = data.model;
+      if (data.hasApiKey && keyEl) keyEl.placeholder = 'Key configured (hidden)';
     } catch (err) {}
   },
 
@@ -1136,6 +1184,7 @@ const App = {
   toggleNotifications() {
     this.notificationPanelOpen = !this.notificationPanelOpen;
     var panel = document.getElementById('notification-panel');
+    if (!panel) return;
     panel.style.display = this.notificationPanelOpen ? '' : 'none';
     if (this.notificationPanelOpen) {
       this.loadNotifications();
@@ -1144,6 +1193,7 @@ const App = {
 
   async loadNotifications() {
     var list = document.getElementById('notification-list');
+    if (!list) return;
     try {
       var data = await this.fetch('/api/notifications');
       if (!data.notifications || data.notifications.length === 0) {
@@ -1182,7 +1232,8 @@ const App = {
       this.loadNotifications();
       this.pollNotifications();
       this.notificationPanelOpen = false;
-      document.getElementById('notification-panel').style.display = 'none';
+      var panel = document.getElementById('notification-panel');
+      if (panel) panel.style.display = 'none';
     } catch (err) {}
   },
 
@@ -1195,7 +1246,8 @@ const App = {
       input.focus();
     }
     this.notificationPanelOpen = false;
-    document.getElementById('notification-panel').style.display = 'none';
+    var panel = document.getElementById('notification-panel');
+    if (panel) panel.style.display = 'none';
   },
 
   // ===========================================================
@@ -1381,6 +1433,7 @@ const App = {
   async loadWorkflows() {
     var grid = document.getElementById('workflow-grid');
     var cats = document.getElementById('workflow-categories');
+    if (!grid || !cats) return;
     grid.innerHTML = this.renderLoading();
 
     try {
@@ -1962,10 +2015,12 @@ const App = {
 
     // Load tool list (retries if agent not yet connected)
     var self = this;
+    var toolRetries = 0;
     function tryLoadTools() {
       if (self.agentConnected) {
         self.loadToolList();
-      } else {
+      } else if (toolRetries < 10) {
+        toolRetries++;
         setTimeout(tryLoadTools, 2000);
       }
     }
@@ -2125,17 +2180,6 @@ const App = {
     return 'low';
   },
 
-  getRiskClass(toolName, args) {
-    return 'risk-' + this.getRiskLevel(toolName, args);
-  },
-
-  getRiskLabel(toolName, args) {
-    const level = this.getRiskLevel(toolName, args);
-    if (level === 'high') return 'HIGH';
-    if (level === 'medium') return 'MED';
-    return 'LOW';
-  },
-
   // ===========================================================
   // MARKDOWN RENDERING
   // ===========================================================
@@ -2181,7 +2225,12 @@ const App = {
     html = html.replace(/^---$/gm, '<hr>');
 
     // Links
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(match, text, url) {
+      if (/^https?:\/\//i.test(url) || /^mailto:/i.test(url)) {
+        return '<a href="' + url + '" target="_blank" rel="noopener">' + text + '</a>';
+      }
+      return text;
+    });
 
     // Line breaks
     html = html.replace(/\n/g, '<br>');
@@ -2230,7 +2279,7 @@ const App = {
 
   escapeHtml(str) {
     if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   },
 
   truncate(str, max) {
@@ -2251,6 +2300,7 @@ const App = {
   relativeTime(iso) {
     const now = Date.now();
     const then = new Date(iso).getTime();
+    if (isNaN(then)) return 'unknown';
     const diff = Math.floor((now - then) / 1000);
     if (diff < 60) return 'just now';
     if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
@@ -2318,6 +2368,7 @@ const App = {
     input.value = '';
     try {
       var res = await apiFetch('/api/codeagi/missions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ description: desc }) });
+      if (!res.ok) { var errData = await res.json().catch(function() { return {}; }); console.error('Failed to create mission: HTTP ' + res.status, errData.error || ''); return; }
       var data = await res.json();
       this.loadCodeAGIMissions();
       if (data && data.id) this.codeagiSelectedMission = data.id;
@@ -2353,7 +2404,7 @@ const App = {
         var mTasks = tasks.filter(function(t) { return t.mission_id === m.id; });
         var selected = self.codeagiSelectedMission === m.id ? ' selected' : '';
         return '<div class="codeagi-mission-card' + selected + '" data-mission-id="' + m.id + '">' +
-          '<div class="codeagi-mission-header"><span class="codeagi-mission-id">' + m.id + '</span><span class="codeagi-mission-status ' + m.status + '">' + m.status + '</span></div>' +
+          '<div class="codeagi-mission-header"><span class="codeagi-mission-id">' + self.escapeHtml(m.id) + '</span><span class="codeagi-mission-status ' + self.escapeHtml(m.status) + '">' + self.escapeHtml(m.status) + '</span></div>' +
           '<div class="codeagi-mission-desc">' + self.escapeHtml(m.description) + '</div>' +
           (mTasks.length > 0 ? '<div class="codeagi-mission-tasks">' + mTasks.map(function(t) {
             return '<div class="codeagi-task-item"><span class="codeagi-task-dot ' + t.status + '"></span><span>' + self.escapeHtml(t.description) + '</span>' + (t.action_kind ? '<span class="hint-muted">(' + t.action_kind + ')</span>' : '') + '</div>';
@@ -2559,7 +2610,7 @@ const App = {
         var icon = f.type === 'directory' ? '&#128193;' : '&#128196;';
         var fullPath = p ? p + '/' + f.name : f.name;
         var size = f.size != null ? self.formatFileSize(f.size) : '';
-        return '<div class="codeagi-file-item" data-action="' + (f.type === 'directory' ? 'dir' : 'file') + '" data-path="' + fullPath + '"><span class="codeagi-file-icon">' + icon + '</span><span>' + f.name + '</span>' + (size ? '<span class="codeagi-file-size">' + size + '</span>' : '') + '</div>';
+        return '<div class="codeagi-file-item" data-action="' + (f.type === 'directory' ? 'dir' : 'file') + '" data-path="' + self.escapeHtml(fullPath) + '"><span class="codeagi-file-icon">' + icon + '</span><span>' + self.escapeHtml(f.name) + '</span>' + (size ? '<span class="codeagi-file-size">' + size + '</span>' : '') + '</div>';
       }).join('');
       filesEl.innerHTML = entries;
       filesEl.querySelectorAll('.codeagi-file-item').forEach(function(item) {
@@ -2588,11 +2639,11 @@ const App = {
       if (!Array.isArray(items) || items.length === 0) { container.innerHTML = '<div class="hint-muted" style="padding:1rem;text-align:center">No ' + type + ' yet</div>'; return; }
       items = items.slice().reverse().slice(0, 20);
       if (type === 'reflections') {
-        container.innerHTML = items.map(function(r) { return '<div class="codeagi-memory-item"><div class="codeagi-memory-item-title">' + (r.summary || r.next_action || 'Reflection') + '</div>' + (r.lessons && r.lessons.length ? '<div class="codeagi-memory-item-body">Lessons: ' + r.lessons.join(', ') + '</div>' : '') + '<div class="codeagi-memory-item-meta">' + (r.mission_id || '') + ' \u00B7 ' + (r.created_at || '') + '</div></div>'; }).join('');
+        container.innerHTML = items.map(function(r) { return '<div class="codeagi-memory-item"><div class="codeagi-memory-item-title">' + App.escapeHtml(r.summary || r.next_action || 'Reflection') + '</div>' + (r.lessons && r.lessons.length ? '<div class="codeagi-memory-item-body">Lessons: ' + App.escapeHtml(r.lessons.join(', ')) + '</div>' : '') + '<div class="codeagi-memory-item-meta">' + App.escapeHtml(r.mission_id || '') + ' \u00B7 ' + App.escapeHtml(r.created_at || '') + '</div></div>'; }).join('');
       } else if (type === 'semantic') {
         container.innerHTML = items.map(function(f) { return '<div class="codeagi-memory-item"><div class="codeagi-memory-item-title">' + App.escapeHtml(f.content || f.fact || JSON.stringify(f).substring(0, 100)) + '</div>' + (f.tags ? '<div class="codeagi-memory-item-body">Tags: ' + App.escapeHtml(Array.isArray(f.tags) ? f.tags.join(', ') : String(f.tags)) + '</div>' : '') + '<div class="codeagi-memory-item-meta">Confidence: ' + App.escapeHtml(String(f.confidence || '?')) + '</div></div>'; }).join('');
       } else if (type === 'procedures') {
-        container.innerHTML = items.map(function(p) { return '<div class="codeagi-memory-item"><div class="codeagi-memory-item-title">' + (p.title || 'Procedure') + '</div><div class="codeagi-memory-item-body">Trigger: ' + (p.trigger || '?') + '</div>' + (p.steps ? '<div class="codeagi-memory-item-body">' + p.steps.join(' \u2192 ') + '</div>' : '') + '<div class="codeagi-memory-item-meta">Uses: ' + (p.use_count || 0) + '</div></div>'; }).join('');
+        container.innerHTML = items.map(function(p) { return '<div class="codeagi-memory-item"><div class="codeagi-memory-item-title">' + App.escapeHtml(p.title || 'Procedure') + '</div><div class="codeagi-memory-item-body">Trigger: ' + App.escapeHtml(p.trigger || '?') + '</div>' + (p.steps ? '<div class="codeagi-memory-item-body">' + App.escapeHtml(p.steps.join(' \u2192 ')) + '</div>' : '') + '<div class="codeagi-memory-item-meta">Uses: ' + (p.use_count || 0) + '</div></div>'; }).join('');
       }
     } catch (err) { container.innerHTML = '<div class="hint-muted">Failed to load: ' + err.message + '</div>'; }
   },
@@ -2607,7 +2658,7 @@ const App = {
       traces = traces.slice().reverse().slice(0, 20);
       container.innerHTML = traces.map(function(t) {
         var steps = t.step_count || (t.steps ? t.steps.length : 0);
-        return '<div class="codeagi-trace-card"><div class="codeagi-trace-header"><span>' + (t.mission_id || '?') + '</span><span class="hint-muted">' + steps + ' steps \u00B7 ' + (t.stop_reason || '?') + '</span></div>' +
+        return '<div class="codeagi-trace-card"><div class="codeagi-trace-header"><span>' + App.escapeHtml(t.mission_id || '?') + '</span><span class="hint-muted">' + steps + ' steps \u00B7 ' + App.escapeHtml(t.stop_reason || '?') + '</span></div>' +
           (t.steps ? '<div class="codeagi-trace-steps">' + t.steps.map(function(s) { var c = s.action_outcome && s.action_outcome.ok ? '#00ff41' : '#ff3c3c'; return '<div class="codeagi-trace-step-dot" style="background:' + c + '"></div>'; }).join('') + '</div>' : '') + '</div>';
       }).join('');
     } catch (err) { container.innerHTML = '<div class="hint-muted">Failed to load traces</div>'; }
