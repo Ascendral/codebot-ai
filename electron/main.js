@@ -353,7 +353,7 @@ function createWindow() {
     minWidth: 600,
     minHeight: 500,
     title: 'CodeBot AI',
-    titleBarStyle: 'hiddenInset',  // macOS native title bar with traffic lights
+    titleBarStyle: 'default',  // macOS native title bar with traffic lights
     trafficLightPosition: { x: 15, y: 15 },
     backgroundColor: '#0a0a0f',
     webPreferences: {
