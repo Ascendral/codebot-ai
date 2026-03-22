@@ -202,7 +202,7 @@ export function registerCommandRoutes(
       const result = await tool.execute(body.args || {});
       DashboardServer.json(res, {
         result,
-        is_error: result.startsWith('Error:'),
+        is_error: typeof result === 'string' && result.startsWith('Error:'),
         duration_ms: Date.now() - startMs,
       });
     } catch (err: unknown) {
@@ -218,14 +218,13 @@ export function registerCommandRoutes(
   server.route('GET', '/api/command/agent-status', (_req, res) => {
     DashboardServer.sseHeaders(res);
     statusClients.add(res);
-    res.on('close', () => { statusClients.delete(res); });
     DashboardServer.sseSend(res, { status: agentBusy ? 'working' : 'idle', queueLength: messageQueue.length });
     // Heartbeat keeps Safari/proxy connections alive
     const hb = setInterval(() => {
       if (res.writableEnded || res.destroyed) { clearInterval(hb); statusClients.delete(res); return; }
       try { res.write(': heartbeat\n\n'); } catch { clearInterval(hb); statusClients.delete(res); }
     }, 15_000);
-    res.on('close', () => clearInterval(hb));
+    res.on('close', () => { clearInterval(hb); statusClients.delete(res); });
   });
 
 
@@ -348,7 +347,7 @@ export function registerCommandRoutes(
 
       try {
         for await (const event of agent.run(actionDef.prompt)) {
-          if (closed) break;
+          if (closed || res.writableEnded || res.destroyed) break;
           DashboardServer.sseSend(res, event);
           if (event.type === 'done' || event.type === 'error') break;
         }
@@ -401,6 +400,7 @@ export function registerCommandRoutes(
   // ── GET /api/notifications ──
   server.route('GET', '/api/notifications', (_req, res) => {
     const engine = getProactiveEngine();
+    if (!engine) { DashboardServer.json(res, { notifications: [], unreadCount: 0 }); return; }
     DashboardServer.json(res, {
       notifications: engine.getAll(),
       unreadCount: engine.getUnreadCount(),
@@ -410,6 +410,7 @@ export function registerCommandRoutes(
   // ── POST /api/notifications/dismiss-all ──
   server.route('POST', '/api/notifications/dismiss-all', (_req, res) => {
     const engine = getProactiveEngine();
+    if (!engine) { DashboardServer.json(res, { dismissed: 0 }); return; }
     const count = engine.dismissAll();
     DashboardServer.json(res, { dismissed: count });
   });
@@ -417,6 +418,7 @@ export function registerCommandRoutes(
   // ── POST /api/notifications/:id/:action ──
   server.route('POST', '/api/notifications/:id/:action', (_req, res, params) => {
     const engine = getProactiveEngine();
+    if (!engine) { DashboardServer.error(res, 503, 'Notification engine not available'); return; }
     if (params.action === 'dismiss') {
       const ok = engine.dismiss(params.id);
       DashboardServer.json(res, { dismissed: ok });
@@ -432,6 +434,7 @@ export function registerCommandRoutes(
   server.route('GET', '/api/notifications/stream', (_req, res) => {
     DashboardServer.sseHeaders(res);
     const engine = getProactiveEngine();
+    if (!engine) { DashboardServer.sseSend(res, { type: 'init', unreadCount: 0 }); DashboardServer.sseClose(res); return; }
 
     const listener = (notification: unknown) => {
       if (res.writable) {
@@ -444,6 +447,13 @@ export function registerCommandRoutes(
     res.on('close', () => {
       engine.removeListener(listener);
     });
+
+    // Heartbeat keeps connections alive
+    const nhb = setInterval(() => {
+      if (res.writableEnded || res.destroyed) { clearInterval(nhb); return; }
+      try { res.write(': heartbeat\n\n'); } catch { clearInterval(nhb); }
+    }, 30_000);
+    res.on('close', () => clearInterval(nhb));
 
     // Send initial unread count
     DashboardServer.sseSend(res, {
