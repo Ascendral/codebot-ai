@@ -68,10 +68,6 @@ export const MODEL_REGISTRY: Record<string, ModelInfo> = {
   'gpt-5.4-mini': { contextWindow: 1000000, supportsToolCalling: true, supportsCaching: true, supportsVision: true, supportsJsonMode: true, provider: 'openai' },
   'gpt-5.4-nano': { contextWindow: 1000000, supportsToolCalling: true, supportsCaching: true, supportsVision: true, supportsJsonMode: true, provider: 'openai' },
   'gpt-5-codex': { contextWindow: 1000000, supportsToolCalling: true, supportsCaching: true, supportsVision: true, supportsJsonMode: true, provider: 'openai' },
-  'gpt-5.4': { contextWindow: 1000000, supportsToolCalling: true, supportsCaching: true, supportsVision: true, supportsJsonMode: true, provider: 'openai' },
-  'gpt-5.4-mini': { contextWindow: 1000000, supportsToolCalling: true, supportsCaching: true, supportsVision: true, supportsJsonMode: true, provider: 'openai' },
-  'gpt-5.4-nano': { contextWindow: 1000000, supportsToolCalling: true, supportsCaching: true, supportsVision: true, supportsJsonMode: true, provider: 'openai' },
-  'gpt-5-codex': { contextWindow: 1000000, supportsToolCalling: true, supportsCaching: true, supportsVision: true, supportsJsonMode: true, provider: 'openai' },
 
   // ── Google Gemini (OpenAI-compatible endpoint) ─────────────────────────────
   'gemini-2.5-pro': { contextWindow: 1048576, supportsToolCalling: true, supportsCaching: true, supportsVision: true, supportsJsonMode: true, provider: 'gemini' },
