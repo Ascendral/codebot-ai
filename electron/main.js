@@ -469,6 +469,7 @@ function createMenu() {
       label: 'CodeBot AI',
       submenu: [
         { label: 'About CodeBot AI', role: 'about' },
+        { label: 'Open in Browser', accelerator: 'CmdOrCtrl+B', click: () => { require('electron').shell.openExternal('http://localhost:3120'); } },
         { type: 'separator' },
         {
           label: 'Settings',
