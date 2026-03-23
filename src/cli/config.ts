@@ -28,6 +28,10 @@ export function createProvider(config: Config): LLMProvider {
     });
   }
 
+  if (config.provider === 'klomboagi') {
+    return new KlomboAGIProvider();
+  }
+
   return new OpenAIProvider({
     baseUrl: config.baseUrl,
     apiKey: config.apiKey,

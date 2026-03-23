@@ -17,6 +17,8 @@ export const PROVIDER_DEFAULTS: Record<string, { baseUrl: string; envKey: string
   groq: { baseUrl: 'https://api.groq.com/openai', envKey: 'GROQ_API_KEY' },
   mistral: { baseUrl: 'https://api.mistral.ai', envKey: 'MISTRAL_API_KEY' },
   xai: { baseUrl: 'https://api.x.ai', envKey: 'XAI_API_KEY' },
+  // KlomboAGI — local reasoning engine, no LLM
+  'klomboagi': { contextWindow: 100000, supportsToolCalling: false, supportsCaching: false, supportsVision: false, provider: 'klomboagi' },
 };
 
 export const MODEL_REGISTRY: Record<string, ModelInfo> = {
