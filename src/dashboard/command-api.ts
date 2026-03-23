@@ -12,6 +12,7 @@ import { codebotPath } from '../paths';
 import { spawn } from 'child_process';
 import { DashboardServer } from './server';
 import { Agent } from '../agent';
+import { createProvider, resolveConfig } from '../cli/config';
 import { SessionManager } from '../history';
 import { BLOCKED_PATTERNS, FILTERED_ENV_VARS } from '../tools/execute';
 import { PROVIDER_DEFAULTS } from '../providers/registry';
@@ -231,12 +232,21 @@ export function registerCommandRoutes(
 
   // ── POST /api/command/chat/reset — start a new conversation ──
   server.route('POST', '/api/command/chat/reset', async (_req, res) => {
-    if (!agent) {
-      DashboardServer.error(res, 503, 'Agent not available');
-      return;
+    try {
+      // Recreate agent with current config (may have changed provider/model)
+      const config = await resolveConfig({});
+      const provider = createProvider(config);
+      agent = new Agent({
+        provider,
+        model: config.model,
+        providerName: config.provider,
+        maxIterations: config.maxIterations,
+        autoApprove: false,
+      });
+      DashboardServer.json(res, { reset: true, provider: config.provider, model: config.model });
+    } catch (err: unknown) {
+      DashboardServer.error(res, 500, 'Failed to reset: ' + (err instanceof Error ? err.message : String(err)));
     }
-    agent.resetConversation();
-    DashboardServer.json(res, { reset: true });
   });
 
   // ── POST /api/command/chat (agent only) ──
