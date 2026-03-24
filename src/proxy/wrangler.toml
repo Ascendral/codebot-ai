@@ -1,0 +1,6 @@
+name = "codebot-proxy"
+main = "worker.ts"
+compatibility_date = "2024-12-01"
+
+[vars]
+ALLOWED_ORIGINS = "*"
