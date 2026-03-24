@@ -143,6 +143,12 @@ const App = {
         }
 
         // Always show manual API key entry option
+        html += '<div class="onboarding-free-tier" style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.1);padding-top:20px;">';
+        html += '<button class="onboarding-provider-btn" style="background:linear-gradient(135deg,#2F6BFF,#00D2FF);border:none;width:100%;padding:14px;border-radius:10px;color:white;font-size:1.1em;font-weight:600;cursor:pointer;margin-bottom:12px;" onclick="App.selectFreeProxy()">';
+        html += '<strong>Try Free</strong> <span class="onboarding-model" style="opacity:0.9;">No API key needed — powered by Claude Sonnet</span>';
+        html += '</button>';
+        html += '<p style="text-align:center;font-size:0.8em;opacity:0.5;">Free tier: 20 messages/day. Add your own key for unlimited use.</p>';
+        html += '</div>';
         html += '<div class="onboarding-manual-key" style="margin-top:16px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;">';
         if ((!data.localServers || data.localServers.length === 0) && (!data.envProviders || data.envProviders.length === 0)) {
           html += '<p class="onboarding-desc">No providers detected. Enter your API key to get started:</p>';
