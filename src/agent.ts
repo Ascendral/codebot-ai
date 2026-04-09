@@ -113,7 +113,7 @@ export class Agent {
       try {
         this.constitutional = new ConstitutionalLayer(opts.constitutional);
         this.constitutional.start();
-      } catch { /* cord-engine not available — continue without constitutional layer */ }
+      } catch (e) { console.warn(`[CodeBot] Failed to initialize constitutional layer: ${(e as Error).message}`); }
     }
 
     this.userProfile = new UserProfile();
@@ -126,7 +126,7 @@ export class Agent {
     try {
       this.stateEngine = new AgentStateEngine(this.projectRoot);
       if (!this.stateEngine.isActive) this.stateEngine = null;
-    } catch {}
+    } catch (e) { console.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`); }
 
     const costLimit = this.policyEnforcer.getCostLimitUsd();
     if (costLimit > 0) this.tokenTracker.setCostLimit(costLimit);
@@ -137,7 +137,7 @@ export class Agent {
       for (const plugin of plugins) {
         this.tools.register(plugin);
       }
-    } catch { /* plugins unavailable */ }
+    } catch (e) { console.warn(`[CodeBot] Failed to initialize plugins: ${(e as Error).message}`); }
 
     // Load app connectors (each wrapped individually so one failure doesn't kill all)
     try {
@@ -160,12 +160,12 @@ export class Agent {
         try {
           const m = require(mod);
           connectorRegistry.register(new m[cls]());
-        } catch { /* connector unavailable */ }
+        } catch (e) { console.warn(`[CodeBot] Failed to initialize connector: ${(e as Error).message}`); }
       }
 
       this.tools.register(new AppConnectorTool(vault, connectorRegistry));
-      try { const { GraphicsTool } = require('./tools/graphics'); this.tools.register(new GraphicsTool()); } catch {}
-    } catch { /* connector infrastructure unavailable */ }
+      try { const { GraphicsTool } = require('./tools/graphics'); this.tools.register(new GraphicsTool()); } catch (e) { console.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`); }
+    } catch (e) { console.warn(`[CodeBot] Failed to initialize connectors: ${(e as Error).message}`); }
 
     // Load skills as tools (independent of connectors)
     try {
@@ -179,7 +179,7 @@ export class Agent {
         };
         this.tools.register(skillToTool(skill, toolExec));
       }
-    } catch { /* skills unavailable */ }
+    } catch (e) { console.warn(`[CodeBot] Failed to initialize skills: ${(e as Error).message}`); }
 
     const supportsTools = getModelInfo(opts.model).supportsToolCalling;
     this.messages.push({
@@ -326,7 +326,7 @@ export class Agent {
 
         // Fatal errors (missing API key, auth failure, billing, etc.) — stop immediately
         if (isFatalError(streamError)) {
-          this.recordSessionEpisode(false); this.recordSessionEpisode(false); return;
+          this.recordSessionEpisode(false); return;
         }
 
         // Provider rate limit backoff on 429
@@ -338,7 +338,7 @@ export class Agent {
         if (streamError === lastErrorMsg) {
           consecutiveErrors++;
           if (consecutiveErrors >= 3) {
-            this.recordSessionEpisode(false); this.recordSessionEpisode(false); yield { type: 'error', error: `Same error repeated ${consecutiveErrors} times — stopping. Fix the issue and try again.` };
+            this.recordSessionEpisode(false); yield { type: 'error', error: `Same error repeated ${consecutiveErrors} times — stopping. Fix the issue and try again.` };
             return;
           }
         } else {
@@ -368,7 +368,7 @@ export class Agent {
 
       // No tool calls = conversation turn done
       if (toolCalls.length === 0) {
-        if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch {} }
+        if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch (e) { console.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`); } }
         this.recordSessionEpisode(true);
         yield { type: 'done' };
         return;
@@ -376,7 +376,7 @@ export class Agent {
 
       // Cost budget check: stop if over limit
       if (this.tokenTracker.isOverBudget()) {
-        if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch {} } this.recordSessionEpisode(false); if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch {} } this.recordSessionEpisode(false); yield { type: 'error', error: `Cost limit exceeded ($${this.tokenTracker.getTotalCost().toFixed(4)} / $${this.policyEnforcer.getCostLimitUsd().toFixed(2)}). Stopping.` };
+        if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch (e) { console.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`); } } this.recordSessionEpisode(false); if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch {} } this.recordSessionEpisode(false); yield { type: 'error', error: `Cost limit exceeded ($${this.tokenTracker.getTotalCost().toFixed(4)} / $${this.policyEnforcer.getCostLimitUsd().toFixed(2)}). Stopping.` };
         return;
       }
 
@@ -466,7 +466,7 @@ export class Agent {
               effectivePermission = 'always-ask';
               sparkChallenged = true;
             }
-          } catch {}
+          } catch (e) { console.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`); }
         }
 
         // Permission check: policy override > tool default
@@ -563,7 +563,7 @@ export class Agent {
       }
     }
 
-    if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch {} }
+    if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch (e) { console.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`); } }
     this.recordSessionEpisode(false);
     yield { type: 'error', error: `Max iterations (${this.maxIterations}) reached.` };
   }

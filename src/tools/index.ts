@@ -6,6 +6,7 @@ import { ExecuteTool } from './execute';
 import { GlobTool } from './glob';
 import { GrepTool } from './grep';
 import { ThinkTool } from './think';
+import { DelegateTool } from './delegate';
 import { MemoryTool } from './memory';
 import { WebFetchTool } from './web-fetch';
 import { WebSearchTool } from './web-search';
@@ -139,6 +140,7 @@ export class ToolRegistry {
     this.register(new SkillForgeTool());
     this.register(new DecomposeGoalTool());
     this.register(new PluginForgeTool());
+    this.register(new DelegateTool());
   }
 
   register(tool: Tool) {
