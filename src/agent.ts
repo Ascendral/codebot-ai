@@ -19,7 +19,6 @@ import { MetricsCollector } from './metrics';
 import { RiskScorer, RiskAssessment } from './risk';
 import { ConstitutionalLayer, ConstitutionalResult } from './constitutional';
 import { AgentStateEngine } from './spark-soul';
-import { isLikelyDeveloper } from './intent';
 import { UserProfile } from './user-profile';
 import { validateToolArgs, repairToolCallMessages } from './agent/message-repair';
 import { PreparedCall, ToolOutput, ToolExecutorDeps, executeToolBatch, TOOL_TYPE_MAP, SEQUENTIAL_TOOLS } from './agent/tool-executor';
@@ -569,8 +568,7 @@ export class Agent {
   }
 
   clearHistory() {
-    const system = this.messages[0];
-    this.messages = system?.role === 'system' ? [system] : [];
+    this.resetConversation();
   }
 
   forceCompact(): { before: number; after: number } {
