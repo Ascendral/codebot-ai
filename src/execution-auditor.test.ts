@@ -9,6 +9,7 @@ function makeExec(opts: Partial<ToolExecution> = {}): ToolExecution {
     durationMs: opts.durationMs ?? 100,
     errorMessage: opts.errorMessage,
     timestamp: opts.timestamp || new Date().toISOString(),
+    signature: opts.signature,
   };
 }
 
@@ -60,6 +61,21 @@ describe('ExecutionAuditor', () => {
     auditor.record(makeExec({ toolName: 'grep' }));
     auditor.record(makeExec({ toolName: 'edit_file' }));
     auditor.record(makeExec({ toolName: 'grep' }));
+    const anomalies = auditor.detect();
+    const loop = anomalies.find(a => a.type === 'loop_detected');
+    assert.ok(!loop);
+  });
+
+  it('does not flag loop when the same tool runs different commands', () => {
+    const auditor = new ExecutionAuditor();
+    for (let i = 0; i < 5; i++) {
+      auditor.record(makeExec({
+        toolName: 'execute',
+        success: true,
+        signature: `execute:{"command":"echo ${i}"}`,
+      }));
+    }
+
     const anomalies = auditor.detect();
     const loop = anomalies.find(a => a.type === 'loop_detected');
     assert.ok(!loop);

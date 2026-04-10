@@ -81,8 +81,10 @@ body.is-electron .electron-titlebar {
   display: block;
   -webkit-app-region: drag;
   width: 100%;
-  height: 38px;
+  height: 44px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 9999;
 }
 
 body.is-electron button,
@@ -3042,4 +3044,15 @@ body.is-electron .chat-input-area * {
 /* Only keep drag on the actual titlebar */
 body.is-electron .electron-titlebar {
   -webkit-app-region: drag;
+}
+
+/* ── Electron drag performance: disable backdrop-filter blur ──
+   backdrop-filter forces real-time GPU compositing and was the
+   root cause of clunky window drag (63 elements doing live blur).
+   Browser users still get blur; Electron users get flat fast UI. */
+body.is-electron *,
+body.is-electron *::before,
+body.is-electron *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }

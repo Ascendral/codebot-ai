@@ -318,12 +318,9 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
     });
   });
 
-  server.route('GET', '/api/memory/', (req, res) => {
-    const url = new URL(req.url || '', 'http://localhost');
-    const parts = url.pathname.split('/').filter(Boolean);
-    // api/memory/<scope>/<file>
-    const scope = parts[2] || '';
-    const file = parts[3] || '';
+  server.route('GET', '/api/memory/:scope/:file', (_req, res, params) => {
+    const scope = params.scope || '';
+    const file = params.file || '';
 
     if (!scope || !file) {
       DashboardServer.error(res, 400, 'Missing scope or file');
@@ -334,12 +331,14 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
       ? path.join(root, '.codebot', 'memory')
       : codebotPath('memory');
 
-    const filePath = path.join(memDir, file.endsWith('.md') ? file : file + '.md');
+    // Prevent path traversal
+    const safeFile = path.basename(file.endsWith('.md') ? file : file + '.md');
+    const filePath = path.join(memDir, safeFile);
 
     try {
       if (fs.existsSync(filePath)) {
         const content = fs.readFileSync(filePath, 'utf-8');
-        DashboardServer.json(res, { scope, file, content });
+        DashboardServer.json(res, { scope, file: safeFile, content });
       } else {
         DashboardServer.error(res, 404, 'Memory file not found');
       }
@@ -348,11 +347,9 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
     }
   });
 
-  server.route('POST', '/api/memory/', async (req, res) => {
-    const url = new URL(req.url || '', 'http://localhost');
-    const parts = url.pathname.split('/').filter(Boolean);
-    const scope = parts[2] || '';
-    const file = parts[3] || '';
+  server.route('POST', '/api/memory/:scope/:file', async (req, res, params) => {
+    const scope = params.scope || '';
+    const file = params.file || '';
 
     if (!scope || !file) {
       DashboardServer.error(res, 400, 'Missing scope or file');
@@ -377,11 +374,13 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
       : codebotPath('memory');
 
     fs.mkdirSync(memDir, { recursive: true });
-    const filePath = path.join(memDir, file.endsWith('.md') ? file : file + '.md');
+    // Prevent path traversal
+    const safeFile = path.basename(file.endsWith('.md') ? file : file + '.md');
+    const filePath = path.join(memDir, safeFile);
 
     try {
       fs.writeFileSync(filePath, body.content);
-      DashboardServer.json(res, { saved: true, scope, file });
+      DashboardServer.json(res, { saved: true, scope, file: safeFile });
     } catch (err) {
       DashboardServer.error(res, 500, 'Failed to write memory file');
     }

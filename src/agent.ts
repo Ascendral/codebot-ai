@@ -35,7 +35,22 @@ type AskPermissionFn = (
   sandbox?: { sandbox: boolean; network: boolean },
 ) => Promise<boolean>;
 
+function stableSerialize(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(v => stableSerialize(v)).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, val]) => `${JSON.stringify(key)}:${stableSerialize(val)}`);
+    return `{${entries.join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
 
+function buildToolExecutionSignature(toolName: string, args: Record<string, unknown>): string {
+  return `${toolName}:${stableSerialize(args)}`;
+}
 
 // Tool execution constants and logic moved to ./agent/tool-executor.ts
 
@@ -520,6 +535,7 @@ export class Agent {
             durationMs: output.durationMs || 0,
             errorMessage: output.is_error ? output.content : undefined,
             timestamp: new Date().toISOString(),
+            signature: buildToolExecutionSignature(toolName, prep.args),
           });
           for (const anomaly of anomalies) {
             if (anomaly.severity === 'critical') {

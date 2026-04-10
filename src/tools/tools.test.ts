@@ -701,6 +701,30 @@ describe('MemoryTool — path traversal protection', () => {
     });
     assert.ok(result.includes('config.json') || result.includes('no file'));
   });
+
+  it('writes project topic files under the provided project root', async () => {
+    const os = await import('os');
+    const path = await import('path');
+    const fs = await import('fs');
+
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-tool-project-'));
+    try {
+      const registry = new ToolRegistry(projectRoot);
+      const tool = registry.get('memory')!;
+      const result = await tool.execute({
+        action: 'write',
+        scope: 'project',
+        file: 'preferences',
+        content: 'Prefer concise summaries',
+      });
+
+      assert.ok(result.includes('preferences.md'));
+      const savedPath = path.join(projectRoot, '.codebot', 'memory', 'preferences.md');
+      assert.ok(fs.existsSync(savedPath), 'memory file should be written inside the project root');
+    } finally {
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('Input validation — missing required args', () => {

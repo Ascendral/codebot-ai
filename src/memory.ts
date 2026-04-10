@@ -3,12 +3,10 @@ import * as path from 'path';
 import { encryptContent, decryptContent } from './encryption';
 import { codebotPath } from './paths';
 
-
-
-/** Maximum size per memory file (8KB) */
-const MAX_FILE_SIZE = 8192;
-/** Maximum total memory size across all files (32KB) */
-const MAX_TOTAL_SIZE = 32768;
+/** Default maximum size per memory file (64KB) */
+const DEFAULT_MAX_FILE_SIZE = 64 * 1024;
+/** Default maximum total prompt-injected memory size (256KB) */
+const DEFAULT_MAX_TOTAL_SIZE = 256 * 1024;
 
 /** Patterns that indicate potential prompt injection in memory content */
 const INJECTION_PATTERNS = [
@@ -46,6 +44,21 @@ function truncateToSize(content: string, maxSize: number): string {
   return truncated.trimEnd() + '\n[truncated — exceeded size limit]';
 }
 
+function parsePositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function getMaxFileSize(): number {
+  return parsePositiveIntEnv('CODEBOT_MEMORY_MAX_FILE_SIZE', DEFAULT_MAX_FILE_SIZE);
+}
+
+function getMaxTotalSize(): number {
+  return parsePositiveIntEnv('CODEBOT_MEMORY_MAX_TOTAL_SIZE', DEFAULT_MAX_TOTAL_SIZE);
+}
+
 export interface MemoryEntry {
   key: string;
   value: string;
@@ -59,7 +72,7 @@ export interface MemoryEntry {
  * Memory is injected into the system prompt so the model always has context.
  *
  * Security: content is sanitized before injection to prevent prompt injection.
- * Size limits: 8KB per file, 32KB total.
+ * Size limits: configurable via env, defaulting to 64KB per file and 256KB total.
  */
 export class MemoryManager {
   private projectDir: string;
@@ -96,7 +109,7 @@ export class MemoryManager {
 
   /** Write to global memory */
   writeGlobal(content: string): void {
-    const safe = truncateToSize(content, MAX_FILE_SIZE);
+    const safe = truncateToSize(content, getMaxFileSize());
     fs.writeFileSync(codebotPath('memory', 'MEMORY.md'), encryptContent(safe));
   }
 
@@ -104,7 +117,7 @@ export class MemoryManager {
   writeProject(content: string): void {
     if (!this.projectDir) return;
     const memFile = path.join(this.projectDir, 'MEMORY.md');
-    const safe = truncateToSize(content, MAX_FILE_SIZE);
+    const safe = truncateToSize(content, getMaxFileSize());
     fs.writeFileSync(memFile, encryptContent(safe));
   }
 
@@ -123,6 +136,22 @@ export class MemoryManager {
     this.writeProject(updated);
   }
 
+  readFile(scope: 'global' | 'project', file: string): string {
+    const filePath = this.resolveFilePath(scope, file);
+    if (!filePath || !fs.existsSync(filePath)) return `(no file: ${this.sanitizeFileName(file)})`;
+    return decryptContent(fs.readFileSync(filePath, 'utf-8'));
+  }
+
+  writeFile(scope: 'global' | 'project', file: string, content: string): string {
+    const filePath = this.resolveFilePath(scope, file);
+    if (!filePath) return 'Error: project memory is unavailable outside a project';
+
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    const safe = truncateToSize(content, getMaxFileSize());
+    fs.writeFileSync(filePath, encryptContent(safe));
+    return `Wrote ${path.basename(filePath)} (${scope}).`;
+  }
+
   /** Read all memory files from a directory */
   private readDir(dir: string): Record<string, string> {
     const files: Record<string, string> = {};
@@ -139,11 +168,13 @@ export class MemoryManager {
   getContextBlock(): string {
     const parts: string[] = [];
     let totalSize = 0;
+    const maxFileSize = getMaxFileSize();
+    const maxTotalSize = getMaxTotalSize();
 
     const global = this.readGlobal();
     if (global.trim()) {
       const sanitized = sanitizeMemory(global.trim());
-      const truncated = truncateToSize(sanitized, MAX_FILE_SIZE);
+      const truncated = truncateToSize(sanitized, maxFileSize);
       totalSize += Buffer.byteLength(truncated, 'utf-8');
       parts.push(`## Global Memory\n${truncated}`);
     }
@@ -152,20 +183,20 @@ export class MemoryManager {
     const globalFiles = this.readDir(this.globalDir);
     for (const [name, content] of Object.entries(globalFiles)) {
       if (name === 'MEMORY.md' || !content.trim()) continue;
-      if (totalSize >= MAX_TOTAL_SIZE) break;
+      if (totalSize >= maxTotalSize) break;
 
       const sanitized = sanitizeMemory(content.trim());
-      const remaining = MAX_TOTAL_SIZE - totalSize;
-      const truncated = truncateToSize(sanitized, Math.min(MAX_FILE_SIZE, remaining));
+      const remaining = maxTotalSize - totalSize;
+      const truncated = truncateToSize(sanitized, Math.min(maxFileSize, remaining));
       totalSize += Buffer.byteLength(truncated, 'utf-8');
       parts.push(`## ${name.replace('.md', '')}\n${truncated}`);
     }
 
     const project = this.readProject();
-    if (project.trim() && totalSize < MAX_TOTAL_SIZE) {
+    if (project.trim() && totalSize < maxTotalSize) {
       const sanitized = sanitizeMemory(project.trim());
-      const remaining = MAX_TOTAL_SIZE - totalSize;
-      const truncated = truncateToSize(sanitized, Math.min(MAX_FILE_SIZE, remaining));
+      const remaining = maxTotalSize - totalSize;
+      const truncated = truncateToSize(sanitized, Math.min(maxFileSize, remaining));
       totalSize += Buffer.byteLength(truncated, 'utf-8');
       parts.push(`## Project Memory\n${truncated}`);
     }
@@ -175,11 +206,11 @@ export class MemoryManager {
       const projFiles = this.readDir(this.projectDir);
       for (const [name, content] of Object.entries(projFiles)) {
         if (name === 'MEMORY.md' || !content.trim()) continue;
-        if (totalSize >= MAX_TOTAL_SIZE) break;
+        if (totalSize >= maxTotalSize) break;
 
         const sanitized = sanitizeMemory(content.trim());
-        const remaining = MAX_TOTAL_SIZE - totalSize;
-        const truncated = truncateToSize(sanitized, Math.min(MAX_FILE_SIZE, remaining));
+        const remaining = maxTotalSize - totalSize;
+        const truncated = truncateToSize(sanitized, Math.min(maxFileSize, remaining));
         totalSize += Buffer.byteLength(truncated, 'utf-8');
         parts.push(`## Project: ${name.replace('.md', '')}\n${truncated}`);
       }
@@ -210,5 +241,21 @@ export class MemoryManager {
     }
 
     return result;
+  }
+
+  private getDir(scope: 'global' | 'project'): string | null {
+    if (scope === 'global') return this.globalDir;
+    return this.projectDir || null;
+  }
+
+  private sanitizeFileName(file: string): string {
+    const base = path.basename(file);
+    return base.endsWith('.md') ? base : `${base}.md`;
+  }
+
+  private resolveFilePath(scope: 'global' | 'project', file: string): string | null {
+    const dir = this.getDir(scope);
+    if (!dir) return null;
+    return path.join(dir, this.sanitizeFileName(file));
   }
 }

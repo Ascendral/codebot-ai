@@ -1,5 +1,4 @@
 import { Tool } from '../types';
-import { codebotPath } from '../paths';
 import { MemoryManager } from '../memory';
 
 export class MemoryTool implements Tool {
@@ -46,7 +45,7 @@ export class MemoryTool implements Tool {
     switch (action) {
       case 'read': {
         if (file) {
-          return this.readTopicFile(scope, file);
+          return this.memory.readFile(this.toScope(scope), file);
         }
         const result = scope === 'global'
           ? this.memory.readGlobal()
@@ -57,7 +56,7 @@ export class MemoryTool implements Tool {
       case 'write': {
         if (!content) return 'Error: content is required for write action';
         if (file) {
-          return this.writeTopicFile(scope, file, content);
+          return this.memory.writeFile(this.toScope(scope), file, content);
         }
         if (scope === 'global') {
           this.memory.appendGlobal(content);
@@ -80,40 +79,7 @@ export class MemoryTool implements Tool {
     }
   }
 
-  private getMemoryDir(scope: string): string {
-    const path = require('path');
-    if (scope === 'global') {
-      return codebotPath('memory');
-    }
-    return path.join(process.cwd(), '.codebot', 'memory');
-  }
-
-  private sanitizeFileName(file: string): string {
-    const path = require('path');
-    // Strip path traversal — only allow the basename
-    const base = path.basename(file);
-    return base.endsWith('.md') ? base : `${base}.md`;
-  }
-
-  private readTopicFile(scope: string, file: string): string {
-    const fs = require('fs');
-    const path = require('path');
-    const fileName = this.sanitizeFileName(file);
-    const dir = this.getMemoryDir(scope);
-    const filePath = path.join(dir, fileName);
-    if (fs.existsSync(filePath)) {
-      return fs.readFileSync(filePath, 'utf-8');
-    }
-    return `(no file: ${fileName})`;
-  }
-
-  private writeTopicFile(scope: string, file: string, content: string): string {
-    const fs = require('fs');
-    const path = require('path');
-    const fileName = this.sanitizeFileName(file);
-    const dir = this.getMemoryDir(scope);
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, fileName), content);
-    return `Wrote ${fileName} (${scope}).`;
+  private toScope(scope: string): 'global' | 'project' {
+    return scope === 'global' ? 'global' : 'project';
   }
 }

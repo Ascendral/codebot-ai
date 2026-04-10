@@ -51,6 +51,15 @@ export interface ToolExecutorDeps {
   currentTask: string;
 }
 
+function isExecuteExitFailure(output: string): boolean {
+  return /^\[(?:sandboxed|host|host-fallback)\] Exit code (?!0\b)\d+\b/m.test(output.trimStart());
+}
+
+function isToolOutputError(toolName: string, output: string): boolean {
+  const normalized = output.trimStart();
+  return normalized.startsWith('Error:') || (toolName === 'execute' && isExecuteExitFailure(normalized));
+}
+
 /**
  * Execute a single prepared tool call with cache, rate limiting, metrics, and audit logging.
  */
@@ -91,14 +100,22 @@ export async function executeSingleTool(prep: PreparedCall, deps: ToolExecutorDe
   try {
     const rawOutput = await prep.tool.execute(prep.args);
     const output = sanitizeToolOutput(rawOutput);
+    const outputIsError = isToolOutputError(toolName, output);
 
     // Record tool latency
     const latencyMs = Date.now() - toolStartTime;
     deps.metricsCollector.observe('tool_latency_seconds', latencyMs / 1000, { tool: toolName });
     deps.metricsCollector.increment('tool_calls_total', { tool: toolName });
+    if (outputIsError) {
+      deps.metricsCollector.increment('errors_total', { tool: toolName });
+    }
 
-    // Audit log: successful execution
-    deps.auditLogger.log({ tool: toolName, action: 'execute', args: prep.args, result: 'success' });
+    // Audit log: treat error-like tool output as a failed execution for telemetry and forensics
+    deps.auditLogger.log(
+      outputIsError
+        ? { tool: toolName, action: 'error', args: prep.args, result: 'error', reason: output }
+        : { tool: toolName, action: 'execute', args: prep.args, result: 'success' }
+    );
 
     // Telemetry: track tool calls and file modifications
     deps.tokenTracker.recordToolCall();
@@ -131,13 +148,13 @@ export async function executeSingleTool(prep: PreparedCall, deps: ToolExecutorDe
       deps.metricsCollector.increment('security_blocks_total', { tool: toolName, type: 'security' });
     }
 
-    // SPARK: record success
-    if (deps.stateEngine) { try { deps.stateEngine.recordOutcome(toolName, prep.args, true, output, latencyMs); } catch {} }
+    // SPARK: record success/error based on output
+    if (deps.stateEngine) { try { deps.stateEngine.recordOutcome(toolName, prep.args, !outputIsError, output, latencyMs); } catch {} }
 
     // Experiential memory: record non-trivial successes
-    if (deps.experientialMemory?.isActive) { try { const lesson = extractLessonFromSuccess(toolName, prep.args, output, deps.currentTask); if (lesson) deps.experientialMemory.recordLesson(lesson); } catch {} }
+    if (!outputIsError && deps.experientialMemory?.isActive) { try { const lesson = extractLessonFromSuccess(toolName, prep.args, output, deps.currentTask); if (lesson) deps.experientialMemory.recordLesson(lesson); } catch {} }
 
-    return { content: output, durationMs: latencyMs };
+    return outputIsError ? { content: output, is_error: true, durationMs: latencyMs } : { content: output, durationMs: latencyMs };
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
     // Record latency even on error

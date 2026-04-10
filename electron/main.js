@@ -5,7 +5,17 @@ const http = require('http');
 const fs = require('fs');
 
 // ── Config ──
-const DASHBOARD_PORT = 3120;
+const DEFAULT_DASHBOARD_PORT = 3120;
+function resolveDashboardPort(env = process.env) {
+  const rawPort = env.CODEBOT_DASHBOARD_PORT;
+  if (!rawPort) return DEFAULT_DASHBOARD_PORT;
+  const port = Number.parseInt(rawPort, 10);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    return DEFAULT_DASHBOARD_PORT;
+  }
+  return port;
+}
+const DASHBOARD_PORT = resolveDashboardPort();
 const DASHBOARD_URL = `http://127.0.0.1:${DASHBOARD_PORT}`;
 const MAX_STARTUP_WAIT = 15_000; // 15 seconds max wait for server
 
@@ -17,6 +27,18 @@ let serverCrashCount = 0;
 let lastCrashTime = 0;
 const MAX_AUTO_RESTARTS = 3;
 const CRASH_WINDOW_MS = 60_000;
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
 
 // ── Paths ──
 function getCodebotPaths() {
@@ -49,11 +71,14 @@ function waitForServer(url, timeout) {
         res.resume();
       });
       req.on('error', () => retry());
-      req.setTimeout(2000, () => { req.destroy(); retry(); });
+      req.setTimeout(2000, () => {
+        req.destroy();
+        retry();
+      });
     };
     const retry = () => {
       if (Date.now() - start > timeout) {
-        reject(new Error('Server failed to start within ' + (timeout / 1000) + ' seconds'));
+        reject(new Error('Server failed to start within ' + timeout / 1000 + ' seconds'));
       } else {
         setTimeout(check, 500);
       }
@@ -62,11 +87,21 @@ function waitForServer(url, timeout) {
   });
 }
 
+async function isDashboardReachable(timeout = 1000) {
+  try {
+    await waitForServer(DASHBOARD_URL, timeout);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ── API Key Input Dialog ──
 function promptForApiKey() {
   return new Promise((resolve) => {
     const inputWin = new BrowserWindow({
-      width: 500, height: 220,
+      width: 500,
+      height: 220,
       resizable: false,
       minimizable: false,
       maximizable: false,
@@ -141,15 +176,16 @@ async function startServer() {
     for (const dir of pathDirs) {
       candidates.push(path.join(dir, 'node'));
     }
-    nodeBin = candidates.find(p => fs.existsSync(p)) || 'node';
+    nodeBin = candidates.find((p) => fs.existsSync(p)) || 'node';
     console.log('  Using node at:', nodeBin);
   }
 
   const binPath = paths.bin;
   if (!fs.existsSync(binPath)) {
-    dialog.showErrorBox('CodeBot AI',
-      'Could not find CodeBot at:\n' + binPath +
-      '\n\nPlease run "npm run build" in the codebot-ai directory first.');
+    dialog.showErrorBox(
+      'CodeBot AI',
+      'Could not find CodeBot at:\n' + binPath + '\n\nPlease run "npm run build" in the codebot-ai directory first.',
+    );
     app.quit();
     return false;
   }
@@ -175,8 +211,13 @@ async function startServer() {
       try {
         const envContent = fs.readFileSync(envPath, 'utf-8');
         const match = envContent.match(/ANTHROPIC_API_KEY=(.+)/);
-        if (match) { apiKey = match[1].trim(); break; }
-      } catch { /* not found, try next */ }
+        if (match) {
+          apiKey = match[1].trim();
+          break;
+        }
+      } catch {
+        /* not found, try next */
+      }
     }
   }
   let openaiKey = process.env.OPENAI_API_KEY || '';
@@ -189,7 +230,9 @@ async function startServer() {
       if (config.apiKey) apiKey = config.apiKey;
       if (config.openaiApiKey) openaiKey = config.openaiApiKey;
       if (config.geminiApiKey) geminiKey = config.geminiApiKey;
-    } catch { /* no config */ }
+    } catch {
+      /* no config */
+    }
   }
   // Also check .env files for additional keys
   if (!openaiKey || !geminiKey) {
@@ -200,9 +243,17 @@ async function startServer() {
     for (const envPath of envLocations) {
       try {
         const envContent = fs.readFileSync(envPath, 'utf-8');
-        if (!openaiKey) { const m = envContent.match(/OPENAI_API_KEY=(.+)/); if (m) openaiKey = m[1].trim(); }
-        if (!geminiKey) { const m = envContent.match(/GEMINI_API_KEY=(.+)/); if (m) geminiKey = m[1].trim(); }
-      } catch { /* not found */ }
+        if (!openaiKey) {
+          const m = envContent.match(/OPENAI_API_KEY=(.+)/);
+          if (m) openaiKey = m[1].trim();
+        }
+        if (!geminiKey) {
+          const m = envContent.match(/GEMINI_API_KEY=(.+)/);
+          if (m) geminiKey = m[1].trim();
+        }
+      } catch {
+        /* not found */
+      }
     }
   }
 
@@ -212,7 +263,8 @@ async function startServer() {
       type: 'question',
       title: 'CodeBot AI — API Key Required',
       message: 'No Anthropic API key found.',
-      detail: 'CodeBot needs a Claude API key to work.\n\nGet one at: console.anthropic.com\n\nPaste your key below or set ANTHROPIC_API_KEY in your environment.',
+      detail:
+        'CodeBot needs a Claude API key to work.\n\nGet one at: console.anthropic.com\n\nPaste your key below or set ANTHROPIC_API_KEY in your environment.',
       buttons: ['Enter Key', 'Open Console', 'Quit'],
       defaultId: 0,
     });
@@ -226,7 +278,10 @@ async function startServer() {
         buttons: ['Enter Key', 'Quit'],
         defaultId: 0,
       });
-      if (retry.response === 1) { app.quit(); return false; }
+      if (retry.response === 1) {
+        app.quit();
+        return false;
+      }
     } else if (response === 2) {
       app.quit();
       return false;
@@ -241,12 +296,16 @@ async function startServer() {
         if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
         const configPath = path.join(configDir, 'config.json');
         let config = {};
-        try { config = JSON.parse(fs.readFileSync(configPath, 'utf-8')); } catch {}
+        try {
+          config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        } catch {}
         config.apiKey = apiKey;
         config.provider = 'anthropic';
         config.model = 'claude-sonnet-4-6';
         fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-      } catch { /* best effort save */ }
+      } catch {
+        /* best effort save */
+      }
     } else {
       app.quit();
       return false;
@@ -267,8 +326,14 @@ async function startServer() {
   if (openaiKey) serverEnv.OPENAI_API_KEY = openaiKey;
   if (geminiKey) serverEnv.GEMINI_API_KEY = geminiKey;
 
+  // Use a writable workspace as cwd (NOT the bundled app dir which is read-only).
+  // The codebot CLI uses process.cwd() to derive project memory paths and will
+  // crash with EACCES if cwd points inside /Applications/CodeBot AI.app/.
+  const workspaceDir = path.join(process.env.HOME || '', '.codebot', 'workspace');
+  try { fs.mkdirSync(workspaceDir, { recursive: true }); } catch { /* best effort */ }
+
   serverProcess = spawn(nodeBin, [binPath, '--dashboard', '--host', '127.0.0.1', '--no-open'], {
-    cwd: paths.root,
+    cwd: workspaceDir,
     env: serverEnv,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -298,7 +363,9 @@ async function startServer() {
 
     if (serverCrashCount <= MAX_AUTO_RESTARTS) {
       const delay = Math.min(1000 * Math.pow(2, serverCrashCount - 1), 10000);
-      console.log('Auto-restarting server (attempt ' + serverCrashCount + '/' + MAX_AUTO_RESTARTS + ') in ' + delay + 'ms...');
+      console.log(
+        'Auto-restarting server (attempt ' + serverCrashCount + '/' + MAX_AUTO_RESTARTS + ') in ' + delay + 'ms...',
+      );
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('backend-status', { status: 'restarting', attempt: serverCrashCount });
       }
@@ -311,7 +378,12 @@ async function startServer() {
         });
       }, delay);
     } else {
-      const detail = 'Exit code: ' + (code || 'none') + ', Signal: ' + (signal || 'none') + '\n\nLikely causes: bad API key, missing dependency, or port conflict.';
+      const detail =
+        'Exit code: ' +
+        (code || 'none') +
+        ', Signal: ' +
+        (signal || 'none') +
+        '\n\nLikely causes: bad API key, missing dependency, or port conflict.';
       const choice = dialog.showMessageBoxSync(mainWindow, {
         type: 'error',
         title: 'CodeBot AI',
@@ -337,9 +409,12 @@ async function startServer() {
     console.log('Dashboard server is ready');
     return true;
   } catch (err) {
-    dialog.showErrorBox('CodeBot AI',
-      'Dashboard server failed to start.\n\n' + err.message +
-      '\n\nCheck that your API key is configured in ~/.codebot/config.json');
+    dialog.showErrorBox(
+      'CodeBot AI',
+      'Dashboard server failed to start.\n\n' +
+        err.message +
+        '\n\nCheck that your API key is configured in ~/.codebot/config.json',
+    );
     app.quit();
     return false;
   }
@@ -353,7 +428,7 @@ function createWindow() {
     minWidth: 600,
     minHeight: 500,
     title: 'CodeBot AI',
-    titleBarStyle: 'hiddenInset',  // macOS native title bar with traffic lights
+    titleBarStyle: 'hiddenInset', // macOS native title bar with traffic lights
     trafficLightPosition: { x: 15, y: 15 },
     backgroundColor: '#0a0a0f',
     webPreferences: {
@@ -372,11 +447,25 @@ function createWindow() {
   const MAX_LOAD_RETRIES = 8;
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
     if (errorCode === -3) return; // navigation aborted, not an error
-    if (errorCode === -6 || errorDescription.includes('ERR_CONNECTION_REFUSED') || errorDescription.includes('ERR_CONNECTION_RESET')) {
+    if (
+      errorCode === -6 ||
+      errorDescription.includes('ERR_CONNECTION_REFUSED') ||
+      errorDescription.includes('ERR_CONNECTION_RESET')
+    ) {
       loadRetryCount++;
       if (loadRetryCount <= MAX_LOAD_RETRIES) {
         const delay = Math.min(1000 * Math.pow(2, loadRetryCount - 1), 10000);
-        console.log('Dashboard load failed (' + errorDescription + '), retry ' + loadRetryCount + '/' + MAX_LOAD_RETRIES + ' in ' + delay + 'ms...');
+        console.log(
+          'Dashboard load failed (' +
+            errorDescription +
+            '), retry ' +
+            loadRetryCount +
+            '/' +
+            MAX_LOAD_RETRIES +
+            ' in ' +
+            delay +
+            'ms...',
+        );
         setTimeout(() => {
           if (mainWindow && !mainWindow.isDestroyed()) mainWindow.loadURL(DASHBOARD_URL);
         }, delay);
@@ -385,7 +474,9 @@ function createWindow() {
       }
     }
   });
-  mainWindow.webContents.on('did-finish-load', () => { loadRetryCount = 0; });
+  mainWindow.webContents.on('did-finish-load', () => {
+    loadRetryCount = 0;
+  });
 
   // Right-click context menu with copy/paste support
   mainWindow.webContents.on('context-menu', (_event, params) => {
@@ -404,13 +495,15 @@ function createWindow() {
     }
     if (params.linkURL) {
       if (menu.items.length > 0) menu.append(new MenuItem({ type: 'separator' }));
-      menu.append(new MenuItem({
-        label: 'Copy Link',
-        click: () => {
-          const { clipboard } = require('electron');
-          clipboard.writeText(params.linkURL);
-        },
-      }));
+      menu.append(
+        new MenuItem({
+          label: 'Copy Link',
+          click: () => {
+            const { clipboard } = require('electron');
+            clipboard.writeText(params.linkURL);
+          },
+        }),
+      );
     }
 
     if (menu.items.length > 0) {
@@ -461,9 +554,7 @@ function createMenu() {
           click: () => {
             if (mainWindow) {
               mainWindow.show();
-              mainWindow.webContents.executeJavaScript(
-                "document.querySelector('[data-panel=\"memory\"]')?.click()"
-              );
+              mainWindow.webContents.executeJavaScript('document.querySelector(\'[data-panel="memory"]\')?.click()');
             }
           },
         },
@@ -502,7 +593,7 @@ function createMenu() {
           accelerator: 'Cmd+N',
           click: () => {
             if (mainWindow) {
-              mainWindow.webContents.executeJavaScript("App.newChat()");
+              mainWindow.webContents.executeJavaScript('App.newChat()');
             }
           },
         },
@@ -513,9 +604,7 @@ function createMenu() {
           click: () => {
             if (mainWindow) {
               mainWindow.show();
-              mainWindow.webContents.executeJavaScript(
-                "document.querySelector('[data-panel=\"chat\"]')?.click()"
-              );
+              mainWindow.webContents.executeJavaScript('document.querySelector(\'[data-panel="chat"]\')?.click()');
             }
           },
         },
@@ -525,9 +614,7 @@ function createMenu() {
           click: () => {
             if (mainWindow) {
               mainWindow.show();
-              mainWindow.webContents.executeJavaScript(
-                "document.querySelector('[data-panel=\"sessions\"]')?.click()"
-              );
+              mainWindow.webContents.executeJavaScript('document.querySelector(\'[data-panel="sessions"]\')?.click()');
             }
           },
         },
@@ -537,9 +624,7 @@ function createMenu() {
           click: () => {
             if (mainWindow) {
               mainWindow.show();
-              mainWindow.webContents.executeJavaScript(
-                "document.querySelector('[data-panel=\"workflows\"]')?.click()"
-              );
+              mainWindow.webContents.executeJavaScript('document.querySelector(\'[data-panel="workflows"]\')?.click()');
             }
           },
         },
@@ -549,9 +634,7 @@ function createMenu() {
           click: () => {
             if (mainWindow) {
               mainWindow.show();
-              mainWindow.webContents.executeJavaScript(
-                "document.querySelector('[data-panel=\"tools\"]')?.click()"
-              );
+              mainWindow.webContents.executeJavaScript('document.querySelector(\'[data-panel="tools"]\')?.click()');
             }
           },
         },
@@ -561,9 +644,7 @@ function createMenu() {
           click: () => {
             if (mainWindow) {
               mainWindow.show();
-              mainWindow.webContents.executeJavaScript(
-                "document.querySelector('[data-panel=\"terminal\"]')?.click()"
-              );
+              mainWindow.webContents.executeJavaScript('document.querySelector(\'[data-panel="terminal"]\')?.click()');
             }
           },
         },
@@ -581,12 +662,7 @@ function createMenu() {
     },
     {
       label: 'Window',
-      submenu: [
-        { role: 'minimize' },
-        { role: 'zoom' },
-        { type: 'separator' },
-        { role: 'front' },
-      ],
+      submenu: [{ role: 'minimize' }, { role: 'zoom' }, { type: 'separator' }, { role: 'front' }],
     },
     {
       label: 'Help',
@@ -608,6 +684,7 @@ function createMenu() {
 
 // ── App Lifecycle ──
 app.whenReady().then(async () => {
+  if (!gotSingleInstanceLock) return;
   createMenu();
 
   const serverReady = await startServer();
@@ -651,14 +728,17 @@ app.on('window-all-closed', () => {
   }
 });
 
-
 // ── Uncaught Exception Handling ──
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught exception:', err);
   try {
-    dialog.showErrorBox('CodeBot AI — Unexpected Error',
-      err.message + '\n\n' + (err.stack || '').split('\n').slice(0, 5).join('\n'));
-  } catch { /* dialog may not be available during shutdown */ }
+    dialog.showErrorBox(
+      'CodeBot AI — Unexpected Error',
+      err.message + '\n\n' + (err.stack || '').split('\n').slice(0, 5).join('\n'),
+    );
+  } catch {
+    /* dialog may not be available during shutdown */
+  }
 });
 
 process.on('unhandledRejection', (reason) => {
@@ -669,13 +749,18 @@ process.on('unhandledRejection', (reason) => {
 const { ipcMain } = require('electron');
 
 ipcMain.handle('get-backend-status', () => {
-  return { alive: serverProcess !== null, crashCount: serverCrashCount };
+  return isDashboardReachable().then((alive) => ({
+    alive,
+    crashCount: serverCrashCount,
+    managed: serverProcess !== null,
+    port: DASHBOARD_PORT,
+  }));
 });
 
 ipcMain.handle('restart-backend', async () => {
   if (serverProcess) {
     serverProcess.kill('SIGTERM');
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 1000));
   }
   serverCrashCount = 0;
   const ok = await startServer();

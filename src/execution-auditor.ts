@@ -18,6 +18,8 @@ export interface ToolExecution {
   durationMs: number;
   errorMessage?: string;
   timestamp: string;
+  /** Optional normalized call signature (for example tool name + stable args) */
+  signature?: string;
 }
 
 export interface AnomalyReport {
@@ -171,7 +173,7 @@ export class ExecutionAuditor {
     // Skip loop detection for tools that naturally need many sequential calls
     if (ExecutionAuditor.LOOP_EXEMPT_TOOLS.has(recent[0].toolName)) return null;
     // Check if the same tool+args pattern repeats
-    const signatures = recent.map(e => `${e.toolName}:${e.success}`);
+    const signatures = recent.map(e => this.getLoopSignature(e));
     const uniqueSigs = new Set(signatures);
 
     if (uniqueSigs.size === 1) {
@@ -195,6 +197,11 @@ export class ExecutionAuditor {
     }
 
     return null;
+  }
+
+  private getLoopSignature(execution: ToolExecution): string {
+    const signature = execution.signature || execution.toolName;
+    return `${signature}:${execution.success ? 'success' : 'error'}`;
   }
 
   private detectSlowExecution(): AnomalyReport | null {

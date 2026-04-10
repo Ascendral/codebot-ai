@@ -176,6 +176,22 @@ export class CrossSessionLearning {
   }
 
   /**
+   * Get the most recent episodes, preferring the current project when provided.
+   */
+  getRecentEpisodes(n = 3, projectRoot?: string): Episode[] {
+    const episodes = this.listEpisodes()
+      .map(sessionId => this.getEpisode(sessionId))
+      .filter((episode): episode is Episode => !!episode)
+      .sort((a, b) => b.endedAt.localeCompare(a.endedAt));
+
+    if (!projectRoot) return episodes.slice(0, n);
+
+    const matching = episodes.filter(e => e.projectRoot === projectRoot);
+    const others = episodes.filter(e => e.projectRoot !== projectRoot);
+    return [...matching, ...others].slice(0, n);
+  }
+
+  /**
    * Get anti-patterns (low success rate) to avoid.
    */
   getAntiPatterns(n = 3): AggregatedPattern[] {
@@ -191,13 +207,22 @@ export class CrossSessionLearning {
   /**
    * Format top patterns as a system prompt block.
    */
-  buildPromptBlock(): string {
+  buildPromptBlock(projectRoot?: string): string {
     const top = this.getTopPatterns(3);
     const anti = this.getAntiPatterns(2);
+    const recent = this.getRecentEpisodes(3, projectRoot);
 
-    if (top.length === 0 && anti.length === 0) return '';
+    if (top.length === 0 && anti.length === 0 && recent.length === 0) return '';
 
     const lines: string[] = ['## Cross-Session Patterns'];
+
+    if (recent.length > 0) {
+      lines.push('Recent remembered outcomes:');
+      for (const episode of recent) {
+        const outcome = episode.outcomes[0] || (episode.success ? 'Completed successfully' : 'Ended unsuccessfully');
+        lines.push(`  - ${this.truncate(episode.goal, 90)} → ${this.truncate(outcome, 110)}`);
+      }
+    }
 
     if (top.length > 0) {
       lines.push('Effective patterns from previous sessions:');
@@ -345,5 +370,10 @@ export class CrossSessionLearning {
     try {
       fs.writeFileSync(this.indexPath, JSON.stringify(index, null, 2));
     } catch { /* best effort */ }
+  }
+
+  private truncate(text: string, maxLength: number): string {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength - 3).trimEnd() + '...';
   }
 }
