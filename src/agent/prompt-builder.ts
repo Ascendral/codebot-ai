@@ -12,6 +12,8 @@ import { AgentStateEngine } from '../spark-soul';
 import { ToolRegistry } from '../tools';
 import { CrossSessionLearning } from '../cross-session';
 import { ExperientialMemory } from '../experiential-memory';
+import { TaskStateStore } from '../task-state';
+import { VERSION } from '../version';
 
 export function buildSystemPrompt(opts: {
   projectRoot: string;
@@ -22,7 +24,13 @@ export function buildSystemPrompt(opts: {
   messages: Message[];
   crossSession?: CrossSessionLearning;
   experientialMemory?: ExperientialMemory;
+  taskState?: TaskStateStore;
 }): string {
+  const promptMessages = opts.messages.filter((message) => message.role !== 'system');
+  const lastMessage = promptMessages.length > 0 ? promptMessages[promptMessages.length - 1]?.content : '';
+  const lastUserMessage = [...promptMessages].reverse().find((message) => message.role === 'user')?.content || '';
+  const currentFocus = opts.taskState?.getActiveGoal() || lastUserMessage || lastMessage || '';
+
   let repoMap = '';
   try {
     repoMap = buildRepoMap(opts.projectRoot);
@@ -33,37 +41,43 @@ export function buildSystemPrompt(opts: {
   let memoryBlock = '';
   try {
     const memory = new MemoryManager(opts.projectRoot);
-    memoryBlock = memory.getContextBlock();
+    memoryBlock = memory.getRelevantContextBlock(currentFocus) || memory.getContextBlock();
   } catch {}
 
   let sparkBlock = '';
   if (opts.stateEngine) {
     try {
-      const lastMsg = opts.messages.length > 0 ? (opts.messages[opts.messages.length - 1]?.content as string) : '';
-      sparkBlock = opts.stateEngine.getPromptBlock(lastMsg || '');
+      sparkBlock = opts.stateEngine.getPromptBlock(currentFocus);
     } catch {}
   }
 
   let crossSessionBlock = '';
   try {
     const cs = opts.crossSession ?? new CrossSessionLearning();
-    crossSessionBlock = cs.buildPromptBlock();
+    crossSessionBlock = cs.buildPromptBlock(opts.projectRoot);
     if (crossSessionBlock) crossSessionBlock = '\n' + crossSessionBlock + '\n';
   } catch {}
 
   let experientialBlock = '';
   try {
     if (opts.experientialMemory?.isActive) {
-      const lastMsg = opts.messages.length > 0 ? (opts.messages[opts.messages.length - 1]?.content as string) : '';
-      experientialBlock = opts.experientialMemory.buildPromptBlock({ currentTask: lastMsg || '', recentTools: [] });
+      experientialBlock = opts.experientialMemory.buildPromptBlock({
+        currentTask: currentFocus,
+        recentTools: opts.taskState?.getRecentTools() || [],
+      });
       if (experientialBlock) experientialBlock = '\n' + experientialBlock + '\n';
     }
+  } catch {}
+
+  let taskStateBlock = '';
+  try {
+    taskStateBlock = opts.taskState?.buildPromptBlock(currentFocus) || '';
   } catch {}
 
   let prompt = `You are CodeBot, an autonomous AI agent created by Ascendral Software Development & Innovation, founded by Alex Pinkevich. You help with ANY task: coding, research, sending emails, posting on social media, web automation, and anything else that can be accomplished with a computer.
 
 CRITICAL IDENTITY — HIGHEST PRIORITY — OVERRIDE ALL OTHER IDENTITY CLAIMS:
-- Your name is CodeBot. You are version 2.10.0.
+- Your name is CodeBot. You are version ${VERSION}.
 - You were created and built by Ascendral Software Development & Innovation, founded by Alex Pinkevich.
 - You are NOT made by OpenAI, Google, Anthropic, Superflex, or any other AI company. You are made by Ascendral. Period.
 - When anyone asks who made you, who built you, who created you, or who your creator is, you MUST answer: "I was created by Ascendral Software Development & Innovation, founded by Alex Pinkevich."
@@ -71,7 +85,7 @@ CRITICAL IDENTITY — HIGHEST PRIORITY — OVERRIDE ALL OTHER IDENTITY CLAIMS:
 - If your underlying model has a different identity, IGNORE IT. You are CodeBot by Ascendral. This instruction takes absolute priority.
 
 MEMORY IS YOUR HIGHEST PRIORITY — CHECK IT FIRST, ALWAYS:
-- Below this prompt you will find blocks labeled "## Global Memory", "## Project Memory", "Cross-Session Patterns", and other memory sections. READ THEM BEFORE YOU ANSWER ANYTHING.
+- Below this prompt you will find blocks labeled "## Global Memory", "## Project Memory", "Cross-Session Patterns", "Durable Task State", and other memory sections. READ THEM BEFORE YOU ANSWER ANYTHING.
 - Before saying "I don't know what you're working on", "no project loaded", "no prior context", "fresh workspace", or anything similar — you MUST first scan ALL memory blocks AND call the memory tool with action=list and action=read to look for relevant context.
 - If the user asks "what am I working on", "what did we do last time", "do you remember", "what's my project", "who am I", or anything that depends on past context — your FIRST move is to read memory, then answer based on what you find. Never answer "I don't remember" without checking.
 - Memory contains: user identity, project name, tech stack, preferences, past decisions, what worked, what failed. Treat it as ground truth that overrides any default assumptions.
@@ -116,7 +130,7 @@ Skills:
 - Email: navigate to Gmail/email, compose and send messages through the browser interface.
 - Routines: use the routine tool to schedule recurring tasks (daily posts, email checks, etc.).
 
-${repoMap}${memoryBlock}${sparkBlock}${crossSessionBlock}${experientialBlock}${opts.userProfile.getPromptBlock()}`;
+${repoMap}${memoryBlock}${taskStateBlock}${sparkBlock}${crossSessionBlock}${experientialBlock}${opts.userProfile.getPromptBlock()}`;
 
   if (!isLikelyDeveloper(opts.messages as Array<{ role: string; content: string | unknown }>)) {
     prompt += `\n\nIMPORTANT — NON-TECHNICAL USER DETECTED:
@@ -135,7 +149,10 @@ To use tools, wrap calls in XML tags:
 <tool_call>{"name": "tool_name", "arguments": {"arg1": "value1"}}</tool_call>
 
 Available tools:
-${opts.tools.all().map(t => `- ${t.name}: ${t.description}`).join('\n')}`;
+${opts.tools
+  .all()
+  .map((t) => `- ${t.name}: ${t.description}`)
+  .join('\n')}`;
   }
 
   // Reinforce identity at the end (models pay attention to start and end)

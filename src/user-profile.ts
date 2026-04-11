@@ -12,16 +12,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { codebotPath } from './paths';
 
-
-
 export interface UserPreferences {
   name?: string;
   timezone?: string;
   writingStyle?: 'formal' | 'casual' | 'professional' | 'friendly';
   verbosity?: 'concise' | 'normal' | 'detailed';
-  platforms?: string[];   // e.g. ['twitter', 'github', 'gmail']
-  interests?: string[];   // topics the user cares about
-  language?: string;      // preferred language for responses
+  platforms?: string[]; // e.g. ['twitter', 'github', 'gmail']
+  interests?: string[]; // topics the user cares about
+  language?: string; // preferred language for responses
 }
 
 export interface LearnedPattern {
@@ -33,7 +31,7 @@ export interface LearnedPattern {
 export interface UserProfileData {
   preferences: UserPreferences;
   patterns: LearnedPattern[];
-  commonActions: Record<string, number>;  // action -> frequency count
+  commonActions: Record<string, number>; // action -> frequency count
   connectedServices: string[];
   createdAt: string;
   updatedAt: string;
@@ -75,7 +73,9 @@ export class UserProfile {
           preferences: { ...defaultProfile().preferences, ...parsed.preferences },
         };
       }
-    } catch { /* corrupted or missing */ }
+    } catch {
+      /* corrupted or missing */
+    }
     return defaultProfile();
   }
 
@@ -86,6 +86,7 @@ export class UserProfile {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(codebotPath('profile.json'), JSON.stringify(this.data, null, 2));
     this.dirty = false;
+    this.lastSaveTime = Date.now();
   }
 
   /** Get the full profile data */
@@ -98,7 +99,6 @@ export class UserProfile {
     Object.assign(this.data.preferences, prefs);
     this.dirty = true;
     this.save();
-      this.lastSaveTime = Date.now();
   }
 
   /** Track a common action */
@@ -110,7 +110,7 @@ export class UserProfile {
   /** Add a learned pattern (max 50 patterns to keep profile compact) */
   addPattern(type: LearnedPattern['type'], content: string): void {
     // Avoid duplicates
-    const exists = this.data.patterns.some(p => p.type === type && p.content === content);
+    const exists = this.data.patterns.some((p) => p.type === type && p.content === content);
     if (exists) return;
 
     this.data.patterns.push({
@@ -133,7 +133,14 @@ export class UserProfile {
       this.data.connectedServices.push(service);
       this.dirty = true;
       this.save();
-      this.lastSaveTime = Date.now();
+    }
+  }
+
+  /** Persist if enough time has passed or when forced by the caller. */
+  flushIfDirty(force = false): void {
+    if (!this.dirty) return;
+    if (force || !this.lastSaveTime || Date.now() - this.lastSaveTime > 30_000) {
+      this.save();
     }
   }
 
@@ -148,9 +155,14 @@ export class UserProfile {
 
     // Detect platform preferences
     const platformMap: Record<string, string> = {
-      twitter: 'twitter', 'x.com': 'twitter', tweet: 'twitter',
-      github: 'github', 'pull request': 'github', pr: 'github',
-      gmail: 'gmail', email: 'gmail',
+      twitter: 'twitter',
+      'x.com': 'twitter',
+      tweet: 'twitter',
+      github: 'github',
+      'pull request': 'github',
+      pr: 'github',
+      gmail: 'gmail',
+      email: 'gmail',
       slack: 'slack',
       notion: 'notion',
       linkedin: 'linkedin',
@@ -192,11 +204,7 @@ export class UserProfile {
     if (/\b(remind|schedule|alarm)\b/i.test(lower)) this.trackAction('scheduling');
     if (/\b(code|debug|fix|test|build)\b/i.test(lower)) this.trackAction('coding');
 
-    // Save periodically when dirty
-    if (this.dirty && (!this.lastSaveTime || Date.now() - this.lastSaveTime > 30_000)) {
-      this.save();
-      this.lastSaveTime = Date.now();
-    }
+    this.flushIfDirty();
   }
 
   /**
@@ -244,10 +252,10 @@ export class UserProfile {
 
     // Learned patterns (corrections and preferences only — most recent 5)
     const recentPatterns = this.data.patterns
-      .filter(p => p.type === 'correction' || p.type === 'preference')
+      .filter((p) => p.type === 'correction' || p.type === 'preference')
       .slice(-5);
     if (recentPatterns.length > 0) {
-      parts.push('Learned preferences:\n' + recentPatterns.map(p => `- ${p.content}`).join('\n'));
+      parts.push('Learned preferences:\n' + recentPatterns.map((p) => `- ${p.content}`).join('\n'));
     }
 
     if (parts.length === 0) return '';

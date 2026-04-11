@@ -7,6 +7,7 @@ import { Agent } from './agent';
 import { LLMProvider, AgentEvent } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
+import { VERSION } from './version';
 
 export interface TaskOptions {
   task: string;
@@ -25,7 +26,7 @@ export interface TaskResult {
   status: 'completed' | 'failed' | 'cost_exceeded' | 'max_iterations';
   startedAt: string;
   completedAt: string;
-  toolCalls: Array<{ tool: string; success: boolean; }>;
+  toolCalls: Array<{ tool: string; success: boolean }>;
   filesModified: string[];
   summary: string;
   cost: { input_tokens: number; output_tokens: number; estimated_usd: number };
@@ -47,6 +48,7 @@ export async function runTask(opts: TaskOptions): Promise<TaskResult> {
     providerName: opts.providerName,
     maxIterations: 50,
     autoApprove: true,
+    projectRoot: opts.projectRoot,
   });
 
   // Apply preset if specified
@@ -54,7 +56,9 @@ export async function runTask(opts: TaskOptions): Promise<TaskResult> {
     try {
       const pe = agent.getPolicyEnforcer();
       if (pe && pe.applyPreset) pe.applyPreset(opts.preset);
-    } catch { /* preset unavailable */ }
+    } catch {
+      /* preset unavailable */
+    }
   }
 
   // Apply max cost override
@@ -62,7 +66,9 @@ export async function runTask(opts: TaskOptions): Promise<TaskResult> {
     try {
       const tt = agent.getTokenTracker();
       if (tt && tt.setCostLimit) tt.setCostLimit(opts.maxCost);
-    } catch { /* token tracker unavailable */ }
+    } catch {
+      /* token tracker unavailable */
+    }
   }
 
   process.stderr.write(`\n  CodeBot Task Runner\n  Task: ${opts.task}\n  Model: ${opts.model}\n\n`);
@@ -124,9 +130,15 @@ export async function runTask(opts: TaskOptions): Promise<TaskResult> {
     const tt = agent.getTokenTracker();
     if (tt) {
       const s = tt.getSummary();
-      result.cost = { input_tokens: s.totalInputTokens || 0, output_tokens: s.totalOutputTokens || 0, estimated_usd: tt.getTotalCost() || 0 };
+      result.cost = {
+        input_tokens: s.totalInputTokens || 0,
+        output_tokens: s.totalOutputTokens || 0,
+        estimated_usd: tt.getTotalCost() || 0,
+      };
     }
-  } catch { /* token tracker unavailable */ }
+  } catch {
+    /* token tracker unavailable */
+  }
 
   // Output results
   const format = opts.outputFormat || 'text';
@@ -152,10 +164,14 @@ export async function runTask(opts: TaskOptions): Promise<TaskResult> {
     // Text summary to stderr
     process.stderr.write(`\n  ── Task Result ──\n`);
     process.stderr.write(`  Status: ${status}\n`);
-    process.stderr.write(`  Tools: ${toolCalls.length} calls (${toolCalls.filter(t => t.success).length} succeeded)\n`);
+    process.stderr.write(
+      `  Tools: ${toolCalls.length} calls (${toolCalls.filter((t) => t.success).length} succeeded)\n`,
+    );
     process.stderr.write(`  Cost: $${result.cost.estimated_usd.toFixed(4)}\n`);
     if (errors.length > 0) process.stderr.write(`  Errors: ${errors.join('; ')}\n`);
-    process.stderr.write(`  Duration: ${((new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 1000).toFixed(1)}s\n\n`);
+    process.stderr.write(
+      `  Duration: ${((new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 1000).toFixed(1)}s\n\n`,
+    );
   }
 
   return result;
@@ -165,19 +181,25 @@ function toSarif(result: TaskResult): object {
   return {
     $schema: 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
     version: '2.1.0',
-    runs: [{
-      tool: { driver: { name: 'CodeBot', version: '2.9.0', informationUri: 'https://github.com/Ascendral/codebot-ai' } },
-      results: result.errors.map((err, i) => ({
-        ruleId: 'task-error',
-        level: 'error',
-        message: { text: err },
-        ruleIndex: i,
-      })),
-      invocations: [{
-        executionSuccessful: result.status === 'completed',
-        startTimeUtc: result.startedAt,
-        endTimeUtc: result.completedAt,
-      }],
-    }],
+    runs: [
+      {
+        tool: {
+          driver: { name: 'CodeBot', version: VERSION, informationUri: 'https://github.com/Ascendral/codebot-ai' },
+        },
+        results: result.errors.map((err, i) => ({
+          ruleId: 'task-error',
+          level: 'error',
+          message: { text: err },
+          ruleIndex: i,
+        })),
+        invocations: [
+          {
+            executionSuccessful: result.status === 'completed',
+            startTimeUtc: result.startedAt,
+            endTimeUtc: result.completedAt,
+          },
+        ],
+      },
+    ],
   };
 }

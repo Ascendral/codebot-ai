@@ -1,7 +1,22 @@
-import { describe, it, before } from 'node:test';
+import { describe, it, before, after } from 'node:test';
 import * as assert from 'node:assert';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { Agent } from './agent';
 import { LLMProvider, Message, ToolSchema, StreamEvent } from './types';
+import { UserProfile } from './user-profile';
+
+const originalCodebotHome = process.env.CODEBOT_HOME;
+
+before(() => {
+  process.env.CODEBOT_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-agent-home-'));
+});
+
+after(() => {
+  if (originalCodebotHome === undefined) delete process.env.CODEBOT_HOME;
+  else process.env.CODEBOT_HOME = originalCodebotHome;
+});
 
 /**
  * Mock LLM provider that returns scripted responses.
@@ -15,7 +30,7 @@ class MockProvider implements LLMProvider {
     this.responses = responses;
   }
 
-  async *chat(messages: Message[], tools?: ToolSchema[]): AsyncGenerator<StreamEvent> {
+  async *chat(_messages: Message[], _tools?: ToolSchema[]): AsyncGenerator<StreamEvent> {
     const response = this.responses[this.callIndex++] || { text: 'No more responses.' };
 
     if (response.text) {
@@ -57,10 +72,13 @@ describe('Agent', () => {
       events.push(event);
     }
 
-    const textEvents = events.filter(e => e.type === 'text');
+    const textEvents = events.filter((e) => e.type === 'text');
     assert.ok(textEvents.length > 0, 'Should have text events');
     assert.strictEqual(textEvents[0].text, 'Hello, world!');
-    assert.ok(events.some(e => e.type === 'done'), 'Should end with done');
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should end with done',
+    );
   });
 
   it('executes tool calls and feeds results back', async () => {
@@ -83,9 +101,18 @@ describe('Agent', () => {
       events.push(event);
     }
 
-    assert.ok(events.some(e => e.type === 'tool_call'), 'Should have tool_call event');
-    assert.ok(events.some(e => e.type === 'tool_result'), 'Should have tool_result event');
-    assert.ok(events.some(e => e.type === 'done'), 'Should end with done');
+    assert.ok(
+      events.some((e) => e.type === 'tool_call'),
+      'Should have tool_call event',
+    );
+    assert.ok(
+      events.some((e) => e.type === 'tool_result'),
+      'Should have tool_result event',
+    );
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should end with done',
+    );
   });
 
   it('handles unknown tool names gracefully', async () => {
@@ -107,14 +134,9 @@ describe('Agent', () => {
       events.push(event);
     }
 
-    const errorResult = events.find(
-      e => e.type === 'tool_result' && e.toolResult?.is_error
-    );
+    const errorResult = events.find((e) => e.type === 'tool_result' && e.toolResult?.is_error);
     assert.ok(errorResult, 'Should have error result for unknown tool');
-    assert.ok(
-      errorResult?.toolResult?.result?.includes('Unknown tool'),
-      'Error should mention unknown tool'
-    );
+    assert.ok(errorResult?.toolResult?.result?.includes('Unknown tool'), 'Error should mention unknown tool');
   });
 
   it('respects max iterations', async () => {
@@ -122,7 +144,7 @@ describe('Agent', () => {
     const infiniteToolProvider = new MockProvider(
       Array(10).fill({
         toolCalls: [{ name: 'think', args: { thought: 'loop' } }],
-      })
+      }),
     );
 
     const agent = new Agent({
@@ -137,12 +159,9 @@ describe('Agent', () => {
       events.push(event);
     }
 
-    const errorEvent = events.find(e => e.type === 'error');
+    const errorEvent = events.find((e) => e.type === 'error');
     assert.ok(errorEvent, 'Should hit max iterations error');
-    assert.ok(
-      errorEvent?.error?.includes('Max iterations'),
-      'Error should mention max iterations'
-    );
+    assert.ok(errorEvent?.error?.includes('Max iterations'), 'Error should mention max iterations');
   });
 
   it('clears history correctly', async () => {
@@ -154,7 +173,9 @@ describe('Agent', () => {
     });
 
     // Run one message
-    for await (const _ of agent.run('First message')) {}
+    for await (const event of agent.run('First message')) {
+      void event;
+    }
     const before = agent.getMessages().length;
     assert.ok(before > 1, 'Should have messages after first run');
 
@@ -179,7 +200,10 @@ describe('Agent', () => {
     for await (const event of agent.run('Hello')) {
       events.push(event);
     }
-    assert.ok(events.some(e => e.type === 'done'), 'Should complete with custom projectRoot');
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should complete with custom projectRoot',
+    );
   });
 
   it('falls back to cwd when projectRoot not provided', async () => {
@@ -195,7 +219,10 @@ describe('Agent', () => {
     for await (const event of agent.run('Hello')) {
       events.push(event);
     }
-    assert.ok(events.some(e => e.type === 'done'), 'Should complete without projectRoot');
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should complete without projectRoot',
+    );
   });
 
   it('propagates projectRoot through tool execution', async () => {
@@ -220,7 +247,61 @@ describe('Agent', () => {
     }
 
     // Tool execution should succeed (think tool doesn't depend on filesystem)
-    const toolResult = events.find(e => e.type === 'tool_result');
+    const toolResult = events.find((e) => e.type === 'tool_result');
     assert.ok(toolResult, 'Should have tool result with custom projectRoot');
+  });
+
+  it('refreshes the system prompt with durable task state before each run', async () => {
+    let capturedMessages: Message[] = [];
+
+    class InspectingProvider implements LLMProvider {
+      name = 'inspecting-mock';
+
+      async *chat(messages: Message[], _tools?: ToolSchema[]): AsyncGenerator<StreamEvent> {
+        capturedMessages = messages;
+        yield { type: 'text', text: 'Done.' };
+        yield { type: 'done' };
+      }
+    }
+
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-agent-project-'));
+    const agent = new Agent({
+      provider: new InspectingProvider(),
+      model: 'mock-model',
+      autoApprove: true,
+      projectRoot,
+    });
+
+    for await (const event of agent.run('Fix the dashboard port mismatch')) {
+      void event;
+    }
+
+    const systemMessage = capturedMessages[0];
+    assert.ok(systemMessage.content.includes('## Durable Task State'));
+    assert.ok(systemMessage.content.includes('Active task: Fix the dashboard port mismatch'));
+  });
+
+  it('persists learned user preferences after a run completes', async () => {
+    class QuietProvider implements LLMProvider {
+      name = 'quiet-mock';
+
+      async *chat(_messages: Message[], _tools?: ToolSchema[]): AsyncGenerator<StreamEvent> {
+        yield { type: 'text', text: 'I will keep it brief.' };
+        yield { type: 'done' };
+      }
+    }
+
+    const agent = new Agent({
+      provider: new QuietProvider(),
+      model: 'mock-model',
+      autoApprove: true,
+    });
+
+    for await (const event of agent.run('Please keep it short and concise.')) {
+      void event;
+    }
+
+    const profile = new UserProfile();
+    assert.strictEqual(profile.getData().preferences.verbosity, 'concise');
   });
 });

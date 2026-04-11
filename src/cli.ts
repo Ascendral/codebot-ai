@@ -2,17 +2,24 @@ import * as readline from 'readline';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Agent } from './agent';
-import { AgentEvent, Config, Message } from './types';
+import { Config, Message } from './types';
 import { SessionManager } from './history';
 import { loadConfig, isFirstRun, runSetup } from './setup';
-import { banner, randomGreeting, formatReaction, sessionSummaryBanner, shouldAnimate, animateBootSequence } from './banner';
+import {
+  banner,
+  randomGreeting,
+  formatReaction,
+  sessionSummaryBanner,
+  shouldAnimate,
+  animateBootSequence,
+} from './banner';
 import { Scheduler } from './scheduler';
 import { AuditLogger } from './audit';
 import { generateDefaultPolicyFile } from './policy';
 import { getSandboxInfo } from './sandbox';
 import { ReplayProvider, loadSessionForReplay, compareOutputs } from './replay';
 import { exportSarif, sarifToString } from './sarif';
-import { UI, permissionCard, guidedPrompts } from './ui';
+import { permissionCard, guidedPrompts } from './ui';
 import { runDoctor, formatDoctorReport } from './doctor';
 import { loadTheme, setTheme } from './theme';
 import { autoDetect, runQuickSetup, saveConfig as saveSetupConfig } from './setup';
@@ -31,6 +38,7 @@ import { parseArgs, showHelp } from './cli/args';
 import { resolveConfig, createProvider } from './cli/config';
 import { renderEvent, renderSolveEvent, setVerbose, truncate } from './cli/render';
 import { handleSlashCommand } from './cli/commands';
+import { resolveDashboardPort } from './cli/dashboard-config';
 
 const C = {
   reset: '\x1b[0m',
@@ -68,7 +76,11 @@ export async function main() {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`\n\x1b[2mCodeBot shutting down (${signal})...\x1b[0m`);
-    try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
+    try {
+      fs.unlinkSync(pidFile);
+    } catch {
+      /* ignore */
+    }
     process.exit(0);
   };
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
@@ -91,9 +103,17 @@ export async function main() {
     setTheme(loadTheme());
   }
 
-  if (args.help) { showHelp(); return; }
-  if (args.version) { console.log(`CodeBot AI v${VERSION}`); return; }
-  if (args.setup) { await runSetup(); }
+  if (args.help) {
+    showHelp();
+    return;
+  }
+  if (args.version) {
+    console.log(`CodeBot AI v${VERSION}`);
+    return;
+  }
+  if (args.setup) {
+    await runSetup();
+  }
 
   // ── Standalone commands ──
   if (args['init-policy']) {
@@ -111,10 +131,13 @@ export async function main() {
 
   if (args['verify-audit']) {
     const logger = new AuditLogger();
-    const sessionId = typeof args['verify-audit'] === 'string' ? args['verify-audit'] as string : undefined;
+    const sessionId = typeof args['verify-audit'] === 'string' ? (args['verify-audit'] as string) : undefined;
     if (sessionId) {
       const entries = logger.query({ sessionId });
-      if (entries.length === 0) { console.log(c(`No audit entries found for session ${sessionId}`, 'yellow')); return; }
+      if (entries.length === 0) {
+        console.log(c(`No audit entries found for session ${sessionId}`, 'yellow'));
+        return;
+      }
       const result = AuditLogger.verify(entries);
       if (result.valid) {
         console.log(c(`Audit chain valid (${result.entriesChecked} entries checked)`, 'green'));
@@ -124,7 +147,10 @@ export async function main() {
       }
     } else {
       const entries = logger.query();
-      if (entries.length === 0) { console.log(c('No audit entries found.', 'yellow')); return; }
+      if (entries.length === 0) {
+        console.log(c('No audit entries found.', 'yellow'));
+        return;
+      }
       const sessions = new Map<string, typeof entries>();
       for (const e of entries) {
         if (!sessions.has(e.sessionId)) sessions.set(e.sessionId, []);
@@ -141,9 +167,11 @@ export async function main() {
           allValid = false;
         }
       }
-      console.log(allValid
-        ? c(`\nAll ${sessions.size} session chains verified.`, 'green')
-        : c(`\nSome chains are invalid — possible tampering detected.`, 'red'));
+      console.log(
+        allValid
+          ? c(`\nAll ${sessions.size} session chains verified.`, 'green')
+          : c(`\nSome chains are invalid — possible tampering detected.`, 'red'),
+      );
     }
     return;
   }
@@ -160,15 +188,26 @@ export async function main() {
   }
 
   if (args.replay) {
-    const replayId = typeof args.replay === 'string' ? args.replay as string : SessionManager.latest();
-    if (!replayId) { console.log(c('No session to replay.', 'yellow')); return; }
+    const replayId = typeof args.replay === 'string' ? (args.replay as string) : SessionManager.latest();
+    if (!replayId) {
+      console.log(c('No session to replay.', 'yellow'));
+      return;
+    }
     const data = loadSessionForReplay(replayId);
-    if (!data) { console.log(c(`Session ${replayId} not found.`, 'red')); return; }
+    if (!data) {
+      console.log(c(`Session ${replayId} not found.`, 'red'));
+      return;
+    }
     console.log(c(`\nReplaying session ${replayId.substring(0, 12)}...`, 'cyan'));
     console.log(c(`  ${data.messages.length} messages`, 'dim'));
     const replayProvider = new ReplayProvider(data.assistantMessages);
     const config = await resolveConfig(args);
-    const agent = new Agent({ provider: replayProvider, model: config.model, providerName: 'replay', autoApprove: true });
+    const agent = new Agent({
+      provider: replayProvider,
+      model: config.model,
+      providerName: 'replay',
+      autoApprove: true,
+    });
     const recordedResults = Array.from(data.toolResults.values());
     let resultIndex = 0;
     let divergences = 0;
@@ -179,8 +218,12 @@ export async function main() {
           const recorded = recordedResults[resultIndex++];
           if (recorded !== undefined) {
             const diff = compareOutputs(recorded, event.toolResult.result);
-            if (diff) { divergences++; console.log(c(`  \u26a0 Divergence in ${event.toolResult.name || 'tool'}:`, 'yellow')); }
-            else { console.log(c(`  \u2713 ${event.toolResult.name || 'tool'} — output matches`, 'green')); }
+            if (diff) {
+              divergences++;
+              console.log(c(`  \u26a0 Divergence in ${event.toolResult.name || 'tool'}:`, 'yellow'));
+            } else {
+              console.log(c(`  \u2713 ${event.toolResult.name || 'tool'} — output matches`, 'green'));
+            }
           }
         }
       }
@@ -191,9 +234,12 @@ export async function main() {
 
   if (args['export-audit'] === 'sarif' || args['export-audit'] === true) {
     const logger = new AuditLogger();
-    const sessionId = typeof args['session'] === 'string' ? args['session'] as string : undefined;
+    const sessionId = typeof args['session'] === 'string' ? (args['session'] as string) : undefined;
     const entries = sessionId ? logger.query({ sessionId }) : logger.query();
-    if (entries.length === 0) { console.error(c('No audit entries found.', 'yellow')); process.exit(1); }
+    if (entries.length === 0) {
+      console.error(c('No audit entries found.', 'yellow'));
+      process.exit(1);
+    }
     const sarif = exportSarif(entries, { version: VERSION, sessionId });
     process.stdout.write(sarifToString(sarif) + '\n');
     return;
@@ -206,28 +252,42 @@ export async function main() {
   }
 
   if (args.solve) {
-    const solveUrl = typeof args.solve === 'string' ? args.solve as string : (args.message as string);
-    if (!solveUrl) { console.error(c('Error: provide a GitHub issue URL.', 'red')); process.exit(1); }
+    const solveUrl = typeof args.solve === 'string' ? (args.solve as string) : (args.message as string);
+    if (!solveUrl) {
+      console.error(c('Error: provide a GitHub issue URL.', 'red'));
+      process.exit(1);
+    }
     const config = await resolveConfig(args);
     const provider = createProvider(config);
     const solver = new SolveCommand({
-      model: config.model, provider, providerName: config.provider,
-      autoApprove: !!config.autoApprove, maxIterations: config.maxIterations,
-      dryRun: args['dry-run'] !== false && !args['open-pr'], openPr: !!args['open-pr'],
-      safe: !!args.safe, maxFiles: parseInt((args['max-files'] as string) || '10', 10) || 10,
+      model: config.model,
+      provider,
+      providerName: config.provider,
+      autoApprove: !!config.autoApprove,
+      maxIterations: config.maxIterations,
+      dryRun: args['dry-run'] !== false && !args['open-pr'],
+      openPr: !!args['open-pr'],
+      safe: !!args.safe,
+      maxFiles: parseInt((args['max-files'] as string) || '10', 10) || 10,
       timeoutMin: parseInt((args['timeout-min'] as string) || '20', 10) || 20,
-      workspace: typeof args.workspace === 'string' ? args.workspace as string : undefined,
-      json: !!args.json, verbose: !!args.verbose,
+      workspace: typeof args.workspace === 'string' ? (args.workspace as string) : undefined,
+      json: !!args.json,
+      verbose: !!args.verbose,
     });
     console.log(c('\n  CodeBot AI — Issue Solver\n', 'bold'));
-    for await (const event of solver.run(solveUrl)) { renderSolveEvent(event, !!args.json); }
+    for await (const event of solver.run(solveUrl)) {
+      renderSolveEvent(event, !!args.json);
+    }
     return;
   }
 
   // ── Task mode (headless) ──
   if (args.task) {
-    const taskDesc = typeof args.task === 'string' ? args.task as string : (args.message as string);
-    if (!taskDesc) { console.error(c('Error: provide a task description.', 'red')); process.exit(1); }
+    const taskDesc = typeof args.task === 'string' ? (args.task as string) : (args.message as string);
+    if (!taskDesc) {
+      console.error(c('Error: provide a task description.', 'red'));
+      process.exit(1);
+    }
     const config = await resolveConfig(args);
     const provider = createProvider(config);
     const result = await runTask({
@@ -236,10 +296,10 @@ export async function main() {
       model: config.model,
       providerName: config.provider,
       projectRoot: process.cwd(),
-      auditLogPath: typeof args['audit-log'] === 'string' ? args['audit-log'] as string : undefined,
+      auditLogPath: typeof args['audit-log'] === 'string' ? (args['audit-log'] as string) : undefined,
       outputFormat: (typeof args.output === 'string' ? args.output : 'text') as 'json' | 'text' | 'sarif',
       maxCost: args['max-cost'] ? parseFloat(args['max-cost'] as string) : undefined,
-      preset: typeof args.preset === 'string' ? args.preset as string : undefined,
+      preset: typeof args.preset === 'string' ? (args.preset as string) : undefined,
     });
     process.exit(result.status === 'completed' ? 0 : 1);
   }
@@ -249,8 +309,11 @@ export async function main() {
     const config = await resolveConfig(args);
     const provider = createProvider(config);
     const agent = new Agent({
-      provider, model: config.model, providerName: config.provider,
-      maxIterations: config.maxIterations, autoApprove: true,
+      provider,
+      model: config.model,
+      providerName: config.provider,
+      maxIterations: config.maxIterations,
+      autoApprove: true,
     });
     const daemon = new Daemon();
     daemon.onExecuteJob = async (job) => {
@@ -271,7 +334,13 @@ export async function main() {
   if (isFirstRun() && process.stdin.isTTY && !args.message) {
     const detected = await autoDetect();
     if (detected.type === 'auto-start' && detected.model) {
-      const autoConfig: any = { model: detected.model, provider: detected.provider, baseUrl: detected.baseUrl, autoApprove: false, firstRunComplete: true };
+      const autoConfig: any = {
+        model: detected.model,
+        provider: detected.provider,
+        baseUrl: detected.baseUrl,
+        autoApprove: false,
+        firstRunComplete: true,
+      };
       if (detected.apiKey) autoConfig.apiKey = detected.apiKey;
       saveSetupConfig(autoConfig);
       showGuidedPrompts = true;
@@ -313,19 +382,32 @@ export async function main() {
   } else {
     console.log(banner(VERSION, config.model, providerLabel, `${sessionShort}...`, isAuto));
     if (resumeId) console.log(c(`   ${randomGreeting('resuming')}`, 'green'));
-    else if (isAuto) { console.log(c(`   ${randomGreeting('confident')}`, 'dim')); console.log(formatReaction('autonomous_start')); }
-    else console.log(c(`   ${randomGreeting()}\n`, 'dim'));
+    else if (isAuto) {
+      console.log(c(`   ${randomGreeting('confident')}`, 'dim'));
+      console.log(formatReaction('autonomous_start'));
+    } else console.log(c(`   ${randomGreeting()}\n`, 'dim'));
   }
 
   if (showGuidedPrompts) {
     const prompts = getContextualPrompts();
     console.log(guidedPrompts(prompts, 'Type /help for commands, /setup to reconfigure'));
-    try { const saved = loadConfig(); if (saved.firstRunComplete) { delete saved.firstRunComplete; saveSetupConfig(saved); } } catch { /* ignore */ }
+    try {
+      const saved = loadConfig();
+      if (saved.firstRunComplete) {
+        delete saved.firstRunComplete;
+        saveSetupConfig(saved);
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   const agent = new Agent({
-    provider, model: config.model, providerName: config.provider,
-    maxIterations: config.maxIterations, autoApprove: config.autoApprove,
+    provider,
+    model: config.model,
+    providerName: config.provider,
+    maxIterations: config.maxIterations,
+    autoApprove: config.autoApprove,
     onMessage: (msg: Message) => session.save(msg),
   });
 
@@ -333,14 +415,28 @@ export async function main() {
     const card = permissionCard(tool, args, risk || { score: 0, level: 'green' }, sandbox);
     process.stdout.write(card);
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const userResponse = new Promise<boolean>(resolve => { rl.question('Allow? [y/N] ', answer => { rl.close(); resolve(answer.toLowerCase().startsWith('y')); }); });
-    const timeout = new Promise<boolean>(resolve => { setTimeout(() => { rl.close(); process.stdout.write('\n\u23f1 Permission timed out — denied by default.\n'); resolve(false); }, 30_000); });
+    const userResponse = new Promise<boolean>((resolve) => {
+      rl.question('Allow? [y/N] ', (answer) => {
+        rl.close();
+        resolve(answer.toLowerCase().startsWith('y'));
+      });
+    });
+    const timeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        rl.close();
+        process.stdout.write('\n\u23f1 Permission timed out — denied by default.\n');
+        resolve(false);
+      }, 30_000);
+    });
     return Promise.race([userResponse, timeout]);
   });
 
   if (resumeId) {
     const messages = session.load();
-    if (messages.length > 0) { agent.loadMessages(messages); console.log(c(`   Loaded ${messages.length} messages from previous session.`, 'dim')); }
+    if (messages.length > 0) {
+      agent.loadMessages(messages);
+      console.log(c(`   Loaded ${messages.length} messages from previous session.`, 'dim'));
+    }
   }
 
   // ── Dashboard ──
@@ -352,7 +448,8 @@ export async function main() {
       const distStatic = require('path').join(__dirname, 'dashboard', 'static');
       const dashStaticDir = require('fs').existsSync(srcStatic) ? srcStatic : distStatic;
       const dashHost = typeof args.host === 'string' ? args.host : '127.0.0.1';
-      const dashServer = new DashboardServer({ port: 3120, host: dashHost, staticDir: dashStaticDir });
+      const dashPort = resolveDashboardPort();
+      const dashServer = new DashboardServer({ port: dashPort, host: dashHost, staticDir: dashStaticDir });
       registerApiRoutes(dashServer);
       registerCommandRoutes(dashServer, agent);
       registerCodeAGIRoutes(dashServer);
@@ -364,10 +461,18 @@ export async function main() {
         const pidDir = codebotPath('');
         if (!fs.existsSync(pidDir)) fs.mkdirSync(pidDir, { recursive: true });
         fs.writeFileSync(pidFile, String(process.pid), 'utf8');
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
       const dashUrl = dashHost === '0.0.0.0' ? `http://localhost:${dashInfo.port}` : dashInfo.url;
       if (!args['no-open'] && !process.env.CODEBOT_NO_OPEN) {
-        try { const { exec } = require('child_process'); const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'; exec(`${openCmd} ${dashUrl}`); } catch { /* best-effort */ }
+        try {
+          const { exec } = require('child_process');
+          const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+          exec(`${openCmd} ${dashUrl}`);
+        } catch {
+          /* best-effort */
+        }
       }
     } catch (err: unknown) {
       console.log(c(`   Dashboard failed: ${err instanceof Error ? err.message : String(err)}`, 'yellow'));
@@ -385,22 +490,33 @@ export async function main() {
             clearInterval(watchdog);
             gracefulShutdown('orphan-detected');
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }, 30_000);
       watchdog.unref();
     }
   }
 
-  if (typeof args.message === 'string') { await runOnce(agent, args.message); printSessionSummary(agent); return; }
+  if (typeof args.message === 'string') {
+    await runOnce(agent, args.message);
+    printSessionSummary(agent);
+    return;
+  }
   if (!process.stdin.isTTY) {
     if (args.dashboard) {
       // Dashboard mode with no TTY (backgrounded, launched from .app, etc.)
       // Keep process alive — the HTTP server IS the product, REPL is optional.
-      console.log(c('   Dashboard-only mode — no REPL, serving on port 3120.', 'dim'));
+      console.log(c(`   Dashboard-only mode — no REPL, serving on port ${resolveDashboardPort()}.`, 'dim'));
       await new Promise(() => {}); // Block forever — HTTP server keeps running
       return;
     }
-    const input = await readStdin(); if (input.trim()) { await runOnce(agent, input.trim()); printSessionSummary(agent); } return;
+    const input = await readStdin();
+    if (input.trim()) {
+      await runOnce(agent, input.trim());
+      printSessionSummary(agent);
+    }
+    return;
   }
 
   const scheduler = new Scheduler(agent, (text) => process.stdout.write(text));
@@ -420,19 +536,21 @@ function printSessionSummary(agent: Agent) {
   console.log(c('\n\u2500\u2500 Session Summary \u2500\u2500', 'dim'));
   console.log(`  Duration:  ${mins}m ${secs}s`);
   console.log(`  Model:     ${summary.model} via ${summary.provider}`);
-  console.log(`  Tokens:    ${summary.totalInputTokens.toLocaleString()} in / ${summary.totalOutputTokens.toLocaleString()} out (${tracker.formatCost()})`);
+  console.log(
+    `  Tokens:    ${summary.totalInputTokens.toLocaleString()} in / ${summary.totalOutputTokens.toLocaleString()} out (${tracker.formatCost()})`,
+  );
   console.log(`  Requests:  ${summary.requestCount}`);
   console.log(`  Tools:     ${summary.toolCalls} calls`);
   console.log(`  Files:     ${summary.filesModified} modified`);
 
   const metrics = agent.getMetrics();
   const snap = metrics.snapshot();
-  const toolCounters = snap.counters.filter(c => c.name === 'tool_calls_total');
+  const toolCounters = snap.counters.filter((c) => c.name === 'tool_calls_total');
   if (toolCounters.length > 0) {
     console.log(c('  Per-tool:', 'dim'));
     for (const tc of toolCounters.sort((a, b) => b.value - a.value)) {
-      const hist = snap.histograms.find(h => h.name === 'tool_latency_seconds' && h.labels.tool === tc.labels.tool);
-      const avg = hist && hist.count > 0 ? (hist.sum / hist.count * 1000).toFixed(0) : '?';
+      const hist = snap.histograms.find((h) => h.name === 'tool_latency_seconds' && h.labels.tool === tc.labels.tool);
+      const avg = hist && hist.count > 0 ? ((hist.sum / hist.count) * 1000).toFixed(0) : '?';
       console.log(c(`    ${tc.labels.tool}: ${tc.value} calls (avg ${avg}ms)`, 'dim'));
     }
   }
@@ -450,7 +568,14 @@ function printSessionSummary(agent: Agent) {
   const riskAvg = riskScorer.getSessionAverage();
   if (riskScorer.getHistory().length > 0) console.log(`  Risk:      avg ${riskAvg}/100`);
 
-  console.log(sessionSummaryBanner({ iterations: summary.requestCount, toolCalls: summary.toolCalls, tokensUsed: summary.totalInputTokens + summary.totalOutputTokens, duration }));
+  console.log(
+    sessionSummaryBanner({
+      iterations: summary.requestCount,
+      toolCalls: summary.toolCalls,
+      tokensUsed: summary.totalInputTokens + summary.totalOutputTokens,
+      duration,
+    }),
+  );
   metrics.save();
   metrics.exportOtel();
 }
@@ -460,10 +585,22 @@ async function repl(agent: Agent, config: Config, session?: SessionManager, isDa
   rl.prompt();
   rl.on('line', async (line: string) => {
     const input = line.trim();
-    if (!input) { rl.prompt(); return; }
-    if (input.startsWith('/')) { handleSlashCommand(input, agent, config); rl.prompt(); return; }
-    try { for await (const event of agent.run(input)) { renderEvent(event, agent); } }
-    catch (err: unknown) { console.error(c(`\nError: ${err instanceof Error ? err.message : String(err)}`, 'red')); }
+    if (!input) {
+      rl.prompt();
+      return;
+    }
+    if (input.startsWith('/')) {
+      handleSlashCommand(input, agent, config);
+      rl.prompt();
+      return;
+    }
+    try {
+      for await (const event of agent.run(input)) {
+        renderEvent(event, agent);
+      }
+    } catch (err: unknown) {
+      console.error(c(`\nError: ${err instanceof Error ? err.message : String(err)}`, 'red'));
+    }
     console.log();
     rl.prompt();
   });
@@ -472,7 +609,7 @@ async function repl(agent: Agent, config: Config, session?: SessionManager, isDa
     console.log(formatReaction('session_end'));
     // In dashboard mode, keep process alive — dashboard serves independently
     if (isDashboard) {
-      console.log(c('   REPL closed — dashboard still running on port 3120.', 'dim'));
+      console.log(c(`   REPL closed — dashboard still running on port ${resolveDashboardPort()}.`, 'dim'));
     } else {
       process.exit(0);
     }
@@ -480,12 +617,14 @@ async function repl(agent: Agent, config: Config, session?: SessionManager, isDa
 }
 
 async function runOnce(agent: Agent, message: string) {
-  for await (const event of agent.run(message)) { renderEvent(event, agent); }
+  for await (const event of agent.run(message)) {
+    renderEvent(event, agent);
+  }
   console.log();
 }
 
 function readStdin(): Promise<string> {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     let data = '';
     process.stdin.on('data', (chunk: Buffer) => (data += chunk.toString()));
     process.stdin.on('end', () => resolve(data));
@@ -496,7 +635,9 @@ function getContextualPrompts(): string[] {
   const cwd = process.cwd();
   const isGitRepo = fs.existsSync(path.join(cwd, '.git'));
   const hasPackageJson = fs.existsSync(path.join(cwd, 'package.json'));
-  if (isGitRepo && hasPackageJson) return ['"explain what this project does"', '"find and fix any bugs in src/"', '"add tests for the main module"'];
-  if (isGitRepo) return ['"summarize the recent git changes"', '"review the code in this repo"', '"help me refactor the main file"'];
+  if (isGitRepo && hasPackageJson)
+    return ['"explain what this project does"', '"find and fix any bugs in src/"', '"add tests for the main module"'];
+  if (isGitRepo)
+    return ['"summarize the recent git changes"', '"review the code in this repo"', '"help me refactor the main file"'];
   return ['"create a new Node.js project"', '"write a Python script that..."', '"help me set up a React app"'];
 }

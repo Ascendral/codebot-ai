@@ -1,6 +1,4 @@
-// Single source of truth — read version from package.json
-const _pkg = require('../package.json') as { version: string };
-export const VERSION: string = _pkg.version;
+export { VERSION } from './version';
 export { Agent } from './agent';
 export { OpenAIProvider } from './providers/openai';
 export { AnthropicProvider } from './providers/anthropic';
@@ -33,11 +31,54 @@ export { exportSarif, sarifToString } from './sarif';
 export type { SarifLog, SarifResult, SarifRule } from './sarif';
 export { PolicyEnforcer, loadPolicy, generateDefaultPolicyFile } from './policy';
 export type { Policy, PolicyRbac, PolicyRole } from './policy';
-export { encrypt, decrypt, encryptLine, decryptLine, encryptContent, decryptContent, isEncryptionEnabled, deriveKey, getPassphrase } from './encryption';
+export {
+  encrypt,
+  decrypt,
+  encryptLine,
+  decryptLine,
+  encryptContent,
+  decryptContent,
+  isEncryptionEnabled,
+  deriveKey,
+  getPassphrase,
+} from './encryption';
 export type { EncryptionConfig } from './encryption';
-export { banner, randomGreeting, compactBanner, formatReaction, codiReact, sessionSummaryBanner, randomBanner, CODI_FACE, BANNER_1, BANNER_2, BANNER_3, animateReveal, animateVisorScan, animateEyeBoot, animateBootSequence, animateTyping, animateSessionEnd, animateWelcomeBoot, shouldAnimate } from './banner';
+export {
+  banner,
+  randomGreeting,
+  compactBanner,
+  formatReaction,
+  codiReact,
+  sessionSummaryBanner,
+  randomBanner,
+  CODI_FACE,
+  BANNER_1,
+  BANNER_2,
+  BANNER_3,
+  animateReveal,
+  animateVisorScan,
+  animateEyeBoot,
+  animateBootSequence,
+  animateTyping,
+  animateSessionEnd,
+  animateWelcomeBoot,
+  shouldAnimate,
+} from './banner';
 export type { CodiMood, CodiReaction, AnimationSpeed, AnimationWriter, AnimationOptions } from './banner';
-export { box, riskBar, permissionCard, spinner, progressStep, diffPreview, sessionHeader, summaryBox, UI, BOX, providerCard, guidedPrompts } from './ui';
+export {
+  box,
+  riskBar,
+  permissionCard,
+  spinner,
+  progressStep,
+  diffPreview,
+  sessionHeader,
+  summaryBox,
+  UI,
+  BOX,
+  providerCard,
+  guidedPrompts,
+} from './ui';
 export type { ProviderCardItem } from './ui';
 export { TokenTracker, estimateRunCost } from './telemetry';
 export type { UsageRecord, SessionSummary, CostEstimate } from './telemetry';
@@ -77,7 +118,13 @@ export { loadSkills, skillToTool } from './skills';
 export type { SkillDefinition, SkillStep } from './skills';
 // v2.7.0 — Constitutional AI Safety Layer
 export { ConstitutionalLayer, CordAdapter } from './constitutional';
-export type { ConstitutionalResult, ConstitutionalConfig, ConstitutionalMetrics, VigilAlert, CordDecision } from './constitutional/types';
+export type {
+  ConstitutionalResult,
+  ConstitutionalConfig,
+  ConstitutionalMetrics,
+  VigilAlert,
+  CordDecision,
+} from './constitutional/types';
 // v2.7.0 — Solve command
 export { SolveCommand } from './solve';
 export type { SolveOptions, SolveEvent, SolveResult, SolvePhase, IssueInfo } from './solve';

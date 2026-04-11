@@ -5,7 +5,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { ToolRegistry } from './index';
 
-const TOTAL_TOOLS = 34;
+const TOTAL_TOOLS = 35;
 
 describe('ToolRegistry', () => {
   it(`registers all ${TOTAL_TOOLS} tools`, () => {
@@ -18,14 +18,43 @@ describe('ToolRegistry', () => {
     const registry = new ToolRegistry();
     const names = [
       // Original 13
-      'read_file', 'write_file', 'edit_file', 'batch_edit', 'execute', 'glob', 'grep',
-      'think', 'memory', 'web_fetch', 'web_search', 'browser', 'routine',
+      'read_file',
+      'write_file',
+      'edit_file',
+      'batch_edit',
+      'execute',
+      'glob',
+      'grep',
+      'think',
+      'memory',
+      'web_fetch',
+      'web_search',
+      'browser',
+      'routine',
       // v1.4.0 — 15 new
-      'git', 'code_analysis', 'multi_search', 'task_planner', 'diff_viewer',
-      'docker', 'database', 'test_runner', 'http_client', 'image_info',
-      'ssh_remote', 'notification', 'pdf_extract', 'package_manager', 'code_review',
+      'git',
+      'code_analysis',
+      'multi_search',
+      'task_planner',
+      'diff_viewer',
+      'docker',
+      'database',
+      'test_runner',
+      'http_client',
+      'image_info',
+      'ssh_remote',
+      'notification',
+      'pdf_extract',
+      'package_manager',
+      'code_review',
       // v2.5.0 — app connectors + graphics
-      'app', 'graphics',
+      'app',
+      'graphics',
+      'deep_research',
+      'skill_forge',
+      'plugin_forge',
+      'decompose_goal',
+      'delegate',
     ];
     for (const name of names) {
       assert.ok(registry.get(name), `Tool "${name}" not found`);
@@ -51,8 +80,44 @@ describe('ToolRegistry', () => {
 
   it('all tools have correct permission levels', () => {
     const registry = new ToolRegistry();
-    const auto = ['read_file', 'glob', 'grep', 'think', 'memory', 'routine', 'code_analysis', 'multi_search', 'task_planner', 'diff_viewer', 'image_info', 'pdf_extract', 'code_review'];
-    const prompt = ['write_file', 'edit_file', 'batch_edit', 'web_fetch', 'browser', 'web_search', 'git', 'docker', 'database', 'test_runner', 'http_client', 'notification', 'package_manager', 'app', 'graphics', 'execute'];
+    const auto = [
+      'read_file',
+      'glob',
+      'grep',
+      'think',
+      'memory',
+      'routine',
+      'code_analysis',
+      'multi_search',
+      'task_planner',
+      'diff_viewer',
+      'image_info',
+      'pdf_extract',
+      'code_review',
+      'deep_research',
+      'decompose_goal',
+    ];
+    const prompt = [
+      'write_file',
+      'edit_file',
+      'batch_edit',
+      'web_fetch',
+      'browser',
+      'web_search',
+      'git',
+      'docker',
+      'database',
+      'test_runner',
+      'http_client',
+      'notification',
+      'package_manager',
+      'app',
+      'graphics',
+      'execute',
+      'delegate',
+      'skill_forge',
+      'plugin_forge',
+    ];
     const alwaysAsk = ['ssh_remote'];
 
     for (const name of auto) {
@@ -282,10 +347,15 @@ describe('CodeAnalysisTool', () => {
 
   before(() => {
     fs.mkdirSync(tmpDir, { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'sample.ts'), 'export class Foo {\n  bar(): string { return "hi"; }\n}\nfunction baz() {}\n');
+    fs.writeFileSync(
+      path.join(tmpDir, 'sample.ts'),
+      'export class Foo {\n  bar(): string { return "hi"; }\n}\nfunction baz() {}\n',
+    );
   });
 
-  after(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+  after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 
   it('extracts symbols from a file', async () => {
     const registry = new ToolRegistry();
@@ -322,7 +392,9 @@ describe('MultiSearchTool', () => {
     fs.writeFileSync(path.join(tmpDir, 'src', 'db.ts'), 'export class DatabaseClient {}\n');
   });
 
-  after(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+  after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 
   it('finds files by query', async () => {
     const registry = new ToolRegistry();
@@ -372,12 +444,18 @@ describe('DiffViewerTool', () => {
     fs.writeFileSync(path.join(tmpDir, 'b.txt'), 'line1\nchanged\nline3\n');
   });
 
-  after(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+  after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 
   it('diffs two files', async () => {
     const registry = new ToolRegistry();
     const tool = registry.get('diff_viewer')!;
-    const result = await tool.execute({ action: 'files', file_a: path.join(tmpDir, 'a.txt'), file_b: path.join(tmpDir, 'b.txt') });
+    const result = await tool.execute({
+      action: 'files',
+      file_a: path.join(tmpDir, 'a.txt'),
+      file_b: path.join(tmpDir, 'b.txt'),
+    });
     assert.ok(result.includes('line2'));
     assert.ok(result.includes('changed'));
     assert.ok(result.includes('differ'));
@@ -386,7 +464,11 @@ describe('DiffViewerTool', () => {
   it('reports identical files', async () => {
     const registry = new ToolRegistry();
     const tool = registry.get('diff_viewer')!;
-    const result = await tool.execute({ action: 'files', file_a: path.join(tmpDir, 'a.txt'), file_b: path.join(tmpDir, 'a.txt') });
+    const result = await tool.execute({
+      action: 'files',
+      file_a: path.join(tmpDir, 'a.txt'),
+      file_b: path.join(tmpDir, 'a.txt'),
+    });
     assert.ok(result.includes('identical'));
   });
 });
@@ -400,7 +482,11 @@ describe('DatabaseTool', () => {
   });
 
   after(() => {
-    try { fs.unlinkSync(tmpDb); } catch { /* ok */ }
+    try {
+      fs.unlinkSync(tmpDb);
+    } catch {
+      /* ok */
+    }
   });
 
   it('blocks destructive SQL', async () => {
@@ -478,11 +564,35 @@ describe('ImageInfoTool', () => {
     // Create a minimal PNG
     const tmpFile = path.join(os.tmpdir(), `test-${Date.now()}.png`);
     const pngHeader = Buffer.from([
-      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
-      0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
-      0x00, 0x00, 0x00, 0x10, // width: 16
-      0x00, 0x00, 0x00, 0x08, // height: 8
-      0x08, 0x02, 0x00, 0x00, 0x00,
+      0x89,
+      0x50,
+      0x4e,
+      0x47,
+      0x0d,
+      0x0a,
+      0x1a,
+      0x0a, // PNG signature
+      0x00,
+      0x00,
+      0x00,
+      0x0d,
+      0x49,
+      0x48,
+      0x44,
+      0x52, // IHDR chunk
+      0x00,
+      0x00,
+      0x00,
+      0x10, // width: 16
+      0x00,
+      0x00,
+      0x00,
+      0x08, // height: 8
+      0x08,
+      0x02,
+      0x00,
+      0x00,
+      0x00,
     ]);
     fs.writeFileSync(tmpFile, pngHeader);
     const result = await tool.execute({ path: tmpFile });
@@ -498,10 +608,15 @@ describe('CodeReviewTool', () => {
 
   before(() => {
     fs.mkdirSync(tmpDir, { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'bad.ts'), 'eval("danger");\nconst secret = "abc123456789";\n// TODO fix this\n');
+    fs.writeFileSync(
+      path.join(tmpDir, 'bad.ts'),
+      'eval("danger");\nconst secret = "abc123456789";\n// TODO fix this\n',
+    );
   });
 
-  after(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+  after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 
   it('finds security issues', async () => {
     const registry = new ToolRegistry();
@@ -524,7 +639,9 @@ describe('PackageManagerTool', () => {
     const registry = new ToolRegistry();
     const tool = registry.get('package_manager')!;
     const result = await tool.execute({ action: 'detect' });
-    assert.ok(result.includes('npm') || result.includes('yarn') || result.includes('pnpm') || result.includes('Detected'));
+    assert.ok(
+      result.includes('npm') || result.includes('yarn') || result.includes('pnpm') || result.includes('Detected'),
+    );
   });
 
   it('returns error for unknown action', async () => {

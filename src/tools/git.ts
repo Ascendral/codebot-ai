@@ -91,6 +91,20 @@ export class GitTool implements Tool {
     if (action === 'reset' && extra.includes('--hard')) {
       return 'Error: git reset --hard is blocked for safety.';
     }
+    // Block destructive bare `git stash` (push form) — silently sweeps working tree.
+    // See incident: src/tools/git.test.ts running `tool.execute({action:'stash'})`
+    // accumulated 257 stashes of unrelated WIP because the test cwd was the repo itself.
+    if (action === 'stash') {
+      const stashArgs = splitArgs(extra);
+      const sub = stashArgs[0] || '';
+      const safeSubs = ['list', 'show', 'apply', 'pop', 'drop', 'branch'];
+      if (!sub || sub === 'push' || sub === 'save') {
+        return 'Error: bare `git stash` (push/save form) is blocked for safety — it silently captures the working tree. Use `git stash list/show/apply/pop/drop` instead.';
+      }
+      if (!safeSubs.includes(sub)) {
+        return `Error: git stash subcommand "${sub}" is not allowed. Use list/show/apply/pop/drop/branch.`;
+      }
+    }
 
     // Policy: block push to main/master when never_push_main=true
     if (action === 'push' && this.policyEnforcer?.isMainPushBlocked()) {

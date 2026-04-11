@@ -3,6 +3,8 @@
  * Extracted from cli.ts for maintainability.
  */
 
+import { DEFAULT_DASHBOARD_PORT } from './dashboard-config';
+
 const C = {
   reset: '\x1b[0m',
   bold: '\x1b[1m',
@@ -122,13 +124,46 @@ export function parseArgs(argv: string[]): Record<string, string | boolean> {
       result.doctor = true;
       continue;
     }
-    if (arg === '--preset') { const next = argv[i + 1]; result.preset = next && !next.startsWith('--') ? next : true; if (typeof result.preset === 'string') i++; continue; }
-    if (arg === '--init-preset') { const next = argv[i + 1]; result['init-preset'] = next && !next.startsWith('--') ? next : true; if (typeof result['init-preset'] === 'string') i++; continue; }
-    if (arg === '--core-only') { result['core-only'] = true; continue; }
-    if (arg === '--task') { const next = argv[i + 1]; result.task = next && !next.startsWith('--') ? next : true; if (typeof result.task === 'string') i++; continue; }
-    if (arg === '--audit-log') { const next = argv[i + 1]; result['audit-log'] = next && !next.startsWith('--') ? next : ''; i++; continue; }
-    if (arg === '--output') { const next = argv[i + 1]; result.output = next || 'text'; i++; continue; }
-    if (arg === '--max-cost') { const next = argv[i + 1]; result['max-cost'] = next; i++; continue; }
+    if (arg === '--preset') {
+      const next = argv[i + 1];
+      result.preset = next && !next.startsWith('--') ? next : true;
+      if (typeof result.preset === 'string') i++;
+      continue;
+    }
+    if (arg === '--init-preset') {
+      const next = argv[i + 1];
+      result['init-preset'] = next && !next.startsWith('--') ? next : true;
+      if (typeof result['init-preset'] === 'string') i++;
+      continue;
+    }
+    if (arg === '--core-only') {
+      result['core-only'] = true;
+      continue;
+    }
+    if (arg === '--task') {
+      const next = argv[i + 1];
+      result.task = next && !next.startsWith('--') ? next : true;
+      if (typeof result.task === 'string') i++;
+      continue;
+    }
+    if (arg === '--audit-log') {
+      const next = argv[i + 1];
+      result['audit-log'] = next && !next.startsWith('--') ? next : '';
+      i++;
+      continue;
+    }
+    if (arg === '--output') {
+      const next = argv[i + 1];
+      result.output = next || 'text';
+      i++;
+      continue;
+    }
+    if (arg === '--max-cost') {
+      const next = argv[i + 1];
+      result['max-cost'] = next;
+      i++;
+      continue;
+    }
 
     if (arg === '--solve') {
       const next = argv[i + 1];
@@ -196,7 +231,7 @@ ${c('Options:', 'bold')}
   --provider <name>    Provider: openai, anthropic, gemini, deepseek, groq, mistral, xai
   --base-url <url>     LLM API base URL (auto-detects Ollama/LM Studio/vLLM + cloud)
   --api-key <key>      API key (or set provider-specific env var)
-  --dashboard          Start web dashboard on port 3120
+  --dashboard          Start web dashboard on port ${DEFAULT_DASHBOARD_PORT}
   --daemon             Start persistent background daemon
   --host <addr>        Dashboard bind address (default: 127.0.0.1, use 0.0.0.0 for LAN)
   --tui                Full-screen TUI mode with panels

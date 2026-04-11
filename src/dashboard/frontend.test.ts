@@ -39,7 +39,7 @@ describe('Dashboard Frontend — index.html structure', () => {
   it('has DOCTYPE', () => {
     const dir = getStaticDir();
     const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf-8');
-    assert.ok(html.startsWith('<!DOCTYPE html>'));
+    assert.match(html, /^<!doctype html>/i);
   });
 
   it('references style.css', () => {
@@ -71,6 +71,14 @@ describe('Dashboard Frontend — index.html structure', () => {
     assert.ok(html.includes('panel-terminal'));
     assert.ok(html.includes('panel-tools'));
   });
+
+  it('has dynamic settings metadata placeholders', () => {
+    const dir = getStaticDir();
+    const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf-8');
+    assert.ok(html.includes('id="settings-version"'));
+    assert.ok(html.includes('id="settings-backend"'));
+    assert.ok(html.includes('id="settings-tools"'));
+  });
 });
 
 describe('Dashboard Frontend — app.js safety', () => {
@@ -87,9 +95,19 @@ describe('Dashboard Frontend — app.js safety', () => {
     // Check that escapeHtml is called in template contexts
     const templateUsages = js.match(/\$\{[^}]*\}/g) || [];
     const totalTemplates = templateUsages.length;
-    const escapedTemplates = templateUsages.filter(t => t.includes('escapeHtml') || t.includes('formatBytes') || !t.includes('data') || t.includes('.length') || t.includes('height')).length;
+    const escapedTemplates = templateUsages.filter(
+      (t) =>
+        t.includes('escapeHtml') ||
+        t.includes('formatBytes') ||
+        !t.includes('data') ||
+        t.includes('.length') ||
+        t.includes('height'),
+    ).length;
     // If no template literals, that's fine (string concat with escapeHtml is safe)
     // If templates exist, at least 30% should use escapeHtml or be safe values
-    assert.ok(totalTemplates === 0 || escapedTemplates > totalTemplates * 0.3, `Expected more escaped templates: ${escapedTemplates}/${totalTemplates}`);
+    assert.ok(
+      totalTemplates === 0 || escapedTemplates > totalTemplates * 0.3,
+      `Expected more escaped templates: ${escapedTemplates}/${totalTemplates}`,
+    );
   });
 });

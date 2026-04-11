@@ -1,7 +1,28 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const fs = require('fs');
+const path = require('path');
 
-let version = '2.9.0';
-try { version = require('./package.json').version; } catch { /* asar path issue */ }
+function readDesktopVersion() {
+  const candidates = [
+    path.join(__dirname, 'package.json'),
+    path.join(process.resourcesPath || '', 'codebot', 'package.json'),
+    path.join(__dirname, '..', 'package.json'),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      if (!candidate || !fs.existsSync(candidate)) continue;
+      const pkg = JSON.parse(fs.readFileSync(candidate, 'utf-8'));
+      if (pkg.version) return pkg.version;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return 'unknown';
+}
+
+const version = readDesktopVersion();
 
 contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,

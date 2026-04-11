@@ -26,8 +26,9 @@ const INJECTION_PATTERNS = [
  * Sanitize memory content by stripping lines that look like prompt injection.
  */
 export function sanitizeMemory(content: string): string {
-  return content.split('\n')
-    .filter(line => !INJECTION_PATTERNS.some(p => p.test(line)))
+  return content
+    .split('\n')
+    .filter((line) => !INJECTION_PATTERNS.some((p) => p.test(line)))
     .join('\n');
 }
 
@@ -38,7 +39,8 @@ function truncateToSize(content: string, maxSize: number): string {
   if (Buffer.byteLength(content, 'utf-8') <= maxSize) return content;
   // Truncate by chars (approximation — will be close to byte limit)
   let truncated = content;
-  while (Buffer.byteLength(truncated, 'utf-8') > maxSize - 50) { // leave room for marker
+  while (Buffer.byteLength(truncated, 'utf-8') > maxSize - 50) {
+    // leave room for marker
     truncated = truncated.substring(0, Math.floor(truncated.length * 0.9));
   }
   return truncated.trimEnd() + '\n[truncated — exceeded size limit]';
@@ -66,6 +68,12 @@ export interface MemoryEntry {
   created: string;
 }
 
+interface MemorySection {
+  heading: string;
+  content: string;
+  score: number;
+}
+
 /**
  * Persistent memory system for CodeBot.
  * Stores project-level and global notes that survive across sessions.
@@ -79,9 +87,7 @@ export class MemoryManager {
   private globalDir: string;
 
   constructor(projectRoot?: string) {
-    this.projectDir = projectRoot
-      ? path.join(projectRoot, '.codebot', 'memory')
-      : '';
+    this.projectDir = projectRoot ? path.join(projectRoot, '.codebot', 'memory') : '';
     this.globalDir = codebotPath('memory');
     fs.mkdirSync(this.globalDir, { recursive: true });
     if (this.projectDir) {
@@ -220,6 +226,66 @@ export class MemoryManager {
     return `\n\n--- Persistent Memory ---\n${parts.join('\n\n')}`;
   }
 
+  /** Retrieve only the most relevant memory sections for the current task. */
+  getRelevantContextBlock(query: string, maxSections = 3): string {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return this.getContextBlock();
+
+    const sections: MemorySection[] = [];
+    const maxFileSize = getMaxFileSize();
+    const maxTotalSize = getMaxTotalSize();
+
+    const pushSection = (heading: string, content: string, score: number) => {
+      const trimmed = sanitizeMemory(content.trim());
+      if (!trimmed || score <= 0) return;
+      sections.push({ heading, content: trimmed, score });
+    };
+
+    const global = this.readGlobal();
+    if (global.trim()) {
+      pushSection('## Global Memory', global, this.scoreSection('global-memory', global, normalizedQuery, false));
+    }
+
+    for (const [name, content] of Object.entries(this.readDir(this.globalDir))) {
+      if (name === 'MEMORY.md' || !content.trim()) continue;
+      pushSection(`## ${name.replace('.md', '')}`, content, this.scoreSection(name, content, normalizedQuery, false));
+    }
+
+    const project = this.readProject();
+    if (project.trim()) {
+      pushSection('## Project Memory', project, this.scoreSection('project-memory', project, normalizedQuery, true));
+    }
+
+    if (this.projectDir) {
+      for (const [name, content] of Object.entries(this.readDir(this.projectDir))) {
+        if (name === 'MEMORY.md' || !content.trim()) continue;
+        pushSection(
+          `## Project: ${name.replace('.md', '')}`,
+          content,
+          this.scoreSection(name, content, normalizedQuery, true),
+        );
+      }
+    }
+
+    const selected = sections
+      .sort((a, b) => b.score - a.score || a.heading.localeCompare(b.heading))
+      .slice(0, maxSections);
+
+    if (selected.length === 0) return '';
+
+    let totalSize = 0;
+    const parts: string[] = [];
+    for (const section of selected) {
+      if (totalSize >= maxTotalSize) break;
+      const remaining = maxTotalSize - totalSize;
+      const truncated = truncateToSize(section.content, Math.min(maxFileSize, remaining));
+      totalSize += Buffer.byteLength(truncated, 'utf-8');
+      parts.push(`${section.heading}\n${truncated}`);
+    }
+
+    return parts.length > 0 ? `\n\n--- Persistent Memory ---\n${parts.join('\n\n')}` : '';
+  }
+
   /** List all memory files */
   list(): Array<{ scope: 'global' | 'project'; file: string; size: number }> {
     const result: Array<{ scope: 'global' | 'project'; file: string; size: number }> = [];
@@ -257,5 +323,41 @@ export class MemoryManager {
     const dir = this.getDir(scope);
     if (!dir) return null;
     return path.join(dir, this.sanitizeFileName(file));
+  }
+
+  private scoreSection(name: string, content: string, normalizedQuery: string, isProject: boolean): number {
+    const normalizedName = name.toLowerCase();
+    const normalizedContent = content.toLowerCase();
+    const queryTerms = normalizedQuery
+      .split(/\s+/)
+      .map((term) => term.trim())
+      .filter((term) => term.length > 2);
+
+    let score = 0;
+    let matched = false;
+
+    if (normalizedContent.includes(normalizedQuery)) {
+      score += 12;
+      matched = true;
+    }
+
+    if (normalizedName.includes(normalizedQuery)) {
+      score += 8;
+      matched = true;
+    }
+
+    for (const term of queryTerms) {
+      if (normalizedName.includes(term)) {
+        score += 4;
+        matched = true;
+      }
+      if (normalizedContent.includes(term)) {
+        score += 3;
+        matched = true;
+      }
+    }
+
+    if (!matched) return 0;
+    return score + (isProject ? 2 : 0);
   }
 }

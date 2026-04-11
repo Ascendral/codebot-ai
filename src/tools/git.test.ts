@@ -121,47 +121,53 @@ describe('GitTool — action routing (allowed actions)', () => {
   it('accepts status action', async () => {
     const result = await tool.execute({ action: 'status' });
     // Should either succeed or fail with git error, not "unknown action"
-    assert.ok(!result.includes('unknown action'));
+    assert.ok(!result.startsWith('Error: unknown action'));
   });
 
   it('accepts diff action', async () => {
     const result = await tool.execute({ action: 'diff' });
-    assert.ok(!result.includes('unknown action'));
+    assert.ok(!result.startsWith('Error: unknown action'));
   });
 
   it('accepts log action', async () => {
     const result = await tool.execute({ action: 'log' });
-    assert.ok(!result.includes('unknown action'));
+    assert.ok(!result.startsWith('Error: unknown action'));
   });
 
   it('accepts branch action', async () => {
     const result = await tool.execute({ action: 'branch' });
-    assert.ok(!result.includes('unknown action'));
+    assert.ok(!result.startsWith('Error: unknown action'));
   });
 
-  it('accepts stash action', async () => {
+  it('blocks bare stash action (sweeps working tree)', async () => {
     const result = await tool.execute({ action: 'stash' });
-    assert.ok(!result.includes('unknown action'));
+    assert.ok(result.includes('blocked for safety'));
+  });
+
+  it('allows safe stash subcommands (list)', async () => {
+    const result = await tool.execute({ action: 'stash', args: 'list' });
+    assert.ok(!result.includes('blocked for safety'));
+    assert.ok(!result.startsWith('Error: unknown action'));
   });
 
   it('accepts blame action', async () => {
     const result = await tool.execute({ action: 'blame' });
-    assert.ok(!result.includes('unknown action'));
+    assert.ok(!result.startsWith('Error: unknown action'));
   });
 
   it('accepts tag action', async () => {
     const result = await tool.execute({ action: 'tag' });
-    assert.ok(!result.includes('unknown action'));
+    assert.ok(!result.startsWith('Error: unknown action'));
   });
 
   it('accepts add action', async () => {
     const result = await tool.execute({ action: 'add' });
-    assert.ok(!result.includes('unknown action'));
+    assert.ok(!result.startsWith('Error: unknown action'));
   });
 
   it('accepts reset action', async () => {
     const result = await tool.execute({ action: 'reset' });
-    assert.ok(!result.includes('unknown action'));
+    assert.ok(!result.startsWith('Error: unknown action'));
   });
 });
 

@@ -1,11 +1,9 @@
 import * as readline from 'readline';
-import { Message, ToolCall, AgentEvent, LLMProvider, ToolSchema, Tool } from './types';
+import { Message, ToolCall, AgentEvent, LLMProvider, Tool } from './types';
 import { ToolRegistry } from './tools';
 import { parseToolCalls } from './parser';
 import { ContextManager } from './context/manager';
 import { isFatalError } from './retry';
-import { buildRepoMap } from './context/repo-map';
-import { MemoryManager } from './memory';
 import { getModelInfo } from './providers/registry';
 import { lastScreenshotData } from './tools/browser';
 import { loadPlugins } from './plugins';
@@ -17,15 +15,16 @@ import { PolicyEnforcer, loadPolicy } from './policy';
 import { TokenTracker } from './telemetry';
 import { MetricsCollector } from './metrics';
 import { RiskScorer, RiskAssessment } from './risk';
-import { ConstitutionalLayer, ConstitutionalResult } from './constitutional';
+import { ConstitutionalLayer } from './constitutional';
 import { AgentStateEngine } from './spark-soul';
 import { UserProfile } from './user-profile';
 import { validateToolArgs, repairToolCallMessages } from './agent/message-repair';
-import { PreparedCall, ToolOutput, ToolExecutorDeps, executeToolBatch, TOOL_TYPE_MAP, SEQUENTIAL_TOOLS } from './agent/tool-executor';
+import { PreparedCall, ToolExecutorDeps, executeToolBatch, TOOL_TYPE_MAP } from './agent/tool-executor';
 import { buildSystemPrompt } from './agent/prompt-builder';
 import { ExecutionAuditor } from './execution-auditor';
 import { CrossSessionLearning } from './cross-session';
 import { ExperientialMemory } from './experiential-memory';
+import { TaskStateStore } from './task-state';
 
 /** Permission callback type — risk and sandbox info are optional for backwards compat */
 type AskPermissionFn = (
@@ -37,7 +36,7 @@ type AskPermissionFn = (
 
 function stableSerialize(value: unknown): string {
   if (Array.isArray(value)) {
-    return `[${value.map(v => stableSerialize(v)).join(',')}]`;
+    return `[${value.map((v) => stableSerialize(v)).join(',')}]`;
   }
   if (value && typeof value === 'object') {
     const entries = Object.entries(value as Record<string, unknown>)
@@ -76,6 +75,7 @@ export class Agent {
   private executionAuditor: ExecutionAuditor;
   private crossSession: CrossSessionLearning;
   private experientialMemory: ExperientialMemory;
+  private taskState: TaskStateStore;
   private sessionToolCalls: Array<{ tool: string; success: boolean }> = [];
   private cordBlockedKeys: Set<string> = new Set();
   private static readonly MAX_SESSION_TOOL_CALLS = 500;
@@ -129,7 +129,9 @@ export class Agent {
       try {
         this.constitutional = new ConstitutionalLayer(opts.constitutional);
         this.constitutional.start();
-      } catch (e) { console.warn(`[CodeBot] Failed to initialize constitutional layer: ${(e as Error).message}`); }
+      } catch (e) {
+        console.warn(`[CodeBot] Failed to initialize constitutional layer: ${(e as Error).message}`);
+      }
     }
 
     this.userProfile = new UserProfile();
@@ -138,12 +140,15 @@ export class Agent {
     this.executionAuditor = new ExecutionAuditor();
     this.crossSession = new CrossSessionLearning();
     this.experientialMemory = new ExperientialMemory();
+    this.taskState = new TaskStateStore(this.projectRoot);
 
     // Initialize agent state engine
     try {
       this.stateEngine = new AgentStateEngine(this.projectRoot);
       if (!this.stateEngine.isActive) this.stateEngine = null;
-    } catch (e) { console.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`); }
+    } catch (e) {
+      console.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`);
+    }
 
     const costLimit = this.policyEnforcer.getCostLimitUsd();
     if (costLimit > 0) this.tokenTracker.setCostLimit(costLimit);
@@ -154,7 +159,9 @@ export class Agent {
       for (const plugin of plugins) {
         this.tools.register(plugin);
       }
-    } catch (e) { console.warn(`[CodeBot] Failed to initialize plugins: ${(e as Error).message}`); }
+    } catch (e) {
+      console.warn(`[CodeBot] Failed to initialize plugins: ${(e as Error).message}`);
+    }
 
     // Connectors, GraphicsTool, and AppConnectorTool are registered by ToolRegistry
     // constructor (tools/index.ts) — single source of truth for all 12 connectors.
@@ -171,13 +178,11 @@ export class Agent {
         };
         this.tools.register(skillToTool(skill, toolExec));
       }
-    } catch (e) { console.warn(`[CodeBot] Failed to initialize skills: ${(e as Error).message}`); }
+    } catch (e) {
+      console.warn(`[CodeBot] Failed to initialize skills: ${(e as Error).message}`);
+    }
 
-    const supportsTools = getModelInfo(opts.model).supportsToolCalling;
-    this.messages.push({
-      role: 'system',
-      content: buildSystemPrompt({ projectRoot: this.projectRoot, supportsTools, tools: this.tools, userProfile: this.userProfile, stateEngine: this.stateEngine, messages: this.messages, crossSession: this.crossSession, experientialMemory: this.experientialMemory }),
-    });
+    this.refreshSystemPrompt();
   }
 
   /** Update auto-approve mode at runtime (e.g., from /auto command) */
@@ -192,23 +197,31 @@ export class Agent {
 
   /** Load messages from a previous session for resume */
   loadMessages(messages: Message[]) {
-    this.messages = messages;
+    this.messages = [...messages];
+    this.refreshSystemPrompt();
   }
 
   /** Reset conversation state for a new chat */
   resetConversation() {
-    const system = this.messages[0];
-    this.messages = system?.role === 'system' ? [system] : [];
+    this.messages = [];
+    this.refreshSystemPrompt();
     this.cordBlockedKeys.clear();
     this.sessionToolCalls = [];
     this.sessionGoal = '';
+    this.sessionStartedAt = new Date().toISOString();
   }
 
   async *run(userMessage: string, images?: import('./types').ImageAttachment[]): AsyncGenerator<AgentEvent> {
     const userMsg: Message = { role: 'user', content: userMessage };
     if (images && images.length > 0) userMsg.images = images;
     this.messages.push(userMsg);
-    if (!this.sessionGoal) this.sessionGoal = userMessage.substring(0, 200);
+    const tracksTask = this.taskState.beginTurn(userMessage);
+    this.userProfile.learnFromMessage('user', userMessage);
+    this.userProfile.flushIfDirty();
+    const activeGoal = this.taskState.getActiveGoal();
+    if (activeGoal) this.sessionGoal = activeGoal;
+    else if (!this.sessionGoal) this.sessionGoal = userMessage.substring(0, 200);
+    this.refreshSystemPrompt();
     this.onMessage?.(userMsg);
 
     if (!this.context.fitsInBudget(this.messages)) {
@@ -230,6 +243,7 @@ export class Agent {
       // Validate message integrity: ensure every tool_call has a matching tool response
       // This prevents cascading 400 errors from OpenAI when a previous call failed
       this.messages = repairToolCallMessages(this.messages);
+      this.refreshSystemPrompt();
 
       const supportsTools = getModelInfo(this.model).supportsToolCalling;
       const toolSchemas = supportsTools ? this.tools.getSchemas() : undefined;
@@ -256,7 +270,10 @@ export class Agent {
                 if (now - lastProgressTime >= 500) {
                   const elapsedMs = now - streamStartTime;
                   const tps = elapsedMs > 0 ? Math.round((streamTokenCount / elapsedMs) * 1000) : 0;
-                  yield { type: 'stream_progress', streamProgress: { tokensGenerated: streamTokenCount, tokensPerSecond: tps, elapsedMs } };
+                  yield {
+                    type: 'stream_progress',
+                    streamProgress: { tokensGenerated: streamTokenCount, tokensPerSecond: tps, elapsedMs },
+                  };
                   lastProgressTime = now;
                 }
               }
@@ -272,10 +289,7 @@ export class Agent {
             case 'usage':
               // Track tokens and cost
               if (event.usage) {
-                this.tokenTracker.recordUsage(
-                  event.usage.inputTokens || 0,
-                  event.usage.outputTokens || 0,
-                );
+                this.tokenTracker.recordUsage(event.usage.inputTokens || 0, event.usage.outputTokens || 0);
                 // Attribute cost to last-executed tools (split evenly)
                 if (this.lastExecutedTools.length > 0) {
                   const perTool = Math.ceil((event.usage.inputTokens || 0) / this.lastExecutedTools.length);
@@ -287,8 +301,16 @@ export class Agent {
                 }
                 this.providerRateLimiter.recordTokens((event.usage.inputTokens || 0) + (event.usage.outputTokens || 0));
                 this.metricsCollector.increment('llm_requests_total');
-                this.metricsCollector.increment('llm_tokens_total', { direction: 'input' }, event.usage.inputTokens || 0);
-                this.metricsCollector.increment('llm_tokens_total', { direction: 'output' }, event.usage.outputTokens || 0);
+                this.metricsCollector.increment(
+                  'llm_tokens_total',
+                  { direction: 'input' },
+                  event.usage.inputTokens || 0,
+                );
+                this.metricsCollector.increment(
+                  'llm_tokens_total',
+                  { direction: 'output' },
+                  event.usage.outputTokens || 0,
+                );
 
                 // Prompt caching metrics (v2.1.6)
                 if (event.usage.cacheCreationTokens) {
@@ -318,7 +340,8 @@ export class Agent {
 
         // Fatal errors (missing API key, auth failure, billing, etc.) — stop immediately
         if (isFatalError(streamError)) {
-          this.recordSessionEpisode(false); return;
+          this.finishRun(false, streamError, tracksTask);
+          return;
         }
 
         // Provider rate limit backoff on 429
@@ -330,7 +353,9 @@ export class Agent {
         if (streamError === lastErrorMsg) {
           consecutiveErrors++;
           if (consecutiveErrors >= 3) {
-            this.recordSessionEpisode(false); yield { type: 'error', error: `Same error repeated ${consecutiveErrors} times — stopping. Fix the issue and try again.` };
+            const errorMessage = `Same error repeated ${consecutiveErrors} times — stopping. Fix the issue and try again.`;
+            this.finishRun(false, errorMessage, tracksTask);
+            yield { type: 'error', error: errorMessage };
             return;
           }
         } else {
@@ -360,15 +385,16 @@ export class Agent {
 
       // No tool calls = conversation turn done
       if (toolCalls.length === 0) {
-        if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch (e) { console.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`); } }
-        this.recordSessionEpisode(true);
+        this.finishRun(true, fullText || 'Completed successfully.', tracksTask);
         yield { type: 'done' };
         return;
       }
 
       // Cost budget check: stop if over limit
       if (this.tokenTracker.isOverBudget()) {
-        if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch (e) { console.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`); } } this.recordSessionEpisode(false); if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch {} } this.recordSessionEpisode(false); yield { type: 'error', error: `Cost limit exceeded ($${this.tokenTracker.getTotalCost().toFixed(4)} / $${this.policyEnforcer.getCostLimitUsd().toFixed(2)}). Stopping.` };
+        const errorMessage = `Cost limit exceeded ($${this.tokenTracker.getTotalCost().toFixed(4)} / $${this.policyEnforcer.getCostLimitUsd().toFixed(2)}). Stopping.`;
+        this.finishRun(false, errorMessage, tracksTask);
+        yield { type: 'error', error: errorMessage };
         return;
       }
 
@@ -381,7 +407,13 @@ export class Agent {
         const tool = this.tools.get(toolName);
 
         if (!tool) {
-          prepared.push({ tc, tool: null as unknown as Tool, args: {}, denied: false, error: `Error: Unknown tool "${toolName}"` });
+          prepared.push({
+            tc,
+            tool: null as unknown as Tool,
+            args: {},
+            denied: false,
+            error: `Error: Unknown tool "${toolName}"`,
+          });
           continue;
         }
 
@@ -412,12 +444,22 @@ export class Agent {
         const policyPermission = this.policyEnforcer.getToolPermission(toolName);
         let effectivePermission = policyPermission || tool.permission;
         const riskAssessment = this.riskScorer.assess(toolName, args, effectivePermission);
-        yield { type: 'tool_call', toolCall: { name: toolName, args }, risk: { score: riskAssessment.score, level: riskAssessment.level } };
+        yield {
+          type: 'tool_call',
+          toolCall: { name: toolName, args },
+          risk: { score: riskAssessment.score, level: riskAssessment.level },
+        };
 
         // Log risk breakdown for high-risk calls
         if (riskAssessment.score > 50) {
-          const breakdown = riskAssessment.factors.map(f => `${f.name}=${f.rawScore}`).join(', ');
-          this.auditLogger.log({ tool: toolName, action: 'execute', args, result: `risk:${riskAssessment.score}`, reason: breakdown });
+          const breakdown = riskAssessment.factors.map((f) => `${f.name}=${f.rawScore}`).join(', ');
+          this.auditLogger.log({
+            tool: toolName,
+            action: 'execute',
+            args,
+            result: `risk:${riskAssessment.score}`,
+            reason: breakdown,
+          });
         }
 
         // Constitutional safety check (CORD + VIGIL)
@@ -429,12 +471,19 @@ export class Agent {
         }
         if (this.constitutional) {
           const cordResult = this.constitutional.evaluateAction({
-            tool: toolName, args, type: TOOL_TYPE_MAP[toolName] || 'unknown',
+            tool: toolName,
+            args,
+            type: TOOL_TYPE_MAP[toolName] || 'unknown',
           });
 
           if (cordResult.decision === 'BLOCK') {
             this.trackCordBlock(blockKey);
-            this.auditLogger.log({ tool: toolName, action: 'constitutional_block', args, reason: cordResult.explanation || 'Constitutional violation' });
+            this.auditLogger.log({
+              tool: toolName,
+              action: 'constitutional_block',
+              args,
+              reason: cordResult.explanation || 'Constitutional violation',
+            });
             this.metricsCollector.increment('security_blocks_total', { tool: toolName, type: 'constitutional' });
             prepared.push({ tc, tool, args, denied: true, error: `Blocked by safety policy.` });
             continue;
@@ -458,21 +507,25 @@ export class Agent {
               effectivePermission = 'always-ask';
               sparkChallenged = true;
             }
-          } catch (e) { console.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`); }
+          } catch (e) {
+            console.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`);
+          }
         }
 
         // Permission check: policy override > tool default
         // autoApprove bypasses ALL permission levels (autonomous/dashboard mode)
         // EXCEPTION: SPARK's learned CHALLENGE overrides autoApprove — the system
         // has learned from repeated failures that this category needs human review
-        const needsPermission = sparkChallenged || (!this.autoApprove && (
-          effectivePermission === 'always-ask' ||
-          effectivePermission === 'prompt'
-        ));
+        const needsPermission =
+          sparkChallenged ||
+          (!this.autoApprove && (effectivePermission === 'always-ask' || effectivePermission === 'prompt'));
 
         let denied = false;
         if (needsPermission) {
-          const approved = await this.askPermission(toolName, args, riskAssessment, { sandbox: this.policyEnforcer.getSandboxMode() === 'docker', network: this.policyEnforcer.isNetworkAllowed() });
+          const approved = await this.askPermission(toolName, args, riskAssessment, {
+            sandbox: this.policyEnforcer.getSandboxMode() === 'docker',
+            network: this.policyEnforcer.isNetworkAllowed(),
+          });
           if (!approved) {
             denied = true;
             this.auditLogger.log({ tool: toolName, action: 'deny', args, reason: 'User denied permission' });
@@ -522,10 +575,15 @@ export class Agent {
         this.onMessage?.(toolMsg);
 
         if (prep.denied) {
+          this.taskState.recordToolResult(toolName, false, 'Permission denied by user.', prep.args);
           yield { type: 'tool_result', toolResult: { name: toolName, result: 'Permission denied.' } };
           this.trackToolCall(toolName, false);
         } else {
-          yield { type: 'tool_result', toolResult: { name: toolName, result: output.content, is_error: output.is_error } };
+          this.taskState.recordToolResult(toolName, !output.is_error, output.content, prep.args);
+          yield {
+            type: 'tool_result',
+            toolResult: { name: toolName, result: output.content, is_error: output.is_error },
+          };
           this.trackToolCall(toolName, !output.is_error);
 
           // Execution auditing: detect anomalies in tool execution patterns
@@ -558,9 +616,9 @@ export class Agent {
       }
     }
 
-    if (this.stateEngine) { try { this.stateEngine.finalizeSession(); } catch (e) { console.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`); } }
-    this.recordSessionEpisode(false);
-    yield { type: 'error', error: `Max iterations (${this.maxIterations}) reached.` };
+    const errorMessage = `Max iterations (${this.maxIterations}) reached.`;
+    this.finishRun(false, errorMessage, tracksTask);
+    yield { type: 'error', error: errorMessage };
   }
 
   clearHistory() {
@@ -628,7 +686,9 @@ export class Agent {
     try {
       const { execSync } = require('child_process');
       const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', {
-        cwd: this.projectRoot, encoding: 'utf-8', timeout: 5000,
+        cwd: this.projectRoot,
+        encoding: 'utf-8',
+        timeout: 5000,
       }).trim();
 
       if (currentBranch !== 'main' && currentBranch !== 'master') {
@@ -637,14 +697,16 @@ export class Agent {
       }
 
       // Generate branch name from first user message
-      const firstUserMsg = this.messages.find(m => m.role === 'user');
+      const firstUserMsg = this.messages.find((m) => m.role === 'user');
       const prefix = this.policyEnforcer.getBranchPrefix();
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
       const slug = this.sanitizeSlug(firstUserMsg?.content || 'task');
       const branchName = `${prefix}${timestamp}-${slug}`;
 
       execSync(`git checkout -b "${branchName}"`, {
-        cwd: this.projectRoot, encoding: 'utf-8', timeout: 10000,
+        cwd: this.projectRoot,
+        encoding: 'utf-8',
+        timeout: 10000,
       });
 
       this.branchCreated = true;
@@ -658,12 +720,14 @@ export class Agent {
 
   /** Sanitize user message into a branch-safe slug. */
   private sanitizeSlug(message: string): string {
-    return message
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .substring(0, 30)
-      .replace(/-+$/, '') || 'task';
+    return (
+      message
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .substring(0, 30)
+        .replace(/-+$/, '') || 'task'
+    );
   }
 
   /** Check capability-based restrictions before tool execution. Returns reason string or null. */
@@ -686,7 +750,9 @@ export class Agent {
         const domain = new URL(args.url as string).hostname;
         const check = this.policyEnforcer.checkCapability(toolName, 'net_access', domain);
         if (!check.allowed) return check.reason || 'Capability blocked';
-      } catch { /* invalid URL handled by the tool itself */ }
+      } catch {
+        /* invalid URL handled by the tool itself */
+      }
     }
 
     return null;
@@ -709,10 +775,58 @@ export class Agent {
     this.cordBlockedKeys.add(key);
   }
 
+  private refreshSystemPrompt(): void {
+    const supportsTools = getModelInfo(this.model).supportsToolCalling;
+    const conversation = this.messages[0]?.role === 'system' ? this.messages.slice(1) : [...this.messages];
+    const systemMessage: Message = {
+      role: 'system',
+      content: buildSystemPrompt({
+        projectRoot: this.projectRoot,
+        supportsTools,
+        tools: this.tools,
+        userProfile: this.userProfile,
+        stateEngine: this.stateEngine,
+        messages: conversation,
+        crossSession: this.crossSession,
+        experientialMemory: this.experientialMemory,
+        taskState: this.taskState,
+      }),
+    };
+
+    if (this.messages[0]?.role === 'system') this.messages[0] = systemMessage;
+    else this.messages.unshift(systemMessage);
+  }
+
+  private finalizeStateEngine(): void {
+    if (!this.stateEngine) return;
+    try {
+      this.stateEngine.finalizeSession();
+    } catch (e) {
+      console.warn(`[CodeBot] Failed to finalize state engine: ${(e as Error).message}`);
+    }
+  }
+
+  private finishRun(success: boolean, summary: string, tracksTask: boolean): void {
+    const normalizedSummary = summary.trim() || (success ? 'Completed successfully.' : 'Stopped before completion.');
+    const activeGoal = this.taskState.getActiveGoal();
+    if (activeGoal) this.sessionGoal = activeGoal;
+    if (tracksTask) {
+      this.taskState.completeActiveTask(normalizedSummary, success);
+    }
+    this.userProfile.flushIfDirty(true);
+    this.finalizeStateEngine();
+    this.recordSessionEpisode(success, normalizedSummary);
+  }
+
   /** Record cross-session episode when session ends */
-  private recordSessionEpisode(success: boolean): void {
+  private recordSessionEpisode(success: boolean, outcomeSummary = ''): void {
     try {
       const summary = this.tokenTracker.getSummary();
+      const outcomes = [outcomeSummary, ...this.taskState.getOutcomeHints()]
+        .map((outcome) => outcome.trim())
+        .filter(Boolean)
+        .filter((outcome, index, all) => all.indexOf(outcome) === index)
+        .slice(0, 4);
       const episode = this.crossSession.buildEpisode({
         sessionId: summary.startTime,
         projectRoot: this.projectRoot,
@@ -720,12 +834,19 @@ export class Agent {
         goal: this.sessionGoal,
         toolCalls: this.sessionToolCalls,
         success,
-        outcomes: success ? ['Session completed successfully'] : ['Session ended (max iterations or error)'],
+        outcomes:
+          outcomes.length > 0
+            ? outcomes
+            : [success ? 'Session completed successfully' : 'Session ended (max iterations or error)'],
         tokenUsage: { input: summary.totalInputTokens, output: summary.totalOutputTokens },
       });
       this.crossSession.recordEpisode(episode);
-      try { this.experientialMemory.decayAndConsolidate(); } catch {}
-    } catch { /* cross-session recording should never crash the agent */ }
+      try {
+        this.experientialMemory.decayAndConsolidate();
+      } catch {}
+    } catch {
+      /* cross-session recording should never crash the agent */
+    }
   }
 }
 
@@ -742,15 +863,15 @@ async function defaultAskPermission(tool: string, args: Record<string, unknown>)
 
   let timerId: ReturnType<typeof setTimeout> | undefined;
 
-  const userResponse = new Promise<boolean>(resolve => {
-    rl.question(`\n⚡ ${tool}\n${summary}\nAllow? [y/N] (${PERMISSION_TIMEOUT_MS / 1000}s timeout) `, answer => {
+  const userResponse = new Promise<boolean>((resolve) => {
+    rl.question(`\n⚡ ${tool}\n${summary}\nAllow? [y/N] (${PERMISSION_TIMEOUT_MS / 1000}s timeout) `, (answer) => {
       if (timerId) clearTimeout(timerId);
       rl.close();
       resolve(answer.toLowerCase().startsWith('y'));
     });
   });
 
-  const timeout = new Promise<boolean>(resolve => {
+  const timeout = new Promise<boolean>((resolve) => {
     timerId = setTimeout(() => {
       rl.close();
       process.stdout.write('\n⏱ Permission timed out — denied by default.\n');
