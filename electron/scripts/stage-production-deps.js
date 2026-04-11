@@ -55,21 +55,79 @@ try {
   });
 }
 
-// Handle native modules: better-sqlite3 needs rebuild for Electron
+// Handle native module: better-sqlite3.
+//
+// IMPORTANT: the bundled CodeBot CLI is launched as a child process by main.js
+// using SYSTEM Node (e.g. /opt/homebrew/bin/node), NOT Electron's embedded Node.
+// See electron/main.js around line 165: it explicitly switches `nodeBin` away
+// from `process.execPath` when running inside the .app bundle. So the
+// better-sqlite3 native binding must be compiled for the SYSTEM Node ABI
+// (NODE_MODULE_VERSION 127 for Node 22), not Electron's ABI (145 for Electron 41).
+// Using @electron/rebuild here would produce a binary that fails to load with:
+//   "compiled against NODE_MODULE_VERSION 145 ... requires NODE_MODULE_VERSION 127"
+//
+// History: the original staging strategy used `--ignore-scripts` as a fallback,
+// which stripped deps/ and src/ from the package and left build/ empty. The
+// catch swallowed the failure and printed a warning, leaving
+// ExperientialMemory.isActive=false silently — lessons.db never written.
+//
+// Fix: force-install better-sqlite3@12.8.0 (V8-compatible, has prebuilt binaries
+// for system Node), drop any nested duplicates, and FAIL LOUD if the .node
+// binary doesn't materialize.
+const BETTER_SQLITE_VERSION = '12.8.0';
 const betterSqlite = path.join(STAGING_DIR, 'node_modules', 'better-sqlite3');
 if (fs.existsSync(betterSqlite)) {
-  console.log('  Rebuilding better-sqlite3 for Electron...');
+  console.log(`  Reinstalling better-sqlite3@${BETTER_SQLITE_VERSION} (system-Node prebuilt)...`);
+  fs.rmSync(betterSqlite, { recursive: true, force: true });
+  // Plain `npm install` (no --ignore-scripts) so prebuild-install fetches the
+  // prebuilt binary that matches the local Node version. The bundled CLI runs
+  // with this same system Node, so the ABI matches.
+  execSync(`npm install better-sqlite3@${BETTER_SQLITE_VERSION} --no-audit --no-fund --force`, {
+    cwd: STAGING_DIR,
+    stdio: 'pipe',
+    timeout: 180_000,
+  });
+
+  // Drop any nested duplicates (e.g. @ai-operations/ops-storage/node_modules/better-sqlite3)
+  // that npm may have hoisted with the older version — they would shadow the top-level
+  // copy when required from inside that subtree, and they have the same wrong ABI.
   try {
-    // Get electron version from electron/package.json
-    const electronPkg = JSON.parse(fs.readFileSync(path.join(ELECTRON_DIR, 'package.json'), 'utf-8'));
-    const electronVersion = electronPkg.devDependencies.electron.replace('^', '').replace('~', '');
+    const nested = execSync(
+      `find "${STAGING_DIR}/node_modules" -mindepth 4 -type d -name better-sqlite3 -prune -print`,
+      { encoding: 'utf-8' }
+    ).trim().split('\n').filter(Boolean);
+    for (const dup of nested) {
+      console.log(`  Removing nested duplicate: ${dup.replace(STAGING_DIR + '/', '')}`);
+      fs.rmSync(dup, { recursive: true, force: true });
+    }
+  } catch {}
+
+  // Fail loud if the .node binary is not present — a missing binary means
+  // ExperientialMemory will be silently disabled in the bundled app.
+  const expectedBinding = path.join(betterSqlite, 'build', 'Release', 'better_sqlite3.node');
+  if (!fs.existsSync(expectedBinding)) {
+    throw new Error(
+      `❌ Expected native binding not found after install:\n  ${expectedBinding}\n` +
+      `This means ExperientialMemory will be silently disabled in the bundled app. ` +
+      `Refusing to ship a broken brain build.`
+    );
+  }
+
+  // Sanity check: try to actually load it under the same Node that will run
+  // the bundled CLI at runtime. Fail loud on ABI mismatch.
+  try {
     execSync(
-      `npx @electron/rebuild -v ${electronVersion} -m "${STAGING_DIR}" --only better-sqlite3`,
-      { cwd: ELECTRON_DIR, stdio: 'pipe', timeout: 120_000 }
+      `node -e "const D = require('${betterSqlite}'); const db = new D('/tmp/.codebot-staging-abi-check.db'); db.close();"`,
+      { stdio: 'pipe', timeout: 10_000 }
     );
   } catch (err) {
-    console.log('  ⚠️  Could not rebuild better-sqlite3 — may not work at runtime');
+    throw new Error(
+      `❌ better-sqlite3 native binding ABI mismatch — refused to load:\n` +
+      `${err.stderr ? err.stderr.toString() : err.message}\n` +
+      `Refusing to ship a broken brain build.`
+    );
   }
+  console.log(`  ✅ better-sqlite3 native binding loads cleanly: ${path.relative(ELECTRON_DIR, expectedBinding)}`);
 }
 
 // Remove unnecessary files from staging to slim down further

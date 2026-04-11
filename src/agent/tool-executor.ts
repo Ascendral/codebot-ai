@@ -154,6 +154,12 @@ export async function executeSingleTool(prep: PreparedCall, deps: ToolExecutorDe
     // Experiential memory: record non-trivial successes
     if (!outputIsError && deps.experientialMemory?.isActive) { try { const lesson = extractLessonFromSuccess(toolName, prep.args, output, deps.currentTask); if (lesson) deps.experientialMemory.recordLesson(lesson); } catch {} }
 
+    // Experiential memory: also record error-string returns as failures.
+    // Most tools (execute, git, http_client, etc.) return errors as strings instead of throwing,
+    // so the catch block below is unreachable for them. Without this branch, no lessons would be
+    // extracted from the most common failure mode.
+    if (outputIsError && deps.experientialMemory?.isActive) { try { const lesson = extractLessonFromFailure(toolName, prep.args, output, deps.currentTask); if (lesson) deps.experientialMemory.recordLesson(lesson); } catch {} }
+
     return outputIsError ? { content: output, is_error: true, durationMs: latencyMs } : { content: output, durationMs: latencyMs };
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
