@@ -10,10 +10,52 @@ export interface SavedConfig {
   model?: string;
   provider?: string;
   baseUrl?: string;
+  /** Generic API key (legacy / fallback). Used when no provider-specific key is set. */
   apiKey?: string;
+  /**
+   * Provider-specific API keys. When set, these take precedence over the
+   * generic `apiKey` field for the matching provider. Lets the user have
+   * multiple providers configured at once and switch between them with
+   * `--provider` or `--model` without losing keys.
+   *
+   * Setup wizards / dashboard write to these; resolveConfig + pickProviderKey
+   * read them.
+   */
+  anthropicApiKey?: string;
+  openaiApiKey?: string;
+  geminiApiKey?: string;
+  deepseekApiKey?: string;
+  groqApiKey?: string;
+  mistralApiKey?: string;
+  xaiApiKey?: string;
   autoApprove?: boolean;
   maxIterations?: number;
   firstRunComplete?: boolean;
+}
+
+/**
+ * Look up the saved API key for a specific provider, falling back to the
+ * generic `apiKey` field. Returns empty string if neither is set.
+ *
+ * Centralized so the CLI, dashboard, and any future provider-switching
+ * code use the same precedence rule.
+ */
+export function pickProviderKey(saved: SavedConfig, provider: string): string {
+  const fieldMap: Record<string, keyof SavedConfig> = {
+    anthropic: 'anthropicApiKey',
+    openai: 'openaiApiKey',
+    gemini: 'geminiApiKey',
+    deepseek: 'deepseekApiKey',
+    groq: 'groqApiKey',
+    mistral: 'mistralApiKey',
+    xai: 'xaiApiKey',
+  };
+  const field = fieldMap[provider];
+  if (field) {
+    const v = saved[field];
+    if (typeof v === 'string' && v.length > 0) return v;
+  }
+  return saved.apiKey || '';
 }
 
 /** Load saved config from ~/.codebot/config.json */

@@ -8,7 +8,7 @@ import { OpenAIResponsesProvider, modelRequiresResponsesApi } from '../providers
 import { AnthropicProvider } from '../providers/anthropic';
 import { detectProvider, PROVIDER_DEFAULTS } from '../providers/registry';
 import { Config, LLMProvider } from '../types';
-import { loadConfig } from '../setup';
+import { loadConfig, pickProviderKey } from '../setup';
 
 const C = {
   reset: '\x1b[0m',
@@ -76,12 +76,22 @@ export async function resolveConfig(args: Record<string, string | boolean>): Pro
     if (defaults) config.baseUrl = defaults.baseUrl;
   }
 
+  // Key precedence (most specific wins):
+  //   1. --api-key CLI arg (already in config.apiKey if passed)
+  //   2. Provider-specific env var (OPENAI_API_KEY for openai, etc.)
+  //      — only when --provider was explicit, so we don't override saved
+  //      cross-provider keys with a stale env var
+  //   3. Saved provider-specific key (saved.openaiApiKey for openai, etc.)
+  //   4. Saved generic apiKey
+  //   5. Provider-specific env var (catch-all)
+  //   6. Generic env vars (CODEBOT_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY)
   if (!config.apiKey && explicitProvider) {
     const defaults = PROVIDER_DEFAULTS[config.provider];
     if (defaults) config.apiKey = process.env[defaults.envKey] || '';
   }
-  if (!config.apiKey && saved.apiKey) {
-    config.apiKey = saved.apiKey;
+  if (!config.apiKey) {
+    const savedKey = pickProviderKey(saved, config.provider);
+    if (savedKey) config.apiKey = savedKey;
   }
   if (!config.apiKey) {
     const defaults = PROVIDER_DEFAULTS[config.provider];

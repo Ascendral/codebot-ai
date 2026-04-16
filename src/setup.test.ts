@@ -5,8 +5,60 @@ import * as path from 'path';
 import * as os from 'os';
 
 // We test the exported functions from setup.ts
-import { autoDetect, pickBestLocalModel, loadConfig, saveConfig, isFirstRun } from './setup';
-import type { AutoDetectResult } from './setup';
+import { autoDetect, pickBestLocalModel, loadConfig, saveConfig, isFirstRun, pickProviderKey } from './setup';
+import type { AutoDetectResult, SavedConfig } from './setup';
+
+describe('pickProviderKey (issue #6 — multi-provider key support)', () => {
+  it('returns the provider-specific key when present', () => {
+    const cfg: SavedConfig = { apiKey: 'sk-ant-fallback', openaiApiKey: 'sk-proj-real' };
+    assert.strictEqual(pickProviderKey(cfg, 'openai'), 'sk-proj-real');
+  });
+
+  it('falls back to generic apiKey when provider-specific is absent', () => {
+    const cfg: SavedConfig = { apiKey: 'sk-ant-only' };
+    assert.strictEqual(pickProviderKey(cfg, 'anthropic'), 'sk-ant-only');
+  });
+
+  it('falls back to generic apiKey when provider-specific is empty string', () => {
+    const cfg: SavedConfig = { apiKey: 'sk-fallback', openaiApiKey: '' };
+    assert.strictEqual(pickProviderKey(cfg, 'openai'), 'sk-fallback');
+  });
+
+  it('returns empty string when neither generic nor specific is set', () => {
+    assert.strictEqual(pickProviderKey({}, 'openai'), '');
+  });
+
+  it('does NOT cross-pollinate keys between providers', () => {
+    const cfg: SavedConfig = { anthropicApiKey: 'sk-ant-x', openaiApiKey: 'sk-proj-y' };
+    assert.strictEqual(pickProviderKey(cfg, 'openai'), 'sk-proj-y');
+    assert.strictEqual(pickProviderKey(cfg, 'anthropic'), 'sk-ant-x');
+  });
+
+  it('returns generic for unknown providers (no field mapping)', () => {
+    const cfg: SavedConfig = { apiKey: 'sk-generic' };
+    assert.strictEqual(pickProviderKey(cfg, 'unknown-provider'), 'sk-generic');
+  });
+
+  it('handles all 7 mapped providers', () => {
+    const cfg: SavedConfig = {
+      apiKey: 'fallback',
+      anthropicApiKey: 'a-key',
+      openaiApiKey: 'o-key',
+      geminiApiKey: 'g-key',
+      deepseekApiKey: 'd-key',
+      groqApiKey: 'q-key',
+      mistralApiKey: 'm-key',
+      xaiApiKey: 'x-key',
+    };
+    assert.strictEqual(pickProviderKey(cfg, 'anthropic'), 'a-key');
+    assert.strictEqual(pickProviderKey(cfg, 'openai'), 'o-key');
+    assert.strictEqual(pickProviderKey(cfg, 'gemini'), 'g-key');
+    assert.strictEqual(pickProviderKey(cfg, 'deepseek'), 'd-key');
+    assert.strictEqual(pickProviderKey(cfg, 'groq'), 'q-key');
+    assert.strictEqual(pickProviderKey(cfg, 'mistral'), 'm-key');
+    assert.strictEqual(pickProviderKey(cfg, 'xai'), 'x-key');
+  });
+});
 
 describe('pickBestLocalModel', () => {
   it('picks qwen2.5-coder as top choice', () => {
