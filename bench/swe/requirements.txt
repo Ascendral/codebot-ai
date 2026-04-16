@@ -1,0 +1,18 @@
+# SWE-bench harness deps. Install with:
+#   python -m venv .venv && source .venv/bin/activate
+#   pip install -r requirements.txt
+#
+# Pin major versions only — let pip resolve compatible point releases.
+
+# Official SWE-bench evaluation harness (Docker-based scoring).
+# https://github.com/princeton-nlp/SWE-bench
+swebench>=2.0.0
+
+# HuggingFace Datasets — used to fetch the SWE-bench dataset
+datasets>=2.18.0
+
+# Pretty progress bars during long runs
+tqdm>=4.66.0
+
+# JSON schema validation for predictions file
+jsonschema>=4.17.0
