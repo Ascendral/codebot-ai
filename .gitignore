@@ -8,3 +8,17 @@ dist/
 src/games/
 electron/staging/
 electron/dist/
+
+# OS / IDE noise
+.DS_Store
+*.DS_Store
+.cursor/
+
+# Runtime DB state — should never be checked in
+.spark/
+
+# Video pipeline build artifacts (keep src/, ignore generated output)
+videos/assets/
+videos/out/
+videos/node_modules/
+videos/package-lock.json
