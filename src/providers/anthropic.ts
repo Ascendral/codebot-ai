@@ -2,6 +2,43 @@ import { LLMProvider, Message, ToolSchema, StreamEvent, ProviderConfig, ToolCall
 import { getModelInfo } from './registry';
 import { isRetryable, getRetryDelay, sleep } from '../retry';
 
+/**
+ * Sanitize an object tree so that no JS string contains lone UTF-16 surrogates.
+ * Lone surrogates are valid in JS strings but NOT in JSON/UTF-8. Strict parsers
+ * (like Anthropic's) reject them even when JSON.stringify escapes them as \uD8xx.
+ */
+function sanitizeForJSON(obj: unknown): unknown {
+  if (typeof obj === 'string') {
+    let out = '';
+    for (let i = 0; i < obj.length; i++) {
+      const c = obj.charCodeAt(i);
+      if (c >= 0xD800 && c <= 0xDBFF) {
+        // High surrogate — keep only if followed by a low surrogate
+        const next = i + 1 < obj.length ? obj.charCodeAt(i + 1) : 0;
+        if (next >= 0xDC00 && next <= 0xDFFF) {
+          out += obj[i] + obj[i + 1];
+          i++;
+        }
+        // else: drop the lone high surrogate
+      } else if (c >= 0xDC00 && c <= 0xDFFF) {
+        // Lone low surrogate — drop
+      } else {
+        out += obj[i];
+      }
+    }
+    return out;
+  }
+  if (Array.isArray(obj)) return obj.map(sanitizeForJSON);
+  if (obj !== null && typeof obj === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(obj)) {
+      result[key] = sanitizeForJSON(val);
+    }
+    return result;
+  }
+  return obj;
+}
+
 interface AnthropicMessage {
   role: 'user' | 'assistant';
   content: string | Array<{ type: string; [key: string]: unknown }>;
@@ -79,7 +116,7 @@ export class AnthropicProvider implements LLMProvider {
             'anthropic-version': '2023-06-01',
             ...(cachingEnabled ? { 'anthropic-beta': 'prompt-caching-2024-07-31' } : {}),
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify(sanitizeForJSON(body)),
           signal: AbortSignal.timeout(60_000),
         });
 

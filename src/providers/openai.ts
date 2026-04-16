@@ -3,6 +3,41 @@ import { getModelInfo } from './registry';
 import { buildToolCallSchema } from '../parser';
 import { isRetryable, getRetryDelay, sleep } from '../retry';
 
+/**
+ * Sanitize an object tree so that no JS string contains lone UTF-16 surrogates.
+ * Lone surrogates are valid in JS strings but NOT in JSON/UTF-8. Strict parsers
+ * reject them even when JSON.stringify escapes them as \uD8xx.
+ */
+function sanitizeForJSON(obj: unknown): unknown {
+  if (typeof obj === 'string') {
+    let out = '';
+    for (let i = 0; i < obj.length; i++) {
+      const c = obj.charCodeAt(i);
+      if (c >= 0xD800 && c <= 0xDBFF) {
+        const next = i + 1 < obj.length ? obj.charCodeAt(i + 1) : 0;
+        if (next >= 0xDC00 && next <= 0xDFFF) {
+          out += obj[i] + obj[i + 1];
+          i++;
+        }
+      } else if (c >= 0xDC00 && c <= 0xDFFF) {
+        // Lone low surrogate — drop
+      } else {
+        out += obj[i];
+      }
+    }
+    return out;
+  }
+  if (Array.isArray(obj)) return obj.map(sanitizeForJSON);
+  if (obj !== null && typeof obj === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(obj)) {
+      result[key] = sanitizeForJSON(val);
+    }
+    return result;
+  }
+  return obj;
+}
+
 export class OpenAIProvider implements LLMProvider {
   name: string;
   temperature?: number;
@@ -70,7 +105,7 @@ export class OpenAIProvider implements LLMProvider {
         response = await fetch(`${this.config.baseUrl}/v1/chat/completions`, {
           method: 'POST',
           headers,
-          body: JSON.stringify(body),
+          body: JSON.stringify(sanitizeForJSON(body)),
           signal: AbortSignal.timeout(isLocal ? 300_000 : 60_000),
         });
 
