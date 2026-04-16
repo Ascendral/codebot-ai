@@ -198,7 +198,15 @@ export function parseArgs(argv: string[]): Record<string, string | boolean> {
     if (arg.startsWith('--')) {
       const key = arg.slice(2);
       const next = argv[i + 1];
-      if (next && !next.startsWith('--')) {
+      // Issue #7: don't let an unknown flag swallow the user's task message.
+      //
+      // Legitimate flag values are short identifiers (URLs, model names,
+      // file paths, numbers, integers). Real task messages are long and
+      // typically contain spaces. If `next` looks like a sentence rather
+      // than a flag value, treat the current flag as a boolean and let
+      // `next` fall through to the positional path on the next iteration.
+      const looksLikeMessage = !!next && (next.length > 60 || /\s/.test(next));
+      if (next && !next.startsWith('--') && !looksLikeMessage) {
         result[key] = next;
         i++;
       } else {
