@@ -93,6 +93,7 @@ def run_one_task(
     codebot_bin: str,
     timeout_sec: int,
     workspace_root: Path,
+    model: str,
 ) -> tuple[Optional[str], TaskResult]:
     """Run CodeBot on a single SWE-bench instance, return (model_patch, TaskResult)."""
     instance_id = instance["instance_id"]
@@ -150,20 +151,26 @@ def run_one_task(
                 log_excerpt="\n".join(log_lines[-20:]),
             )
 
-        log("invoking codebot --auto")
+        log(f"invoking codebot --auto --model {model}")
         # We pipe the problem_statement as the task. --auto skips approvals.
         # CWD is the cloned repo so all of CodeBot's tools operate inside it.
+        # NOTE: do NOT pass unknown flags — the args parser would eat the
+        # problem_statement as the value of an unknown flag (real bug found
+        # on first smoke test).
         codebot_proc = subprocess.run(
-            [codebot_bin, "--auto", "--no-banner", problem_statement],
+            [codebot_bin, "--auto", "--model", model, problem_statement],
             cwd=str(workdir),
             capture_output=True,
             text=True,
             timeout=timeout_sec,
+            env={**os.environ, "CI": "1", "TERM": "dumb"},  # suppress animations
         )
-        if codebot_proc.returncode != 0:
-            log(f"codebot exited with code {codebot_proc.returncode}")
-            log(f"stderr tail: {codebot_proc.stderr[-500:]}")
-
+        # Always log codebot's exit + last bit of stderr so we can see what happened.
+        log(f"codebot exited with code {codebot_proc.returncode}")
+        if codebot_proc.stderr:
+            log(f"stderr tail: {codebot_proc.stderr[-300:].strip()}")
+        if codebot_proc.stdout:
+            log(f"stdout tail: {codebot_proc.stdout[-300:].strip()}")
         log("capturing git diff")
         diff = subprocess.run(
             ["git", "-C", str(workdir), "diff", base_commit],
@@ -244,6 +251,10 @@ def main() -> int:
                    help="Per-task wall-clock budget for codebot (default 15 min)")
     p.add_argument("--workspace", default="",
                    help="Workspace dir for cloned repos (default: tempdir; preserved on success for inspection)")
+    p.add_argument("--model", default="gpt-4o-mini",
+                   help="Model to invoke codebot with (default: gpt-4o-mini for cheap smoke tests). "
+                        "Real options: gpt-4o, gpt-4.1, claude-sonnet-4-6, claude-haiku-4-5, etc. "
+                        "NOTE: do not use 'gpt-5.4' — it's in the registry but the OpenAI API rejects it.")
     args = p.parse_args()
 
     codebot_bin = args.codebot_path or find_codebot_binary()
@@ -274,7 +285,7 @@ def main() -> int:
 
     for i, instance in enumerate(instances, 1):
         print(f"\n=== {i}/{len(instances)}: {instance['instance_id']} ===")
-        patch, result = run_one_task(instance, codebot_bin, args.timeout_sec, workspace_root)
+        patch, result = run_one_task(instance, codebot_bin, args.timeout_sec, workspace_root, args.model)
         stats.results.append(result)
         stats.elapsed_total_sec += result.elapsed_sec
         if patch is not None:

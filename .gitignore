@@ -22,3 +22,9 @@ videos/assets/
 videos/out/
 videos/node_modules/
 videos/package-lock.json
+
+# SWE-bench harness artifacts (predictions/runs are reproducible, not source)
+bench/swe/.venv/
+bench/swe/predictions-*.json
+bench/swe/runs/
+bench/swe/logs/
