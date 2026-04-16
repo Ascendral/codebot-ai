@@ -1,0 +1,29 @@
+When a decision gate fails (per README §7), write a postmortem here.
+
+Template: YYYY-MM-DD-{gate-name}.md
+
+# Gate failed: {what} on {date}
+
+## Target vs actual
+
+- Target: {from README §7}
+- Actual: {real number}
+- Gap: {how far off}
+
+## What I tried
+
+- Specific tactics, dates, channels
+
+## Why I think it didn't work
+
+- Three honest hypotheses, ordered by likelihood
+
+## Decision
+
+- [ ] Pivot the motion (try X instead of Y)
+- [ ] Halt and reassess strategy
+- [ ] (Specifically not: extend the deadline without changing approach)
+
+## What I'm changing
+
+- Concrete actions for next 30 days

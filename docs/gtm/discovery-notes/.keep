@@ -1,0 +1,37 @@
+Discovery call notes go here. One file per call: YYYY-MM-DD-{company-slug}.md
+
+Template:
+
+# {Company} discovery call — {date}
+
+**Person:** {Name, role}
+**Channel:** how we met (LinkedIn DM, intro, conference, etc.)
+**Length:** {minutes}
+
+## Their world
+
+- Current AI coding tools used (or rejected):
+- Last time security reviewed an AI tool — what happened:
+- Most skeptical stakeholder:
+- What that person worried about:
+
+## Their compliance reality
+
+- Frameworks they care about (SOC 2, HIPAA, FedRAMP, PCI, etc.):
+- Audit log/SBOM/SAST tools currently in use:
+- Recent audit findings related to dev tools:
+
+## Their conditions for adoption
+
+- What would have to be true:
+- First 30 minutes — what would they need to see:
+- Decision process and stakeholders:
+
+## Other people I should talk to
+
+(always ask)
+
+## My next step
+
+[ ] Send:
+[ ] Date by:

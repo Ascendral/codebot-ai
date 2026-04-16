@@ -1,0 +1,2 @@
+week,date,gh_stars,gh_forks,gh_views_14d,gh_clones_14d,npm_dl_30d,release_dl_total,telemetry_active,linkedin_dms_sent,linkedin_replies,discovery_calls,inbound_convos,paying_customers,mrr_usd,notes
+W16,2026-04-15,2,0,11,473,320,1,0,0,0,0,0,0,0,Day-0 baseline. Telemetry not yet shipped so active=0 by definition.
