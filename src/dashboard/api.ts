@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { DashboardServer } from './server';
 import { VERSION } from '../index';
-import { PROVIDER_DEFAULTS, MODEL_REGISTRY } from '../providers/registry';
+import { PROVIDER_DEFAULTS, MODEL_REGISTRY, detectProvider } from '../providers/registry';
 import { SessionManager } from '../history';
 import { decryptLine } from '../encryption';
 import { UserProfile } from '../user-profile';
@@ -266,14 +266,42 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
       return;
     }
 
+    // Bug #10: reconcile provider against the model's declared provider.
+    // If the caller sends {provider: 'openai', model: 'claude-sonnet-4-6'}
+    // the model is the authoritative choice (user picked it from the
+    // dropdown) and the provider is wrong. Without this fix the server
+    // writes the mismatch and every subsequent chat returns 404
+    // ("Model not found: claude-sonnet-4-6" at the OpenAI endpoint).
+    //
+    // detectProvider() returns undefined for unknown/local models — in that
+    // case we leave body.provider alone.
+    let effectiveProvider = body.provider;
+    let providerCorrectedFrom: string | undefined;
+    if (body.model) {
+      const fromModel = detectProvider(body.model);
+      if (fromModel && fromModel !== body.provider) {
+        providerCorrectedFrom = body.provider;
+        effectiveProvider = fromModel;
+      }
+    }
+
     const config: SavedConfig = loadConfig();
-    config.provider = body.provider;
+    config.provider = effectiveProvider;
     if (body.model) config.model = body.model;
     if (body.apiKey) config.apiKey = body.apiKey;
     if (body.baseUrl) config.baseUrl = body.baseUrl;
     saveSetupConfig(config);
 
-    DashboardServer.json(res, { saved: true, provider: config.provider, model: config.model });
+    const response: Record<string, unknown> = {
+      saved: true,
+      provider: config.provider,
+      model: config.model,
+    };
+    if (providerCorrectedFrom) {
+      response.providerCorrectedFrom = providerCorrectedFrom;
+      response.note = `Provider auto-corrected from "${providerCorrectedFrom}" to "${effectiveProvider}" to match model "${body.model}".`;
+    }
+    DashboardServer.json(res, response);
   });
 
   server.route('POST', '/api/setup/complete', async (_req, res) => {

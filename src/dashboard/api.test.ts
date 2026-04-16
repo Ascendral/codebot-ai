@@ -212,3 +212,154 @@ describe('Dashboard API', () => {
     assert.ok(Array.isArray(body.sessions));
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bug #10: POST /api/setup/provider reconciles provider against the model's
+// declared provider. Without this, the dashboard would write
+// `{provider: openai, model: claude-sonnet-4-6}` and every subsequent chat
+// would 404 at the OpenAI endpoint.
+// ─────────────────────────────────────────────────────────────────────────────
+function postJson(
+  url: string,
+  body: unknown,
+  token?: string,
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const req = http.request(url, { method: 'POST', headers }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => {
+        resolve({
+          status: res.statusCode || 0,
+          body: Buffer.concat(chunks).toString('utf-8'),
+        });
+      });
+    });
+    req.on('error', reject);
+    req.write(JSON.stringify(body));
+    req.end();
+  });
+}
+
+describe('POST /api/setup/provider — bug #10 provider reconciliation', () => {
+  let server: DashboardServer | null = null;
+  let codebotHomeBackup: string | undefined;
+  let tmpHome: string = '';
+
+  async function startServer(): Promise<number> {
+    const port = portCounter++;
+    tmpHome = fs.mkdtempSync(path.join(require('os').tmpdir(), 'api-bug10-'));
+    codebotHomeBackup = process.env.CODEBOT_HOME;
+    process.env.CODEBOT_HOME = tmpHome;
+    server = new DashboardServer({ port });
+    registerApiRoutes(server);
+    await server.start();
+    return port;
+  }
+
+  afterEach(async () => {
+    if (server && server.isRunning()) await server.stop();
+    server = null;
+    if (codebotHomeBackup === undefined) delete process.env.CODEBOT_HOME;
+    else process.env.CODEBOT_HOME = codebotHomeBackup;
+    if (tmpHome && fs.existsSync(tmpHome)) fs.rmSync(tmpHome, { recursive: true });
+  });
+
+  function readSavedConfig(): Record<string, unknown> {
+    const cfg = path.join(tmpHome, 'config.json');
+    return JSON.parse(fs.readFileSync(cfg, 'utf-8'));
+  }
+
+  it('auto-corrects provider when a Claude model is sent with provider=openai', async () => {
+    const port = await startServer();
+    const res = await postJson(
+      `http://127.0.0.1:${port}/api/setup/provider`,
+      { provider: 'openai', model: 'claude-sonnet-4-6' },
+      server!.getAuthToken(),
+    );
+    assert.strictEqual(res.status, 200);
+    const body = JSON.parse(res.body);
+    assert.strictEqual(body.provider, 'anthropic');
+    assert.strictEqual(body.providerCorrectedFrom, 'openai');
+    assert.match(body.note, /openai.*anthropic.*claude-sonnet-4-6/);
+    const saved = readSavedConfig();
+    assert.strictEqual(saved.provider, 'anthropic');
+    assert.strictEqual(saved.model, 'claude-sonnet-4-6');
+  });
+
+  it('auto-corrects provider when a gpt-5 model is sent with provider=anthropic', async () => {
+    const port = await startServer();
+    const res = await postJson(
+      `http://127.0.0.1:${port}/api/setup/provider`,
+      { provider: 'anthropic', model: 'gpt-5.4' },
+      server!.getAuthToken(),
+    );
+    assert.strictEqual(res.status, 200);
+    const body = JSON.parse(res.body);
+    assert.strictEqual(body.provider, 'openai');
+    assert.strictEqual(body.providerCorrectedFrom, 'anthropic');
+    const saved = readSavedConfig();
+    assert.strictEqual(saved.provider, 'openai');
+  });
+
+  it('leaves provider alone when model matches', async () => {
+    const port = await startServer();
+    const res = await postJson(
+      `http://127.0.0.1:${port}/api/setup/provider`,
+      { provider: 'openai', model: 'gpt-4o' },
+      server!.getAuthToken(),
+    );
+    assert.strictEqual(res.status, 200);
+    const body = JSON.parse(res.body);
+    assert.strictEqual(body.provider, 'openai');
+    assert.strictEqual(body.providerCorrectedFrom, undefined);
+    assert.strictEqual(body.note, undefined);
+  });
+
+  it('leaves provider alone for unknown/local models (no detection)', async () => {
+    const port = await startServer();
+    const res = await postJson(
+      `http://127.0.0.1:${port}/api/setup/provider`,
+      { provider: 'openai', model: 'my-custom-local-model:latest' },
+      server!.getAuthToken(),
+    );
+    assert.strictEqual(res.status, 200);
+    const body = JSON.parse(res.body);
+    assert.strictEqual(body.provider, 'openai');
+    assert.strictEqual(body.providerCorrectedFrom, undefined);
+  });
+
+  it('leaves provider alone when no model is sent', async () => {
+    const port = await startServer();
+    const res = await postJson(
+      `http://127.0.0.1:${port}/api/setup/provider`,
+      { provider: 'openai' },
+      server!.getAuthToken(),
+    );
+    assert.strictEqual(res.status, 200);
+    const body = JSON.parse(res.body);
+    assert.strictEqual(body.provider, 'openai');
+    assert.strictEqual(body.providerCorrectedFrom, undefined);
+  });
+
+  it('reconciliation + normalizeProviderBaseUrl together: openai→anthropic rewrites baseUrl', async () => {
+    const port = await startServer();
+    // Pre-populate config with OpenAI baseUrl
+    fs.mkdirSync(tmpHome, { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpHome, 'config.json'),
+      JSON.stringify({ provider: 'openai', baseUrl: 'https://api.openai.com' }),
+    );
+    const res = await postJson(
+      `http://127.0.0.1:${port}/api/setup/provider`,
+      { provider: 'openai', model: 'claude-sonnet-4-6' },
+      server!.getAuthToken(),
+    );
+    assert.strictEqual(res.status, 200);
+    const saved = readSavedConfig();
+    assert.strictEqual(saved.provider, 'anthropic');
+    assert.strictEqual(saved.baseUrl, 'https://api.anthropic.com');
+  });
+});
