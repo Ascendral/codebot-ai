@@ -1,0 +1,20 @@
+name = "codebot-stats"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+# To deploy:
+#   1. Install wrangler: npm install -g wrangler
+#   2. Authenticate: wrangler login
+#   3. Create the KV namespace once:
+#        wrangler kv:namespace create "STATS"
+#      Paste the returned id below into the [[kv_namespaces]] block.
+#   4. Deploy:
+#        cd proxy-stats && wrangler deploy
+#
+# Default URL after deploy: https://codebot-stats.<your-subdomain>.workers.dev
+# Endpoint that the CLI's heartbeat module pings: POST /api/ping
+# Public dashboard: GET / (HTML)
+
+# [[kv_namespaces]]
+# binding = "STATS"
+# id = "REPLACE_WITH_ID_FROM_KV_NAMESPACE_CREATE"
