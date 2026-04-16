@@ -70,10 +70,51 @@ export function loadConfig(): SavedConfig {
   return {};
 }
 
-/** Save config to ~/.codebot/config.json (with backup + atomic write) */
+/**
+ * If `provider` is set but `baseUrl` either is empty or matches the default
+ * URL of a DIFFERENT provider (i.e., the user just switched providers and
+ * left a stale baseUrl from the previous one), set `baseUrl` to the new
+ * provider's default. Returns a new object — does not mutate input.
+ *
+ * Local URLs (containing `localhost` or `127.0.0.1`) are left alone — the
+ * user explicitly chose them.
+ *
+ * Issue #5: setup wizard / dashboard wrote `provider: openai` but kept
+ * `baseUrl: https://api.anthropic.com` from a prior Anthropic config →
+ * every OpenAI call returned 404. This function makes that impossible.
+ */
+export function normalizeProviderBaseUrl(config: SavedConfig): SavedConfig {
+  if (!config.provider) return config;
+  const target = PROVIDER_DEFAULTS[config.provider];
+  if (!target) return config;
+
+  const url = config.baseUrl || '';
+
+  // Local URLs are user choice.
+  if (url.includes('localhost') || url.includes('127.0.0.1')) return config;
+
+  // Empty → fill in.
+  if (!url) {
+    return { ...config, baseUrl: target.baseUrl };
+  }
+
+  // Matches a different provider's default → switch to current provider's default.
+  for (const [otherProvider, defaults] of Object.entries(PROVIDER_DEFAULTS)) {
+    if (otherProvider === config.provider) continue;
+    if (url === defaults.baseUrl) {
+      return { ...config, baseUrl: target.baseUrl };
+    }
+  }
+
+  // Matches current provider's default OR a custom URL — leave it.
+  return config;
+}
+
+/** Save config to ~/.codebot/config.json (with backup + atomic write). */
 export function saveConfig(config: SavedConfig): void {
   fs.mkdirSync(codebotHome(), { recursive: true });
-  const safe = { ...config };
+  // Auto-correct stale baseUrl (issue #5) before persisting.
+  const safe = normalizeProviderBaseUrl({ ...config });
   const content = JSON.stringify(safe, null, 2) + '\n';
 
   // Create backup of existing config

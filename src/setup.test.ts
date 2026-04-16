@@ -5,8 +5,57 @@ import * as path from 'path';
 import * as os from 'os';
 
 // We test the exported functions from setup.ts
-import { autoDetect, pickBestLocalModel, loadConfig, saveConfig, isFirstRun, pickProviderKey } from './setup';
+import { autoDetect, pickBestLocalModel, loadConfig, saveConfig, isFirstRun, pickProviderKey, normalizeProviderBaseUrl } from './setup';
 import type { AutoDetectResult, SavedConfig } from './setup';
+
+describe('normalizeProviderBaseUrl (issue #5 — stale baseUrl on provider switch)', () => {
+  it('switches stale Anthropic baseUrl when provider becomes openai', () => {
+    const out = normalizeProviderBaseUrl({ provider: 'openai', baseUrl: 'https://api.anthropic.com' });
+    assert.strictEqual(out.baseUrl, 'https://api.openai.com');
+  });
+
+  it('switches stale OpenAI baseUrl when provider becomes anthropic', () => {
+    const out = normalizeProviderBaseUrl({ provider: 'anthropic', baseUrl: 'https://api.openai.com' });
+    assert.strictEqual(out.baseUrl, 'https://api.anthropic.com');
+  });
+
+  it('fills empty baseUrl with provider default', () => {
+    const out = normalizeProviderBaseUrl({ provider: 'gemini', baseUrl: '' });
+    assert.match(out.baseUrl || '', /generativelanguage\.googleapis\.com/);
+  });
+
+  it('leaves localhost URLs alone (user choice)', () => {
+    const out = normalizeProviderBaseUrl({ provider: 'openai', baseUrl: 'http://localhost:11434' });
+    assert.strictEqual(out.baseUrl, 'http://localhost:11434');
+  });
+
+  it('leaves 127.0.0.1 URLs alone', () => {
+    const out = normalizeProviderBaseUrl({ provider: 'anthropic', baseUrl: 'http://127.0.0.1:1234' });
+    assert.strictEqual(out.baseUrl, 'http://127.0.0.1:1234');
+  });
+
+  it('leaves matching default alone (no-op)', () => {
+    const cfg: SavedConfig = { provider: 'openai', baseUrl: 'https://api.openai.com' };
+    const out = normalizeProviderBaseUrl(cfg);
+    assert.strictEqual(out.baseUrl, 'https://api.openai.com');
+  });
+
+  it('leaves custom URLs alone (user explicitly set something non-default)', () => {
+    const out = normalizeProviderBaseUrl({ provider: 'openai', baseUrl: 'https://my-corp-proxy.example.com/openai' });
+    assert.strictEqual(out.baseUrl, 'https://my-corp-proxy.example.com/openai');
+  });
+
+  it('does not crash on missing provider', () => {
+    const out = normalizeProviderBaseUrl({ baseUrl: 'https://api.openai.com' });
+    assert.strictEqual(out.baseUrl, 'https://api.openai.com');
+  });
+
+  it('does not mutate input', () => {
+    const cfg: SavedConfig = { provider: 'openai', baseUrl: 'https://api.anthropic.com' };
+    normalizeProviderBaseUrl(cfg);
+    assert.strictEqual(cfg.baseUrl, 'https://api.anthropic.com'); // unchanged
+  });
+});
 
 describe('pickProviderKey (issue #6 — multi-provider key support)', () => {
   it('returns the provider-specific key when present', () => {
