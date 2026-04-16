@@ -16,7 +16,7 @@ import { SessionManager } from '../history';
 import { decryptLine } from '../encryption';
 import { UserProfile } from '../user-profile';
 import { MemoryManager } from '../memory';
-import { loadConfig, saveConfig as saveSetupConfig, isFirstRun, detectLocalServers, SavedConfig, isProviderDisabled } from '../setup';
+import { loadConfig, saveConfig as saveSetupConfig, isFirstRun, detectLocalServers, SavedConfig, isProviderDisabled, pickProviderKey } from '../setup';
 import { codebotPath } from '../paths';
 import { RiskScorer } from '../risk';
 
@@ -264,12 +264,21 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
         context: info.contextWindow,
       });
     }
-    // Check which providers have API keys configured
+    // Check which providers have API keys configured.
+    // disabledProviders hard-bans a provider regardless of env vars or
+    // saved keys — the dropdown will show it as unavailable and frontend
+    // grays out its models.
+    const config = loadConfig();
     const available: Record<string, boolean> = {};
     for (const [name, info] of Object.entries(PROVIDER_DEFAULTS)) {
-      available[name] = !!(process.env[info.envKey] && process.env[info.envKey]!.length > 5);
+      if (isProviderDisabled(config, name)) {
+        available[name] = false;
+        continue;
+      }
+      const hasEnv = !!(process.env[info.envKey] && process.env[info.envKey]!.length > 5);
+      const hasSavedKey = !!pickProviderKey(config, name);
+      available[name] = hasEnv || hasSavedKey;
     }
-    const config = loadConfig();
     DashboardServer.json(res, { groups, available, current: { provider: config.provider, model: config.model } });
   });
 
