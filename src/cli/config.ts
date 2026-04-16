@@ -4,6 +4,7 @@
  */
 
 import { OpenAIProvider } from '../providers/openai';
+import { OpenAIResponsesProvider, modelRequiresResponsesApi } from '../providers/openai-responses';
 import { AnthropicProvider } from '../providers/anthropic';
 import { detectProvider, PROVIDER_DEFAULTS } from '../providers/registry';
 import { Config, LLMProvider } from '../types';
@@ -22,6 +23,17 @@ function c(text: string, style: keyof typeof C): string {
 export function createProvider(config: Config): LLMProvider {
   if (config.provider === 'anthropic') {
     return new AnthropicProvider({
+      baseUrl: config.baseUrl,
+      apiKey: config.apiKey,
+      model: config.model,
+    });
+  }
+
+  // Route gpt-5.4 family + codex variants through OpenAI's newer Responses
+  // API (POST /v1/responses) — these models are NOT available on the
+  // chat-completions endpoint and previously returned 404 from CodeBot.
+  if (modelRequiresResponsesApi(config.model)) {
+    return new OpenAIResponsesProvider({
       baseUrl: config.baseUrl,
       apiKey: config.apiKey,
       model: config.model,

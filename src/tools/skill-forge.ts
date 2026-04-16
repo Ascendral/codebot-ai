@@ -150,6 +150,15 @@ export class SkillForgeTool implements Tool {
       steps: {
         type: 'array',
         description: 'Array of step objects: { tool, args, condition? } (required for create)',
+        items: {
+          type: 'object',
+          properties: {
+            tool: { type: 'string', description: 'Tool name to invoke for this step' },
+            args: { type: 'object', description: 'Arguments to pass to the tool', additionalProperties: true },
+            condition: { type: 'string', description: 'Optional precondition expression' },
+          },
+          required: ['tool'],
+        },
       },
       success: {
         type: 'boolean',
