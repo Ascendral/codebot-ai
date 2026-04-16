@@ -6,7 +6,7 @@
 
 [![npm version](https://img.shields.io/npm/v/codebot-ai.svg?style=flat-square&color=6366f1)](https://www.npmjs.com/package/codebot-ai)
 [![license](https://img.shields.io/npm/l/codebot-ai.svg?style=flat-square)](https://github.com/Ascendral/codebot-ai/blob/main/LICENSE)
-![tests](https://img.shields.io/badge/tests-1434%20passing-22c55e?style=flat-square)
+![tests](https://img.shields.io/badge/tests-1493%20passing-22c55e?style=flat-square)
 
 <!-- TODO: Replace with screenshot or gif of dashboard -->
 

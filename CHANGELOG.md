@@ -1,5 +1,48 @@
 # Changelog
 
+## [2.10.0] — 2026-04-15
+
+### Added
+- **Experiential memory system** — `CrossSessionLearning` records episodes (sessionId, tools used, success, patterns, token usage), aggregates them into a pattern index, and feeds top patterns back into future system prompts via `buildPromptBlock()`
+- **Episode auto-rotation** — `recordEpisode` prunes by age (default 30 days, `CODEBOT_EPISODES_MAX_AGE_DAYS`) and count (default 200, `CODEBOT_EPISODES_MAX_COUNT`)
+- **Goal decomposition engine** — multi-step goal breakdown with HTML demo page (28 tests)
+- **Electron desktop app** — full-feature wrapper around the dashboard with auto-restart, network retry, crash recovery, tray icon, system menu bar, and an "Open in Browser" workaround (Cmd+B)
+- **Multi-provider API keys** — OpenAI + Gemini API keys can be configured alongside Anthropic instead of replacing it
+- **GPT-5.4 family** in provider registry: `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-5-codex`
+- **API proxy for keyless onboarding** — Cloudflare Worker fronts a free-tier endpoint so new users can try the agent without supplying their own key
+- **Try Free button** in onboarding that wires the free proxy
+- **Cross-platform builds** — GitHub Actions CI builds Electron DMG (mac), NSIS (win), AppImage (linux)
+- **Investor pitch deck**, **landing page**, and **Remotion video pipeline** for social media content (deployed to GitHub Pages)
+- **Anti-theater protocol** documented in `CLAUDE.md`
+
+### Changed
+- **Dashboard redesigned** with premium glassmorphism dark theme, Inter font, glass panels
+- **Dashboard body limit** raised from 1MB → 50MB to support base64 image uploads
+- **Provider request bodies** are now sanitized for lone UTF-16 surrogates before `JSON.stringify` (Anthropic + OpenAI both strict-reject these even when escaped)
+- **Better error messages** — dashboard `parseBody` failures now surface the underlying parse error instead of a generic "Invalid JSON body"
+- Tests: 1,265 → 1,493 (+228 new tests across the new memory/goal/dashboard/electron paths)
+
+### Fixed
+- **`CrossSessionLearning` test fixture** — replaced hardcoded `2026-03-15` dates with `new Date().toISOString()` so default fixtures aren't auto-pruned by the 30-day age limit (fixed 5 failing tests)
+- **Electron copy/paste** — multiple iterations: right-click context menu with `cut`/`copy`/`paste`/`selectAll` roles, manual clipboard shortcut handlers for macOS, default titlebar instead of `hiddenInset`, force `user-select` on all elements
+- **Dashboard 60+ bugs** — XSS, a11y, focus-visible, SSE heartbeats, DONE sentinel, timeout handling, command-api null checks, CSS duplicates and responsive issues, app.js logic bugs
+- **Brain wiring** — ship `better-sqlite3` native binding in solve commits; record string-error lessons; recover brain architecture WIP
+- **Loop detector signatures**, memory limits, dead routes, drag perf, Electron crash
+- **Memory priority rule** — agent now reads memory before answering context questions
+- **Model switching** — recreate agent when provider changes
+- **Duplicate model entries** in provider registry
+- **DelegateTool wiring**, removed duplicate calls, added init warnings
+- **`durationMs` measurement**, `DiskSpaceCheck` label, `UserProfile` debounce, task-runner type safety
+- **Dead code deletion** — duplicate connectors, NDJSON daemon log, dead `isLikelyDeveloper` import
+- **`.spark/` database files** no longer leak into `--solve` PR commits
+
+### Security
+- **Electron 41.0.2 → 41.2.0** (npm audit vulnerabilities cleared)
+- `flatted` 3.4.2 (high-severity vuln fix)
+
+### Known Issues
+- macOS Electron build is signed with the Developer ID Application cert, but full notarization requires `CODEBOT_FORCE_NOTARIZE=1` and a `codebot-notarize` keychain profile. Local builds skip notarization by default — see `electron/notarize.js`.
+
 ## [2.9.0] — 2026-03-14
 
 ### Added
