@@ -20,46 +20,10 @@ import { loadConfig, saveConfig as saveSetupConfig, isFirstRun, detectLocalServe
 import { codebotPath } from '../paths';
 import { RiskScorer } from '../risk';
 
-/** Load API key availability from config + env */
-function detectAvailableProviders(): Record<string, boolean> {
-  const available: Record<string, boolean> = {};
-
-  // Check ~/.codebot/config.json
-  let configProvider = '';
-  try {
-    const configPath = codebotPath('config.json');
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    if (config.apiKey && config.provider) {
-      configProvider = config.provider;
-    }
-  } catch { /* no config */ }
-
-  // Load disabledProviders once so we can filter cleanly below.
-  let savedForDisable: SavedConfig = {};
-  try {
-    const configPath = codebotPath('config.json');
-    savedForDisable = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as SavedConfig;
-  } catch { /* no config */ }
-
-  for (const [name, info] of Object.entries(PROVIDER_DEFAULTS)) {
-    // Hard block: providers the user explicitly banned are always unavailable,
-    // regardless of env vars or OAuth tokens. This prevents the dashboard
-    // from enabling Claude models just because CLAUDE_CODE_OAUTH_TOKEN is
-    // set for Claude Code (unrelated to CodeBot).
-    if (isProviderDisabled(savedForDisable, name)) {
-      available[name] = false;
-      continue;
-    }
-    const envVal = process.env[info.envKey];
-    const hasEnv = !!(envVal && envVal.length > 5);
-    const hasConfig = (name === configProvider);
-    // Anthropic OAuth fallback
-    const hasOAuth = (name === 'anthropic' && !!(process.env.CLAUDE_CODE_OAUTH_TOKEN && process.env.CLAUDE_CODE_OAUTH_TOKEN.length > 5));
-    available[name] = hasEnv || hasConfig || hasOAuth;
-  }
-
-  return available;
-}
+// Previously: detectAvailableProviders() — superseded by the inline
+// availability loop at /api/models/registry, which is the only caller
+// that ever needed provider availability. Removing dead code to keep
+// the module honest.
 
 /** Register all API routes on the server */
 export function registerApiRoutes(server: DashboardServer, projectRoot?: string): void {
@@ -400,7 +364,7 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
       } else {
         DashboardServer.error(res, 404, 'Memory file not found');
       }
-    } catch (err) {
+    } catch {
       DashboardServer.error(res, 500, 'Failed to read memory file');
     }
   });
@@ -439,7 +403,7 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
     try {
       fs.writeFileSync(filePath, body.content);
       DashboardServer.json(res, { saved: true, scope, file: safeFile });
-    } catch (err) {
+    } catch {
       DashboardServer.error(res, 500, 'Failed to write memory file');
     }
   });

@@ -6,18 +6,13 @@
  */
 
 import * as http from 'http';
-import * as fs from 'fs';
-import * as path from 'path';
-import { codebotPath } from '../paths';
 import { spawn } from 'child_process';
 import { DashboardServer } from './server';
 import { Agent } from '../agent';
 import { SessionManager } from '../history';
 import { BLOCKED_PATTERNS, FILTERED_ENV_VARS } from '../tools/execute';
 import { PROVIDER_DEFAULTS } from '../providers/registry';
-import { AnthropicProvider } from '../providers/anthropic';
-import { OpenAIProvider } from '../providers/openai';
-import { LLMProvider, Message, Config } from '../types';
+import { Config } from '../types';
 import { loadConfig, pickProviderKey, normalizeProviderBaseUrl } from '../setup';
 import { createProvider } from '../cli/config';
 import { getProactiveEngine } from '../proactive';

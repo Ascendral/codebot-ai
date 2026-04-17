@@ -17,7 +17,7 @@
  *   - Results merge back into parent conversation
  */
 
-import { Message, LLMProvider, AgentEvent, Tool } from './types';
+// (Message, LLMProvider, AgentEvent, Tool types no longer referenced directly here)
 import { PolicyEnforcer } from './policy';
 import { MetricsCollector } from './metrics';
 

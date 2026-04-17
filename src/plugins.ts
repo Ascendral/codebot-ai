@@ -159,7 +159,7 @@ export function loadPlugins(projectRoot?: string): Tool[] {
         }
 
         // Hash verified — safe to load
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
+         
         const mod = require(pluginPath);
         const plugin = mod.default || mod;
 

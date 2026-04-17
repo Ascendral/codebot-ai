@@ -16,7 +16,7 @@ import {
 } from './types';
 
 // Import cord-engine (JavaScript) via require
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+ 
 const cord = require('cord-engine');
 
 /** Maximum recent decisions to keep for dashboard display */
