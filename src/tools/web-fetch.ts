@@ -1,5 +1,6 @@
 import { Tool } from '../types';
 import { cacheGet, cacheSet } from '../offline-cache';
+import { validateOutboundUrl } from '../net-guard';
 
 export class WebFetchTool implements Tool {
   name = 'web_fetch';
@@ -100,7 +101,13 @@ export class WebFetchTool implements Tool {
     if (!url) return 'Error: url is required';
     const method = (args.method as string) || 'GET';
 
-    const urlError = this.validateUrl(url);
+    // P2-1 fix: was `this.validateUrl(url)` (literal string check only).
+    // Now does literal check AND DNS resolution — a hostname that
+    // points at a private IP gets blocked. validateOutboundUrl
+    // supersedes the private validateUrl below; kept the legacy
+    // method around for callers that invoke it directly, but the
+    // execution path now goes through the DNS-aware guard.
+    const urlError = await validateOutboundUrl(url);
     if (urlError) return `Error: ${urlError}`;
     const headers: Record<string, string> = (args.headers as Record<string, string>) || {};
 

@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Tool } from '../types';
 import { isPathSafe } from '../security';
-import { scanForSecrets } from '../secrets';
+import { checkSecretsForWrite } from '../secret-guard';
 import { PolicyEnforcer } from '../policy';
 
 interface EditOperation {
@@ -112,10 +112,16 @@ export class BatchEditTool implements Tool {
           continue;
         }
 
-        // Security: secret detection on new content
-        const secrets = scanForSecrets(newStr);
-        if (secrets.length > 0) {
-          warnings.push(`Secrets detected in edit for ${filePath}: ${secrets.map(s => `${s.type} (${s.snippet})`).join(', ')}`);
+        // Security: secret detection on new content — respects
+        // policy.secrets.block_on_detect (default: block). Batch edits
+        // abort the whole batch on a block so partial writes never land.
+        const guard = checkSecretsForWrite(newStr, this.policyEnforcer, filePath);
+        if (guard.block) {
+          errors.push(guard.error!.replace(/^Error:\s*/, ''));
+          continue;
+        }
+        if (guard.warning) {
+          warnings.push(`Secrets in ${filePath}: ${guard.secrets.map((s) => `${s.type} (${s.snippet})`).join(', ')}`);
         }
 
         content = content.replace(oldStr, newStr);

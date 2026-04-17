@@ -36,23 +36,78 @@ interface VaultData {
   credentials: VaultCredential[];
 }
 
+/** Where did the passphrase come from? Exposed via status() so users
+ * can actually see it rather than hope. */
+export type VaultKeySource = 'env:CODEBOT_VAULT_KEY' | 'env:CODEBOT_ENCRYPTION_KEY' | 'machine-derived';
+
 export class VaultManager {
   private passphrase: string;
+  private keySource: VaultKeySource;
+  private static machineWarningShown = false;
 
   constructor() {
-    this.passphrase = this.resolvePassphrase();
+    const resolved = this.resolvePassphrase();
+    this.passphrase = resolved.passphrase;
+    this.keySource = resolved.source;
+    this.maybeWarnMachineFallback();
   }
 
-  /** Passphrase priority: env vars → machine-derived fallback */
-  private resolvePassphrase(): string {
-    if (process.env.CODEBOT_VAULT_KEY) return process.env.CODEBOT_VAULT_KEY;
-    if (process.env.CODEBOT_ENCRYPTION_KEY) return process.env.CODEBOT_ENCRYPTION_KEY;
-
-    // Machine-derived: deterministic per machine, not portable
-    return crypto.createHash('sha256')
+  /**
+   * Passphrase priority: env vars → machine-derived fallback.
+   *
+   * P2-2 fix: also returns the source so callers (tests, status,
+   * diagnostics) can see where the key came from. The previous
+   * implementation silently fell back to a machine-derived key and
+   * there was no way to audit that from inside CodeBot.
+   */
+  private resolvePassphrase(): { passphrase: string; source: VaultKeySource } {
+    if (process.env.CODEBOT_VAULT_KEY) {
+      return { passphrase: process.env.CODEBOT_VAULT_KEY, source: 'env:CODEBOT_VAULT_KEY' };
+    }
+    if (process.env.CODEBOT_ENCRYPTION_KEY) {
+      return { passphrase: process.env.CODEBOT_ENCRYPTION_KEY, source: 'env:CODEBOT_ENCRYPTION_KEY' };
+    }
+    const derived = crypto.createHash('sha256')
       .update(`${os.hostname()}:${os.userInfo().username}:${os.platform()}`)
       .digest('hex');
+    return { passphrase: derived, source: 'machine-derived' };
   }
+
+  /**
+   * Print a one-time-per-process warning when we're using the
+   * machine-derived fallback. Respects CODEBOT_VAULT_SILENT=1 for CI
+   * and any caller that has already been notified (the static flag
+   * covers multiple VaultManager instances in the same process).
+   */
+  private maybeWarnMachineFallback(): void {
+    if (this.keySource !== 'machine-derived') return;
+    if (VaultManager.machineWarningShown) return;
+    if (process.env.CODEBOT_VAULT_SILENT === '1') return;
+    VaultManager.machineWarningShown = true;
+    warnNonFatal(
+      'Vault',
+      'using machine-derived passphrase (no CODEBOT_VAULT_KEY set). ' +
+      'Credentials are encrypted but the key is derived from your hostname/username/platform, ' +
+      'so they are NOT portable across machines and are recoverable by anyone with local read ' +
+      'on ~/.codebot. For production or shared environments, set CODEBOT_VAULT_KEY to a secret ' +
+      'you manage yourself. Silence this warning with CODEBOT_VAULT_SILENT=1.',
+    );
+  }
+
+  /** Human-readable status for `codebot vault status` or diagnostics.
+   *  Never includes the actual passphrase. */
+  status(): { keySource: VaultKeySource; vaultPath: string; vaultExists: boolean; credentialCount: number } {
+    const vaultPath = codebotPath('vault.json');
+    return {
+      keySource: this.keySource,
+      vaultPath,
+      vaultExists: fs.existsSync(vaultPath),
+      credentialCount: this.load().credentials.length,
+    };
+  }
+
+  /** Reset the one-time warning flag (test hook). */
+  static _resetWarning(): void { VaultManager.machineWarningShown = false; }
 
   /** Load and decrypt vault data. Returns empty vault on any failure. */
   private load(): VaultData {

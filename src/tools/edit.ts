@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Tool } from '../types';
 import { isPathSafe } from '../security';
-import { scanForSecrets } from '../secrets';
+import { checkSecretsForWrite } from '../secret-guard';
 import { PolicyEnforcer } from '../policy';
 import { codebotPath } from '../paths';
 import { warnNonFatal } from '../warn';
@@ -73,14 +73,11 @@ export class EditFileTool implements Tool {
       throw new Error(`File not found: ${filePath}`);
     }
 
-    // Security: secret detection on new content (warn but don't block)
-    const secrets = scanForSecrets(newStr);
-    let warning = '';
-    if (secrets.length > 0) {
-      warning = `\n\n⚠️  WARNING: ${secrets.length} potential secret(s) in new content:\n` +
-        secrets.map(s => `  ${s.type} — ${s.snippet}`).join('\n') +
-        '\nConsider using environment variables instead of hardcoding secrets.';
-    }
+    // Security: secret detection on new content — respects
+    // policy.secrets.block_on_detect (default: block).
+    const guard = checkSecretsForWrite(newStr, this.policyEnforcer, filePath);
+    if (guard.block) return guard.error!;
+    const warning = guard.warning;
 
     const content = fs.readFileSync(realPath, 'utf-8');
     const count = content.split(oldStr).length - 1;

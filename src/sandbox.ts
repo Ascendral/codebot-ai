@@ -11,7 +11,7 @@
  * - Graceful fallback to host execution when Docker unavailable
  */
 
-import { execSync, ExecSyncOptions } from 'child_process';
+import { execSync, execFileSync, ExecSyncOptions } from 'child_process';
 import * as path from 'path';
 
 // ── Types ──
@@ -106,17 +106,27 @@ export function sandboxExec(
     return hostFallback(command, resolvedProjectDir, cfg.timeoutMs);
   }
 
-  // Build docker run command
+  // Build docker run args as a real array so we can pass them to
+  // execFileSync without going through a shell. The previous code did
+  // `execSync(dockerArgs.join(' '))` which broke whenever any arg (most
+  // commonly the project path) contained a space or any shell metachar.
+  // On this machine the path is `/Users/.../ClaudeWork/codebot-ai`, but
+  // e.g. `/Users/me/Documents/My Project/...` would silently misparse the
+  // `-v` mount and the sandbox would fail or — worse — mount the wrong
+  // thing. execFileSync bypasses the shell entirely; no quoting needed.
   const dockerArgs: string[] = [
-    'docker', 'run',
-    '--rm',                                    // Cleanup on exit
-    '--read-only',                             // Read-only root filesystem
-    '--tmpfs', '/tmp:size=100m',               // Writable /tmp
-    `--cpus="${cfg.cpus}"`,                    // CPU limit
-    `--memory="${cfg.memoryMb}m"`,             // Memory limit
-    `--pids-limit`, String(cfg.pidsLimit),     // PID limit
-    '--security-opt', 'no-new-privileges',     // No privilege escalation
-    '--cap-drop=ALL',                          // Drop all capabilities
+    'run',
+    '--rm',                                 // Cleanup on exit
+    '--read-only',                          // Read-only root filesystem
+    '--tmpfs', '/tmp:size=100m',            // Writable /tmp
+    '--cpus', String(cfg.cpus),             // CPU limit (was `--cpus="2"` — bogus quoted form)
+    '--memory', `${cfg.memoryMb}m`,         // Memory limit
+    '--pids-limit', String(cfg.pidsLimit),  // PID limit
+    '--security-opt', 'no-new-privileges',  // No privilege escalation
+    '--cap-drop', 'ALL',                    // Drop all capabilities (was `--cap-drop=ALL`
+                                             //   which would have worked via shell, but
+                                             //   with execFileSync we pass it as two args
+                                             //   so the flag parser sees it cleanly)
   ];
 
   // Network
@@ -124,7 +134,8 @@ export function sandboxExec(
     dockerArgs.push('--network', 'none');
   }
 
-  // Mount project directory
+  // Mount project directory. The path is passed as ONE string; the shell
+  // used to eat this via dockerArgs.join(' '). execFileSync does not.
   dockerArgs.push('-v', `${resolvedProjectDir}:${cfg.workDir}:rw`);
 
   // Working directory
@@ -136,10 +147,8 @@ export function sandboxExec(
   // Command (via sh -c for shell features)
   dockerArgs.push('sh', '-c', command);
 
-  const dockerCmd = dockerArgs.join(' ');
-
   try {
-    const stdout = execSync(dockerCmd, {
+    const stdout = execFileSync('docker', dockerArgs, {
       timeout: cfg.timeoutMs,
       maxBuffer: 1024 * 1024, // 1MB
       encoding: 'utf-8',

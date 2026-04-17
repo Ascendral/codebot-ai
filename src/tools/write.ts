@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Tool } from '../types';
 import { isPathSafe } from '../security';
-import { scanForSecrets } from '../secrets';
+import { checkSecretsForWrite } from '../secret-guard';
 import { PolicyEnforcer } from '../policy';
 import { codebotPath } from '../paths';
 
@@ -74,14 +74,12 @@ export class WriteFileTool implements Tool {
       } catch { /* not JSON, allow */ }
     }
 
-    // Security: secret detection (warn but don't block)
-    const secrets = scanForSecrets(content);
-    let warning = '';
-    if (secrets.length > 0) {
-      warning = `\n\n⚠️  WARNING: ${secrets.length} potential secret(s) detected:\n` +
-        secrets.map(s => `  Line ${s.line}: ${s.type} — ${s.snippet}`).join('\n') +
-        '\nConsider using environment variables instead of hardcoding secrets.';
-    }
+    // Security: secret detection — respect policy.secrets.block_on_detect.
+    // Default policy blocks; explicit opt-out via policy.secrets is still
+    // honored (see src/secret-guard.ts).
+    const guard = checkSecretsForWrite(content, this.policyEnforcer, filePath);
+    if (guard.block) return guard.error!;
+    const warning = guard.warning;
 
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });

@@ -1,4 +1,5 @@
 import { Tool } from '../types';
+import { validateOutboundUrl } from '../net-guard';
 
 export class HttpClientTool implements Tool {
   name = 'http_client';
@@ -21,17 +22,26 @@ export class HttpClientTool implements Tool {
     const url = args.url as string;
     if (!url) return 'Error: url is required';
 
-    // Validate URL
+    // P2-1 fix: was `this.isBlocked(parsedUrl)` — literal hostname
+    // string match only, which missed DNS→private-IP redirects. Now
+    // goes through validateOutboundUrl which does literal + DNS
+    // resolution check. The legacy isBlocked method below is kept
+    // for backwards compat but no longer the first line of defense.
     let parsedUrl: URL;
     try {
       parsedUrl = new URL(url);
     } catch {
       return `Error: invalid URL: ${url}`;
     }
-
-    // Block private IPs and file protocol
-    if (this.isBlocked(parsedUrl)) {
-      return 'Error: requests to private/local addresses are blocked for security.';
+    const blockReason = await validateOutboundUrl(url);
+    if (blockReason) {
+      // Keep the legacy wording ("blocked for security") that downstream
+      // tooling/tests grep for; append the specific reason in parens.
+      if (/^Invalid URL/.test(blockReason)) return `Error: invalid URL: ${url}`;
+      if (/^Blocked protocol/.test(blockReason)) {
+        return `Error: requests to unsupported protocols are blocked for security (${blockReason}).`;
+      }
+      return `Error: requests to private/local addresses are blocked for security (${blockReason}).`;
     }
 
     const method = ((args.method as string) || 'GET').toUpperCase();
