@@ -42,6 +42,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+# Tier 2.1 v2 — optional Docker-based test loop
+try:
+    from docker_test_loop import score_patch_in_docker, extract_test_output_tail  # type: ignore
+except ImportError:
+    score_patch_in_docker = None  # type: ignore
+    extract_test_output_tail = None  # type: ignore
+
 try:
     from datasets import load_dataset  # type: ignore
 except ImportError:
@@ -94,6 +101,7 @@ def run_one_task(
     timeout_sec: int,
     workspace_root: Path,
     model: str,
+    enable_docker_loop: bool = False,
 ) -> tuple[Optional[str], TaskResult]:
     """Run CodeBot on a single SWE-bench instance, return (model_patch, TaskResult)."""
     instance_id = instance["instance_id"]
@@ -339,6 +347,52 @@ def run_one_task(
                 else:
                     log("FAIL_TO_PASS tests passed (or no signal) — submitting patch")
 
+        # Tier 2.1 v2: Docker-based test loop. Real signal via the
+        # official harness. Adds ~3-5 min per task and ~$0.30 in extra
+        # tokens when it fires, but actually scores patches against the
+        # same env eval will use. Enabled only with --enable-docker-test-loop.
+        # Falls back gracefully if docker_test_loop module unavailable.
+        docker_loop_used = False
+        docker_loop_resolved = None
+        if (enable_docker_loop and patch.strip()
+                and score_patch_in_docker is not None
+                and extract_test_output_tail is not None):
+            log("docker-test-loop: scoring interim patch against official harness")
+            bench_dir = Path(__file__).parent
+            docker_host = os.environ.get(
+                "DOCKER_HOST",
+                f"unix://{Path.home()}/.colima/default/docker.sock",
+            )
+            resolved, test_log_path, summary = score_patch_in_docker(
+                instance_id=instance_id,
+                model_patch=patch,
+                model_name_or_path=f"codebot-ai-2.10.0-{model}",
+                bench_dir=bench_dir,
+                docker_host=docker_host,
+                timeout_sec=600,
+            )
+            log(summary)
+            docker_loop_resolved = resolved
+            if not resolved and test_log_path:
+                log("docker-test-loop: feeding REAL test output back for one more pass")
+                docker_loop_used = True
+                test_tail = extract_test_output_tail(test_log_path)
+                feedback_prompt = (
+                    problem_statement
+                    + "\n\n--- Your patch was tested in the official environment\n"
+                    + "(SWE-bench Docker image, exact Python + dep versions)\n"
+                    + "and DID NOT make the failing tests pass.\n\n"
+                    + "Test runner output (tail):\n"
+                    + "```\n" + test_tail.strip() + "\n```\n\n"
+                    + "Update the existing diff so these tests pass. The current\n"
+                    + "patch is already applied in the working tree; refine it\n"
+                    + "with edit_file. Focus on the specific failures shown above."
+                )
+                invoke_codebot(feedback_prompt, "attempt-4-docker-feedback")
+                patch = capture_diff()
+            elif resolved:
+                log("docker-test-loop: patch resolves the task — submitting as-is")
+
         elapsed = time.monotonic() - started
         if not patch.strip():
             log(f"WARN: empty diff after {elapsed:.1f}s (retry={retried}) — codebot did not modify anything")
@@ -397,6 +451,11 @@ def main() -> int:
     p.add_argument("--codebot-path", default="", help="Override path to codebot binary")
     p.add_argument("--timeout-sec", type=int, default=900,
                    help="Per-task wall-clock budget for codebot (default 15 min)")
+    p.add_argument("--enable-docker-test-loop", action="store_true",
+                   help="Tier 2.1 v2: after first patch, score it via the official "
+                        "SWE-bench Docker harness and feed real test output back to "
+                        "CodeBot for one more pass if it didn't resolve. Adds ~3-5 min "
+                        "and ~$0.30 per task. Off by default — opt in for benchmark runs.")
     p.add_argument("--workspace", default="",
                    help="Workspace dir for cloned repos (default: tempdir; preserved on success for inspection)")
     p.add_argument("--model", default="gpt-4o-mini",
@@ -433,7 +492,10 @@ def main() -> int:
 
     for i, instance in enumerate(instances, 1):
         print(f"\n=== {i}/{len(instances)}: {instance['instance_id']} ===")
-        patch, result = run_one_task(instance, codebot_bin, args.timeout_sec, workspace_root, args.model)
+        patch, result = run_one_task(
+            instance, codebot_bin, args.timeout_sec, workspace_root, args.model,
+            enable_docker_loop=args.enable_docker_test_loop,
+        )
         stats.results.append(result)
         stats.elapsed_total_sec += result.elapsed_sec
         if patch is not None:
