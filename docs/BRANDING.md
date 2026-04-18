@@ -1,10 +1,33 @@
 # CodeBot AI — Brand Identity & Mascot Guide
 
+## Product positioning (the one-liner)
+
+> **Open-source autonomous coding agent with a cryptographic audit trail.**
+> For work you want to *delegate*, not just *assist* with — and verify after the fact.
+
+## What CodeBot is NOT (say this out loud)
+
+CodeBot is not an AI-powered editor. Cursor, Zed, and VS Code with Copilot own
+that category. Do not draft copy, demos, or marketing that positions CodeBot
+against those tools on their turf (tab-completion, inline suggestions,
+in-editor UX). CodeBot is in a different category: autonomous agent with
+governance primitives. The buyer is someone who needs to *delegate and verify*,
+not someone who wants to type faster.
+
+Three pillars, in this order, on every piece of customer-facing copy:
+1. **Autonomous**, not interactive
+2. **Cryptographic audit trail**
+3. **Runs where your code can't leave** (local LLM support, MIT, no telemetry)
+
+Everything else is implementation detail.
+
+---
+
 ## Mascot: Codi
 
 **Name:** Codi
 **Class:** Enterprise AI Agent
-**Tagline:** *"Think local. Code global."*
+**Tagline:** *"Delegate the work. Verify every keystroke."*
 **Created by:** Ascendral Software Development & Innovation
 
 ---

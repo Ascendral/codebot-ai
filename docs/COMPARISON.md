@@ -1,129 +1,64 @@
-# Feature Comparison
+# How CodeBot AI compares
 
-How CodeBot AI compares to other AI coding assistants and autonomous agent frameworks.
+CodeBot is an autonomous coding agent, not an AI-powered editor. The comparisons below reflect what CodeBot is competing with — and what it deliberately isn't.
 
-## vs. AI Coding Assistants
+## CodeBot is NOT trying to replace these
 
-| Feature | GitHub Copilot | Cursor | Claude Code | **CodeBot 2.0** |
-|---------|---------------|--------|-------------|-----------------|
-| Self-hosted | No | No | No | **Yes** |
-| Any LLM provider | No | Partial | No | **Yes** |
-| Sandboxed execution | No | No | Partial | **Yes** |
-| Policy engine | No | No | No | **Yes** |
-| Audit trail | No | No | No | **Yes** |
-| Risk scoring | No | No | No | **Yes** |
-| Zero dependencies | No | No | No | **Yes** |
-| Open source | No | No | No | **Yes** |
-| SARIF export | No | No | No | **Yes** |
-| VS Code extension | Yes | Built-in | No | **Yes** |
-| GitHub Action | Partial | No | No | **Yes** |
-| CLI interface | No | No | Yes | **Yes** |
-| Secret detection | No | No | No | **Yes** |
-| Cost tracking | No | No | No | **Yes** |
-| Session replay | No | No | No | **Yes** |
+| | What it is | Why CodeBot doesn't compete |
+|---|---|---|
+| **Cursor** | AI-enhanced IDE (VS Code fork) | Cursor wins on tab-completion + in-flow ergonomics. CodeBot has no editor. |
+| **GitHub Copilot** | Inline-suggestion AI in your IDE | Same category as Cursor. Different job than CodeBot. |
+| **Zed + AI** | Next-gen editor with AI built-in | Editor category. CodeBot runs outside the editor. |
+| **Claude Code CLI** | Interactive CLI assistant for Claude | Interactive-first; no autonomous issue-to-PR; no audit trail. |
 
-## vs. Autonomous Agent Frameworks
+If you want tab completion and inline suggestions *while you type*, pick one of these. CodeBot will not make them obsolete and isn't trying to.
 
-| Feature | Auto-GPT | CrewAI | LangChain Agents | MetaGPT | **CodeBot 2.0** |
-|---------|----------|--------|-------------------|---------|-----------------|
-| **Focus** | General tasks | Multi-agent | General tasks | Software dev | **Software dev** |
-| Zero dependencies | No (100+ deps) | No (50+ deps) | No (200+ deps) | No (60+ deps) | **Yes (0 deps)** |
-| Self-hosted | Yes | Yes | Yes | Yes | **Yes** |
-| Any LLM provider | Yes | Yes | Yes | Partial | **Yes** |
-| Sandboxed execution | No | No | No | No | **Yes** |
-| Policy engine | No | No | No | No | **Yes** |
-| Audit trail | No | No | No | No | **Yes** |
-| Risk scoring | No | No | No | No | **Yes** |
-| SARIF export | No | No | No | No | **Yes** |
-| VS Code extension | No | No | No | No | **Yes** |
-| GitHub Action | No | No | No | No | **Yes** |
-| CLI interface | Yes | No | No | Yes | **Yes** |
-| Browser automation | Via plugin | No | Via tool | No | **Built-in (CDP)** |
-| Secret detection | No | No | No | No | **Yes** |
-| Cost tracking | Basic | No | Via callback | No | **Built-in** |
-| Session replay | No | No | No | No | **Yes** |
-| Persistent memory | Via plugin | No | Via store | No | **Built-in** |
-| Plugin system | Yes | No | Yes | No | **Yes** |
-| MCP support | No | No | No | No | **Yes** |
+## CodeBot IS competing with these
 
-### CodeBot vs. Auto-GPT: In Depth
+| | Cursor / Copilot | Aider | Devin | **CodeBot** |
+|---|:---:|:---:|:---:|:---:|
+| **Autonomous issue-to-PR** | No | Partial | Yes | **Yes** |
+| **Cryptographic audit trail** (hash-chained) | No | No | No | **Yes** |
+| **Local LLM supported** | No | Yes | No | **Yes** |
+| **Policy + risk-scoring layer** | No | No | Partial | **Yes** |
+| **SARIF 2.1.0 export for CI** | No | No | No | **Yes** |
+| **Constitutional safety engine (CORD)** | No | No | No | **Yes** |
+| **MIT / open source** | No | Yes | No | **Yes** |
+| **Runs fully offline** (with local LLM) | No | Yes | No | **Yes** |
+| **Zero telemetry by default** | No | Yes | No | **Yes** |
+| **Any LLM provider** (7 cloud + local) | GPT only | Yes | Proprietary | **Yes** |
+| **Price** | $20/mo | Free | $500/mo | **Free / MIT** |
 
-Auto-GPT pioneered the autonomous agent concept but takes a fundamentally different approach:
+The headline axes where CodeBot is genuinely differentiated are the first two: **autonomous + auditable**. Every other row is either a cost advantage or a sovereignty advantage — real, but supporting.
 
-**Architecture:**
-- Auto-GPT: Plugin-heavy architecture with 100+ dependencies including Redis, Docker SDK, ChromeDriver, and numerous Python packages
-- CodeBot: Zero runtime dependencies — everything built on Node.js built-ins, resulting in a 135KB package
+## Why autonomous + auditable matters
 
-**Security:**
-- Auto-GPT: Relies on workspace-level file isolation but has no policy engine, no risk scoring, and no audit trail
-- CodeBot: 8-layer security stack — policy engine, capability-based permissions, Docker sandbox, secret detection, SSRF protection, path safety, risk scoring, and hash-chained audit logs
+**Autonomous**: the agent does end-to-end work. You delegate a task, not a keystroke. It runs tests, iterates until green, opens a PR. Interactive tools make *you* faster; an autonomous agent does *work that otherwise wouldn't happen* because you were busy.
 
-**LLM Support:**
-- Auto-GPT: Primarily OpenAI-focused, with adapters for other providers
-- CodeBot: First-class support for 8+ providers (Ollama, Claude, GPT, Gemini, DeepSeek, Groq, Mistral, Grok) with automatic detection
+**Auditable**: every tool call (read, write, execute, git, HTTP) is written to a hash-chained log. Tampering breaks the chain. SARIF export pipes into existing code-scanning dashboards. The question "what did the AI do to our codebase?" has a proof-backed answer, not a hand-wave.
 
-**Stability:**
-- Auto-GPT: Known for looping behavior and high token consumption
-- CodeBot: Configurable iteration limits, cost caps, risk-based confirmation gates, and automatic context compaction
+Most AI coding tools ship without this because their buyer (an individual developer) doesn't ask for it. CodeBot's buyer is someone who does ask — a security engineer, a compliance officer, an engineering manager in a regulated industry. The audit log is the entire point.
 
-**Enterprise Readiness:**
-- Auto-GPT: No VS Code extension, no GitHub Action, no SARIF export, no policy-as-code
-- CodeBot: Full enterprise stack — VS Code extension, GitHub Action for CI/CD, SARIF export for code scanning, declarative policy engine
+## Choosing between CodeBot and something else
 
-**When to use Auto-GPT:** General-purpose autonomous tasks beyond software development — web research, data analysis, business automation.
+**Pick Cursor / Copilot if**: you want faster typing and inline suggestions inside a polished editor. You don't need an audit trail. Your company is fine with code going to OpenAI / Anthropic / Microsoft servers.
 
-**When to use CodeBot:** Software development workflows where security, auditability, and enterprise integration matter — code review, bug fixing, security scanning, CI/CD automation.
+**Pick Aider if**: you're an individual developer who likes a terse CLI, wants local LLM support, and doesn't need governance features. You're running on your own box and don't need to prove anything to anyone else.
 
-### CodeBot vs. GitHub Copilot: In Depth
+**Pick Devin if**: you have $500/month per seat, you trust a closed-source agent with your codebase, and "autonomous" is more valuable than "verifiable."
 
-GitHub Copilot is the most widely adopted AI coding tool but serves a fundamentally different use case:
+**Pick CodeBot if**:
+- You need AI to do coding work end-to-end (not just suggest completions)
+- And you (or your auditor, your CISO, your ops lead) need to verify what it actually did
+- And your codebase can't leave your network, or you don't want to pay for a closed-source agent to run on servers you don't control
+- And you want to configure policy, risk tolerance, and safety rules per-project, in YAML
 
-**Architecture:**
-- Copilot: Cloud-hosted SaaS service — all code is sent to GitHub/Microsoft servers for processing. Requires a paid subscription ($10-39/month per user).
-- CodeBot: Self-hosted CLI/library — runs entirely on your machine. Zero cloud dependency. Use any LLM including fully local models (Ollama). Free and open source (MIT).
+## Honest limits
 
-**Capabilities:**
-- Copilot: Inline code completion, chat in IDE, code review suggestions. Cannot run shell commands, browse the web, manage git, or automate workflows.
-- CodeBot: Full autonomous agent — writes/edits code, runs tests, executes shell commands, browses the web, searches the internet, manages git, schedules cron tasks, calls APIs, and more. 28 built-in tools.
+CodeBot is worse than Cursor at being an editor. It's worse than Devin at raw benchmark pass rates (Devin is ~50-65% on SWE-bench Verified full 500; CodeBot is 34% on a 50-task slice). It's worse than Aider at minimal-install simplicity (Aider is a single pip install; CodeBot has a TypeScript build + optional Docker sandbox + optional Electron dashboard).
 
-**Security & Compliance:**
-- Copilot: Code transmitted to Microsoft cloud. No user-side audit trail, no policy engine, no risk scoring. Enterprise tier adds IP indemnity and content exclusions but no local enforcement.
-- CodeBot: All data stays local. 8-layer security stack with declarative policy engine, risk scoring, hash-chained audit logs, SARIF export, secret detection, Docker sandbox, SSRF protection. Full SOC 2 control mapping (see `docs/SOC2_COMPLIANCE.md`).
-
-**LLM Flexibility:**
-- Copilot: Locked to OpenAI models via GitHub. No model choice beyond what GitHub offers.
-- CodeBot: Works with 8+ providers — Ollama, Claude, GPT, Gemini, DeepSeek, Groq, Mistral, Grok — plus any OpenAI-compatible API. Switch with a single flag. Use fully local models for air-gapped environments.
-
-**Extensibility:**
-- Copilot: Limited extension model. No plugin system, no custom tools, no MCP support.
-- CodeBot: Plugin system (drop-in JavaScript), MCP server support, custom providers, policy-as-code, GitHub Action, VS Code extension.
-
-**Cost:**
-- Copilot: $10/month (Individual), $19/month (Business), $39/month (Enterprise) per user. Ongoing subscription.
-- CodeBot: Free (MIT). You only pay for LLM API calls (or $0 with local models). No per-seat licensing.
-
-**When to use GitHub Copilot:** Inline code completion in the IDE, quick chat suggestions, teams already in the GitHub ecosystem who want zero-setup AI assistance.
-
-**When to use CodeBot:** Autonomous multi-step workflows (code review, bug fixing, security scanning), environments requiring data sovereignty, compliance-driven organizations, teams needing policy-controlled AI with audit trails, or anyone wanting full LLM flexibility without vendor lock-in.
+What CodeBot is better at than all of them is the governance + auditability axis. That's the axis this project is built around. If that axis doesn't matter to you, something else is probably a better fit.
 
 ---
 
-## Key Differentiators
-
-### Security-First
-CodeBot is the only AI coding agent with a full security stack: policy engine, capability-based permissions, sandbox execution, hash-chained audit logs, secret detection, SSRF protection, and risk scoring.
-
-### Provider Agnostic
-Works with any LLM: Ollama, Claude, GPT, Gemini, DeepSeek, Groq, Mistral, Grok — or any OpenAI-compatible API. Switch models with a single flag.
-
-### Zero Dependencies
-The core package has zero runtime dependencies. Everything is built on Node.js built-ins. This means fewer supply chain risks and smaller attack surface. Compare: Auto-GPT has 100+ dependencies, LangChain has 200+.
-
-### Self-Hosted
-All data stays on your machine. No cloud accounts required. No telemetry sent (unless you opt in via OpenTelemetry).
-
-### Auditable
-Every action is logged in a tamper-evident chain. Export to SARIF for CI/CD integration. Verify integrity with `--verify-audit`.
-
-### Lightweight
-The npm package is 135KB. Install in seconds, run instantly. No Docker required (but recommended for sandboxing). No database. No Redis. No external services.
+*Last updated: 2026-04-17. Comparisons reflect publicly-documented features as of that date; check the linked vendors' docs for current status.*

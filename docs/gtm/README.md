@@ -31,13 +31,20 @@ Pulled live from GitHub + npm on 2026-04-15. Every future weekly report compares
 
 ## 2. Hypothesis we are testing
 
-**Open-source AI coding agent with built-in governance (CORD safety engine + SARIF audit log + fully local LLM support) is a real moat for security-conscious developers and regulated-industry teams.** Building distribution through open-source community + content first will produce inbound enterprise interest by month 6 and one paying customer by month 9.
+**CodeBot is a different category from AI-enhanced editors.** Cursor / Copilot / Zed sell speed to individual developers. CodeBot sells *delegation with an audit trail* to teams that need to verify what the AI did after the fact — security-conscious engineering orgs and regulated industries.
+
+The three pillars that define the category (use these in every piece of customer-facing copy, in this order):
+1. **Autonomous, not interactive** — agent runs end-to-end, not inline suggestions
+2. **Cryptographic audit trail** — every tool call hash-chained, SARIF-exportable
+3. **Runs where your code can't leave** — local LLM support, MIT, zero telemetry
+
+If this positioning is correct, inbound enterprise interest materializes by month 6 and first paying customer by month 9.
 
 If this hypothesis is wrong, the most likely failure modes are:
-- (a) The "governance" angle doesn't differentiate enough — devs pick Cursor/Copilot regardless
-- (b) Open-source motion takes longer than 6 months to compound
-- (c) Regulated buyers don't trust a solo-founder MIT project no matter how good the audit log is
-- (d) The product still has too many rough edges to retain users who do try it
+- (a) Positioning still reads as "another AI coding assistant" because the market conflates all agent tools. Fix: lean harder into *NOT* being an editor, visibly, in demos and in copy.
+- (b) The governance angle exists but the ICP is too narrow to self-serve acquire — needs a compliance/B2B sales motion. Fix: direct LinkedIn outreach to 20 specific InfoSec / DevSecOps titles in month 1–2.
+- (c) Regulated buyers distrust a solo-founder MIT project. Fix: ship SOC 2 mapping + a real 3rd-party security review by month 6.
+- (d) Product has too many rough edges. Fix: kill 60% of tools to "labs" tier, shrink "core" to ~10 tools, focus polish.
 
 The plan checks for each of these at specific decision gates (§7).
 
