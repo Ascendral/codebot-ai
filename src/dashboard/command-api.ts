@@ -266,6 +266,68 @@ export function registerCommandRoutes(
     DashboardServer.json(res, { reset: true });
   });
 
+  // ── GET  /api/command/vault — current vault-mode state ──
+  // ── POST /api/command/vault — enable or disable vault mode ──
+  //
+  // Body: { vaultPath: string, writable?: boolean, networkAllowed?: boolean }
+  //   - vaultPath empty/null → disable vault mode, return to coding-agent
+  //   - vaultPath set        → validate + chdir + swap tools/prompt
+  //
+  // Calls Agent.setVaultMode() under the hood; see src/agent.ts for the
+  // runtime-swap mechanics.
+  server.route('GET', '/api/command/vault', async (_req, res) => {
+    if (!agent) {
+      DashboardServer.error(res, 503, 'Agent not available');
+      return;
+    }
+    DashboardServer.json(res, { vault: agent.getVaultMode() });
+  });
+
+  server.route('POST', '/api/command/vault', async (req, res) => {
+    if (!agent) {
+      DashboardServer.error(res, 503, 'Agent not available');
+      return;
+    }
+    let body: { vaultPath?: string | null; writable?: boolean; networkAllowed?: boolean };
+    try {
+      body = (await DashboardServer.parseBody(req)) as typeof body;
+    } catch (err: any) {
+      DashboardServer.error(res, 400, err.message || 'Invalid JSON body');
+      return;
+    }
+
+    // Empty path → disable
+    const raw = (body?.vaultPath || '').trim();
+    if (!raw) {
+      agent.setVaultMode(null);
+      DashboardServer.json(res, { vault: null, disabled: true });
+      return;
+    }
+
+    // Validate path: must exist + be a directory
+    const homedir = require('os').homedir();
+    const fs = require('fs');
+    const path = require('path');
+    const expanded = raw.startsWith('~') ? raw.replace(/^~/, homedir) : raw;
+    const vaultPath = path.resolve(expanded);
+    if (!fs.existsSync(vaultPath)) {
+      DashboardServer.error(res, 400, `Vault path does not exist: ${vaultPath}`);
+      return;
+    }
+    if (!fs.statSync(vaultPath).isDirectory()) {
+      DashboardServer.error(res, 400, `Vault path is not a directory: ${vaultPath}`);
+      return;
+    }
+
+    const opts = {
+      vaultPath,
+      writable: !!body?.writable,
+      networkAllowed: !!body?.networkAllowed,
+    };
+    agent.setVaultMode(opts);
+    DashboardServer.json(res, { vault: opts, enabled: true });
+  });
+
   // ── POST /api/command/chat (agent only) ──
   server.route('POST', '/api/command/chat', async (req, res) => {
     if (!agent) {

@@ -243,6 +243,44 @@ export class Agent {
     this.resetConversation();
   }
 
+  /**
+   * Toggle Vault Mode at runtime (called from the dashboard's
+   * /api/command/vault endpoint). Pass a vaultMode object to enable,
+   * or null/undefined to return to the standard coding-agent mode.
+   *
+   * Enabling does three things:
+   *   1. chdir the process into the vault path so file tools operate
+   *      there (matches the CLI --vault behavior)
+   *   2. Rebuild ToolRegistry with vault gating (read-only by default,
+   *      network off by default) so the agent literally cannot call
+   *      disallowed tools — not just asked nicely not to
+   *   3. Replace the system prompt via refreshSystemPrompt()
+   *
+   * Also resets the conversation since cross-mode message history is
+   * incoherent (different tool set, different prompt semantics).
+   */
+  setVaultMode(vaultMode: { vaultPath: string; writable: boolean; networkAllowed: boolean } | null): void {
+    if (vaultMode) {
+      // chdir into the vault so read_file / grep / glob etc. resolve
+      // relative paths correctly. Matches CLI --vault behavior.
+      try { process.chdir(vaultMode.vaultPath); } catch { /* caller validated path; ignore */ }
+      this.projectRoot = vaultMode.vaultPath;
+      this.vaultMode = { ...vaultMode };
+    } else {
+      this.vaultMode = undefined;
+      // Don't chdir back — caller may have moved on; leaving cwd alone
+      // is safer than guessing where to put the user.
+    }
+    // Rebuild tools with new gating. Policy enforcer is preserved.
+    this.tools = new ToolRegistry(this.projectRoot, this.policyEnforcer, { vaultMode: this.vaultMode });
+    this.resetConversation();
+  }
+
+  /** Read-only accessor for the dashboard status endpoint. */
+  getVaultMode(): { vaultPath: string; writable: boolean; networkAllowed: boolean } | null {
+    return this.vaultMode ? { ...this.vaultMode } : null;
+  }
+
   async *run(userMessage: string, images?: import('./types').ImageAttachment[]): AsyncGenerator<AgentEvent> {
     const userMsg: Message = { role: 'user', content: userMessage };
     if (images && images.length > 0) userMsg.images = images;

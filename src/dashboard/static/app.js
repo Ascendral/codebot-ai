@@ -364,6 +364,9 @@ const App = {
     switch (name) {
       case 'chat':
         this.initChat();
+        // Refresh vault-mode banner whenever chat is viewed — it's the
+        // place the user sees whether vault mode is active.
+        this.vaultRefreshStatus && this.vaultRefreshStatus();
         break;
       case 'sessions':
         this.loadSessions();
@@ -391,6 +394,9 @@ const App = {
         break;
       case 'settings':
         this.initSettings();
+        break;
+      case 'vault':
+        this.initVault();
         break;
     }
   },
@@ -1463,19 +1469,150 @@ const App = {
   // SETTINGS
   // ===========================================================
 
+  // ===========================================================
+  // VAULT MODE (RFC 001 follow-up — dashboard control surface)
+  // ===========================================================
+
+  vaultLoaded: false,
+
+  async initVault() {
+    // Wire handlers once
+    if (!this.vaultLoaded) {
+      this.vaultLoaded = true;
+      var enableBtn = document.getElementById('vault-enable-btn');
+      var disableBtn = document.getElementById('vault-disable-btn');
+      if (enableBtn) enableBtn.addEventListener('click', () => this.vaultEnable());
+      if (disableBtn) disableBtn.addEventListener('click', () => this.vaultDisable());
+    }
+    await this.vaultRefreshStatus();
+  },
+
+  async vaultRefreshStatus() {
+    var display = document.getElementById('vault-status-display');
+    var enableBtn = document.getElementById('vault-enable-btn');
+    var disableBtn = document.getElementById('vault-disable-btn');
+    var pathInput = document.getElementById('vault-path-input');
+    var writableToggle = document.getElementById('vault-writable-toggle');
+    var networkToggle = document.getElementById('vault-network-toggle');
+    var banner = document.getElementById('vault-chat-banner');
+    try {
+      var res = await this.fetch('/api/command/vault');
+      if (res && res.vault) {
+        // Active
+        if (display) {
+          display.innerHTML =
+            '<strong style="color: var(--accent);">Active</strong><br>' +
+            '<code style="font-size: 12px;">' + this.esc(res.vault.vaultPath) + '</code><br>' +
+            '<span style="font-size: 12px;">' +
+            (res.vault.writable ? 'writable' : 'read-only') + ' &middot; ' +
+            (res.vault.networkAllowed ? 'network on' : 'network off') +
+            '</span>';
+        }
+        if (enableBtn) enableBtn.textContent = 'Update';
+        if (disableBtn) disableBtn.style.display = '';
+        if (pathInput) pathInput.value = res.vault.vaultPath;
+        if (writableToggle) writableToggle.checked = !!res.vault.writable;
+        if (networkToggle) networkToggle.checked = !!res.vault.networkAllowed;
+        if (banner) {
+          banner.style.display = '';
+          banner.innerHTML =
+            'Vault Mode: <code>' + this.esc(res.vault.vaultPath) + '</code> ' +
+            '(' + (res.vault.writable ? 'writable' : 'read-only') + ', ' +
+            (res.vault.networkAllowed ? 'network on' : 'network off') + ')';
+        }
+      } else {
+        // Inactive
+        if (display) display.innerHTML = '<span style="color: var(--muted);">Not active &mdash; coding agent mode</span>';
+        if (enableBtn) enableBtn.textContent = 'Enable Vault Mode';
+        if (disableBtn) disableBtn.style.display = 'none';
+        if (banner) banner.style.display = 'none';
+      }
+    } catch (err) {
+      if (display) display.textContent = 'Status check failed: ' + (err && err.message ? err.message : err);
+    }
+  },
+
+  async vaultEnable() {
+    var pathInput = document.getElementById('vault-path-input');
+    var writableToggle = document.getElementById('vault-writable-toggle');
+    var networkToggle = document.getElementById('vault-network-toggle');
+    var feedback = document.getElementById('vault-feedback');
+    var enableBtn = document.getElementById('vault-enable-btn');
+    if (!pathInput || !pathInput.value.trim()) {
+      if (feedback) feedback.innerHTML = '<span style="color: #ff6b6b;">Vault path is required.</span>';
+      return;
+    }
+    if (enableBtn) { enableBtn.disabled = true; enableBtn.textContent = 'Enabling…'; }
+    if (feedback) feedback.textContent = '';
+    try {
+      var res = await apiFetch('/api/command/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vaultPath: pathInput.value.trim(),
+          writable: !!(writableToggle && writableToggle.checked),
+          networkAllowed: !!(networkToggle && networkToggle.checked),
+        }),
+      });
+      if (!res.ok) {
+        var errData = await res.json().catch(function () { return { error: 'HTTP ' + res.status }; });
+        throw new Error(errData.error || ('HTTP ' + res.status));
+      }
+      if (feedback) feedback.innerHTML = '<span style="color: #4caf50;">Vault Mode enabled. Head to Chat to ask questions about your notes.</span>';
+      await this.vaultRefreshStatus();
+    } catch (err) {
+      if (feedback) feedback.innerHTML = '<span style="color: #ff6b6b;">' + this.esc(err && err.message ? err.message : String(err)) + '</span>';
+    } finally {
+      if (enableBtn) enableBtn.disabled = false;
+    }
+  },
+
+  async vaultDisable() {
+    var feedback = document.getElementById('vault-feedback');
+    var disableBtn = document.getElementById('vault-disable-btn');
+    if (disableBtn) { disableBtn.disabled = true; disableBtn.textContent = 'Disabling…'; }
+    try {
+      var res = await apiFetch('/api/command/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vaultPath: '' }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (feedback) feedback.innerHTML = '<span style="color: var(--muted);">Vault Mode disabled &mdash; coding agent restored.</span>';
+      await this.vaultRefreshStatus();
+    } catch (err) {
+      if (feedback) feedback.innerHTML = '<span style="color: #ff6b6b;">' + this.esc(err && err.message ? err.message : String(err)) + '</span>';
+    } finally {
+      if (disableBtn) { disableBtn.disabled = false; disableBtn.textContent = 'Disable (return to coding agent)'; }
+    }
+  },
+
+  esc(s) {
+    var d = document.createElement('div');
+    d.textContent = String(s == null ? '' : s);
+    return d.innerHTML;
+  },
+
   settingsLoaded: false,
 
   async initSettings() {
     if (this.settingsLoaded) return;
     this.settingsLoaded = true;
     try {
+      var settingsMeta = await this.loadSettingsMeta();
       var data = await this.fetch('/api/setup/status');
       var providerEl = document.getElementById('settings-provider');
       var modelEl = document.getElementById('settings-model');
       var keyEl = document.getElementById('settings-api-key');
+      var versionEl = document.getElementById('settings-version');
+      var backendEl = document.getElementById('settings-backend');
+      var toolsEl = document.getElementById('settings-tools');
       if (data.provider && providerEl) providerEl.value = data.provider;
       if (data.model && modelEl) modelEl.value = data.model;
       if (data.hasApiKey && keyEl) keyEl.placeholder = 'Key configured (hidden)';
+      if (versionEl && settingsMeta.version) versionEl.textContent = settingsMeta.version;
+      if (backendEl && settingsMeta.backend) backendEl.textContent = settingsMeta.backend;
+      if (toolsEl && settingsMeta.tools) toolsEl.textContent = settingsMeta.tools;
     } catch (err) {}
     await this.loadSettingsMeta();
   },
@@ -1506,6 +1643,40 @@ const App = {
         backendEl.textContent = backendStatus.alive ? 'Connected on ' + backendStatus.port : 'Disconnected';
       } catch (err) {}
     }
+  },
+
+  async loadSettingsMeta() {
+    var meta = {
+      version: 'Unknown',
+      backend: window.electronAPI && window.electronAPI.isElectron ? 'Checking...' : 'Connected',
+      tools: this.toolsData ? this.toolsData.length + ' available' : 'Unavailable',
+    };
+
+    try {
+      var health = await this.fetch('/api/health');
+      if (health && health.version) meta.version = health.version;
+    } catch (err) {}
+
+    try {
+      if (this.toolsData) {
+        meta.tools = this.toolsData.length + ' available';
+      } else {
+        var toolsData = await this.fetch('/api/command/tools');
+        this.toolsData = toolsData.tools || [];
+        meta.tools = this.toolsData.length + ' available';
+      }
+    } catch (err) {}
+
+    if (window.electronAPI && window.electronAPI.getBackendStatus) {
+      try {
+        var backendStatus = await window.electronAPI.getBackendStatus();
+        meta.backend = backendStatus.alive ? 'Running on port ' + backendStatus.port : 'Disconnected';
+      } catch (err) {
+        meta.backend = 'Unavailable';
+      }
+    }
+
+    return meta;
   },
 
   toggleKeyVisibility() {
