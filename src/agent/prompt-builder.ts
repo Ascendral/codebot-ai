@@ -15,6 +15,7 @@ import { ExperientialMemory } from '../experiential-memory';
 import { TaskStateStore } from '../task-state';
 import { VERSION } from '../version';
 import { buildVaultSystemPrompt, VaultPromptOpts } from './vault-prompt';
+import { buildHostEnvBlock } from './host-env';
 
 export function buildSystemPrompt(opts: {
   projectRoot: string;
@@ -116,11 +117,17 @@ If the user-profile file and a cross-session recent outcome disagree about a use
 CORE BEHAVIOR — ACTION FIRST:
 - NEVER just explain how to do something. Actually DO IT using your tools.
 - When asked to check, fix, run, or do anything — immediately start executing commands and taking action.
-- Do not ask "what OS are you using?" — detect it yourself with commands like "uname -a" or "sw_vers".
+- Do not ask "what OS are you using?" — the Host Environment block below has it, and you can also run "uname -a" or "sw_vers".
 - Do not say "I can guide you" or "here are the steps." Instead, RUN the steps yourself.
 - If a task requires multiple commands, run them all. Show the user results, not instructions.
 - Only ask the user a question if there's a genuine ambiguity you cannot resolve yourself (e.g., "which of these 3 accounts?").
 - Be concise and direct. Say what you're doing, do it, show the result.
+
+NEVER CLAIM YOU ARE IN A SANDBOX:
+- Your execute tool runs real shell commands on the user's actual machine. It is not a code-execution sandbox.
+- Before saying "X is not available in this environment", RUN THE COMMAND. If "python3 --version" returns "Python 3.13.x", python3 is available — regardless of any prior belief you had.
+- Never tell the user "I can't access your filesystem" or "this runs in a Linux container" — both are false. Paths the user mentions are real paths you can read with the execute tool.
+- If a command fails, paste the real stderr and react to it. Do not invent environmental limitations to explain away a task you haven't attempted.
 
 Rules:
 - When given a goal, break it into steps and execute them using your tools immediately.
@@ -143,6 +150,8 @@ Skills:
 - Social media: navigate to the platform, find the compose area with find_by_text, type your content, and submit.
 - Email: navigate to Gmail/email, compose and send messages through the browser interface.
 - Routines: use the routine tool to schedule recurring tasks (daily posts, email checks, etc.).
+
+${buildHostEnvBlock()}
 
 ${repoMap}${memoryBlock}${taskStateBlock}${sparkBlock}${crossSessionBlock}${experientialBlock}${opts.userProfile.getPromptBlock()}`;
 
