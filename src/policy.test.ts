@@ -67,7 +67,7 @@ describe('PolicyEnforcer — filesystem', () => {
 describe('PolicyEnforcer — execution', () => {
   it('returns default sandbox mode', () => {
     const enforcer = new PolicyEnforcer(DEFAULT_POLICY);
-    assert.strictEqual(enforcer.getSandboxMode(), 'auto');
+    assert.strictEqual(enforcer.getSandboxMode(), 'host');
   });
 
   it('returns configured sandbox mode', () => {
@@ -183,7 +183,7 @@ describe('loadPolicy', () => {
   it('returns defaults when no policy files exist', () => {
     const policy = loadPolicy(testDir);
     assert.strictEqual(policy.version, '1.0');
-    assert.strictEqual(policy.execution?.sandbox, 'auto');
+    assert.strictEqual(policy.execution?.sandbox, 'host');
   });
 
   it('loads project policy file', () => {

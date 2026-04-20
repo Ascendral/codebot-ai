@@ -121,8 +121,15 @@ export const DEFAULT_POLICY: Required<Policy> = {
     hard_block_enabled: true,
   },
   execution: {
-    sandbox: 'auto',
-    network: false,             // safe default: no network in sandbox
+    // Host is the documented default (see codebot-identity.md: "normally runs
+    // with full shell access on the user's machine"). Previously this was
+    // 'auto', which silently flipped to Docker whenever Docker was installed —
+    // and the Docker image lacks python3/node/brew, so the model truthfully
+    // reported "I'm in a sandboxed shell" even though the user never opted in.
+    // Users who want Docker isolation can set execution.sandbox='docker' in
+    // .codebot/policy.json explicitly.
+    sandbox: 'host',
+    network: false,             // still applies when user opts into sandbox
     timeout_seconds: 120,
     max_memory_mb: 512,
   },
@@ -626,7 +633,7 @@ export function generateDefaultPolicyFile(): string {
     hard_block_enabled: true,
   },
     execution: {
-      sandbox: 'auto',
+      sandbox: 'host',
       network: false,
       timeout_seconds: 120,
       max_memory_mb: 512,
