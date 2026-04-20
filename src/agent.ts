@@ -498,7 +498,33 @@ export class Agent {
         let args: Record<string, unknown>;
         try {
           args = JSON.parse(tc.function.arguments);
-        } catch {
+        } catch (parseErr) {
+          // Diagnostic: capture malformed payload to disk for post-mortem.
+          // Streaming tool_use with huge text args (e.g. write_file of a 500-line file)
+          // has been observed to produce invalid JSON. We need the raw string to know why.
+          try {
+            const fs = await import('fs');
+            const os = await import('os');
+            const path = await import('path');
+            const dumpDir = path.join(os.homedir(), '.codebot', 'debug');
+            fs.mkdirSync(dumpDir, { recursive: true });
+            const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const dumpFile = path.join(dumpDir, `bad-toolargs-${toolName}-${stamp}.txt`);
+            const raw = String(tc.function.arguments ?? '');
+            const header = [
+              `tool=${toolName}`,
+              `id=${tc.id}`,
+              `error=${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
+              `length=${raw.length}`,
+              `head=${JSON.stringify(raw.slice(0, 200))}`,
+              `tail=${JSON.stringify(raw.slice(-200))}`,
+              '---',
+            ].join('\n');
+            fs.writeFileSync(dumpFile, header + '\n' + raw);
+            log.warn(`[agent] Invalid JSON tool args for ${toolName}; raw payload dumped to ${dumpFile}`);
+          } catch {
+            // Best-effort; never block the agent on diagnostic failure.
+          }
           prepared.push({ tc, tool, args: {}, denied: false, error: `Error: Invalid JSON arguments for ${toolName}` });
           continue;
         }

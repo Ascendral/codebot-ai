@@ -101,13 +101,24 @@ export class OpenAIProvider implements LLMProvider {
     let lastError = '';
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      // Connection-only deadline. Previously this was AbortSignal.timeout(...)
+      // which imposes a hard timeout on the ENTIRE streaming response — for
+      // heavy tool-use outputs (large file writes, long reasoning before first
+      // delta) the model legitimately streams for longer than this and we'd
+      // abort mid-generation, flushing a half-built tool_use and producing
+      // spurious "Invalid JSON arguments" errors downstream. Detach the abort
+      // after headers arrive; once we're reading the body, the per-chunk read
+      // loop is the right place to detect stalls.
+      const connectCtrl = new AbortController();
+      const connectTimer = setTimeout(() => connectCtrl.abort(), isLocal ? 300_000 : 60_000);
       try {
         response = await fetch(`${this.config.baseUrl}/v1/chat/completions`, {
           method: 'POST',
           headers,
           body: JSON.stringify(sanitizeForJSON(body)),
-          signal: AbortSignal.timeout(isLocal ? 300_000 : 60_000),
+          signal: connectCtrl.signal,
         });
+        clearTimeout(connectTimer);
 
         if (response.ok || !isRetryable(null, response.status)) {
           break;
@@ -121,6 +132,7 @@ export class OpenAIProvider implements LLMProvider {
           continue;
         }
       } catch (err: unknown) {
+        clearTimeout(connectTimer);
         lastError = err instanceof Error ? err.message : String(err);
         if (attempt < MAX_RETRIES && isRetryable(err)) {
           const delay = getRetryDelay(attempt);
@@ -172,13 +184,28 @@ export class OpenAIProvider implements LLMProvider {
               yield { type: 'text', text: contentBuffer };
               contentBuffer = '';
             }
+            // Validate concatenated tool-call arguments before emitting.
+            // A stream truncated mid-tool-call (connect abort, server-side
+            // cutoff, provider rate-limit mid-response, etc.) would otherwise
+            // hand partial JSON to the agent, which surfaces as the misleading
+            // "Invalid JSON arguments for <tool>" error.
             for (const [, tc] of toolCalls) {
+              const raw = tc.arguments || '{}';
+              try {
+                JSON.parse(raw);
+              } catch (err) {
+                yield {
+                  type: 'error',
+                  error: `OpenAI: incomplete tool_call "${tc.name}" — ${raw.length} chars of tool arguments did not parse (${err instanceof Error ? err.message : String(err)}). Stream was truncated mid-tool-call; retry the turn.`,
+                };
+                continue;
+              }
               yield {
                 type: 'tool_call_end',
                 toolCall: {
                   id: tc.id,
                   type: 'function',
-                  function: { name: tc.name, arguments: tc.arguments },
+                  function: { name: tc.name, arguments: raw },
                 } as ToolCall,
               };
             }
@@ -294,14 +321,25 @@ export class OpenAIProvider implements LLMProvider {
       contentBuffer = '';
     }
 
-    // Emit remaining tool calls
+    // Emit remaining tool calls if stream ended without a [DONE] marker.
+    // Same JSON-validity guard as the [DONE] path.
     for (const [, tc] of toolCalls) {
+      const raw = tc.arguments || '{}';
+      try {
+        JSON.parse(raw);
+      } catch (err) {
+        yield {
+          type: 'error',
+          error: `OpenAI: stream ended with incomplete tool_call "${tc.name}" — ${raw.length} chars of tool arguments did not parse (${err instanceof Error ? err.message : String(err)}).`,
+        };
+        continue;
+      }
       yield {
         type: 'tool_call_end',
         toolCall: {
           id: tc.id,
           type: 'function',
-          function: { name: tc.name, arguments: tc.arguments },
+          function: { name: tc.name, arguments: raw },
         } as ToolCall,
       };
     }

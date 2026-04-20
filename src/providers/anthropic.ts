@@ -323,14 +323,30 @@ export class AnthropicProvider implements LLMProvider {
                 };
               }
 
-              // Message is ending — emit all accumulated tool calls
+              // Message is ending — emit all accumulated tool calls.
+              // Validate concatenated input_json_delta payload before emitting. A
+              // truncated stream (e.g. CHUNK_TIMEOUT firing mid-input_json_delta, a
+              // retryable 5xx mid-tool-use, or the model legitimately running out
+              // of output tokens mid-JSON) would otherwise flush incomplete JSON,
+              // and the agent loop would surface it as "Invalid JSON arguments for
+              // <tool>" — misleading, because the real cause is a partial stream.
               for (const [, block] of toolBlocks) {
+                const raw = block.input || '{}';
+                try {
+                  JSON.parse(raw);
+                } catch (err) {
+                  yield {
+                    type: 'error',
+                    error: `Anthropic: incomplete tool_use "${block.name}" — ${raw.length} chars of partial_json did not parse (${err instanceof Error ? err.message : String(err)}). Stream was truncated mid-tool-call; retry the turn.`,
+                  };
+                  continue;
+                }
                 yield {
                   type: 'tool_call_end',
                   toolCall: {
                     id: block.id,
                     type: 'function',
-                    function: { name: block.name, arguments: block.input },
+                    function: { name: block.name, arguments: raw },
                   } as ToolCall,
                 };
               }
@@ -354,14 +370,27 @@ export class AnthropicProvider implements LLMProvider {
       reader.releaseLock();
     }
 
-    // Emit remaining tool calls if stream ended without message_delta
+    // Emit remaining tool calls if stream ended without message_delta.
+    // Same JSON-validity guard as the message_delta path: do not flush a
+    // half-built tool_use. Anything the agent would reject as invalid JSON
+    // surfaces here as a real "stream truncated" error instead.
     for (const [, block] of toolBlocks) {
+      const raw = block.input || '{}';
+      try {
+        JSON.parse(raw);
+      } catch (err) {
+        yield {
+          type: 'error',
+          error: `Anthropic: stream ended with incomplete tool_use "${block.name}" — ${raw.length} chars of partial_json did not parse (${err instanceof Error ? err.message : String(err)}).`,
+        };
+        continue;
+      }
       yield {
         type: 'tool_call_end',
         toolCall: {
           id: block.id,
           type: 'function',
-          function: { name: block.name, arguments: block.input },
+          function: { name: block.name, arguments: raw },
         } as ToolCall,
       };
     }

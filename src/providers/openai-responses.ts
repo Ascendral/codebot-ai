@@ -224,13 +224,25 @@ export class OpenAIResponsesProvider implements LLMProvider {
         }
       } else if (item.type === 'function_call') {
         // Map to the chat-completions ToolCall shape the agent expects.
+        // Validate the arguments payload before handing it to the agent; if
+        // the Responses API ever returns partial JSON we want a clear error
+        // instead of the downstream "Invalid JSON arguments" from agent.ts.
+        const rawArgs = item.arguments || '{}';
+        const name = item.name || '';
+        const id = item.call_id || item.id || '';
+        try {
+          JSON.parse(rawArgs);
+        } catch (err) {
+          yield {
+            type: 'error',
+            error: `OpenAI Responses: function_call "${name}" arguments did not parse (${err instanceof Error ? err.message : String(err)}).`,
+          };
+          continue;
+        }
         const toolCall = {
-          id: item.call_id || item.id || '',
+          id,
           type: 'function' as const,
-          function: {
-            name: item.name || '',
-            arguments: item.arguments || '{}',
-          },
+          function: { name, arguments: rawArgs },
         };
         yield { type: 'tool_call_start', toolCall };
         yield { type: 'tool_call_end', toolCall };
