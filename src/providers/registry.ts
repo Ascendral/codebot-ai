@@ -45,6 +45,11 @@ export const MODEL_REGISTRY: Record<string, ModelInfo> = {
   'command-r:35b': { contextWindow: 131072, supportsToolCalling: true },
 
   // ── Anthropic / Claude ─────────────────────────────────────────────────────
+  // claude-opus-4-7: confirmed-valid on api.anthropic.com as of 2026-04-20.
+  // Routed as the reliable fallback for long tool-call outputs after sonnet-4-6
+  // was observed emitting garbled Python inside valid JSON write_file args
+  // (snake-repro 2026-04-20, see sse-anthropic-2026-04-21T03-46-39-918Z.jsonl).
+  'claude-opus-4-7': { contextWindow: 200000, supportsToolCalling: true, supportsCaching: true, supportsVision: true, provider: 'anthropic' },
   'claude-opus-4-6': { contextWindow: 200000, supportsToolCalling: true, supportsCaching: true, supportsVision: true, provider: 'anthropic' },
   'claude-sonnet-4-6': { contextWindow: 200000, supportsToolCalling: true, supportsCaching: true, supportsVision: true, provider: 'anthropic' },
   'claude-sonnet-4-20250514': { contextWindow: 200000, supportsToolCalling: true, supportsCaching: true, supportsVision: true, provider: 'anthropic' },

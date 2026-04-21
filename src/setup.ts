@@ -244,6 +244,7 @@ const PROVIDER_DISPLAY: Record<string, string> = {
 /** Hand-picked cloud models for the setup menu — best 2-3 from each provider */
 const CURATED_CLOUD_MODELS: SetupModelEntry[] = [
   // Frontier (most capable)
+  { id: 'claude-opus-4-7',         displayName: 'Claude Opus 4.7',     provider: 'anthropic', category: 'frontier', contextK: '200K' },
   { id: 'claude-opus-4-6',         displayName: 'Claude Opus 4',       provider: 'anthropic', category: 'frontier', contextK: '200K' },
   { id: 'gpt-4.1',                 displayName: 'GPT-4.1',             provider: 'openai',    category: 'frontier', contextK: '1M' },
   { id: 'gemini-2.5-pro',          displayName: 'Gemini 2.5 Pro',      provider: 'gemini',    category: 'frontier', contextK: '1M' },

@@ -139,7 +139,7 @@ export function autoDetectTierModels(defaultModel: string): Partial<RouterConfig
     return {
       fastModel: 'claude-3-5-haiku-20241022',
       standardModel: 'claude-sonnet-4-6',
-      powerfulModel: 'claude-opus-4-6',
+      powerfulModel: 'claude-opus-4-7',
     };
   }
 
