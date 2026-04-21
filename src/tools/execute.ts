@@ -1,9 +1,108 @@
-import { execSync } from 'child_process';
+import { spawn } from 'child_process';
 import { Tool } from '../types';
 import { isCwdSafe } from '../security';
 import { sandboxExec, isDockerAvailable } from '../sandbox';
 import { PolicyEnforcer } from '../policy';
 import { envWithAugmentedPath } from '../path-augment';
+
+/**
+ * Run a shell command, resolving as soon as the direct child (/bin/sh -c)
+ * exits. This is critical for commands that background processes with `&`:
+ * `child_process.execSync` blocks until every inherited stdio FD closes, so
+ * a backgrounded `python3 -m http.server` (or any long-running grandchild
+ * that holds the pipe open) would make the tool hang until the timeout.
+ *
+ * Behaviour:
+ *  - captures stdout/stderr to string buffers (capped at maxBuffer)
+ *  - listens for `exit` (not `close`), then destroys our read-end of the
+ *    pipes after a short grace period, so we don't wait on grandchildren
+ *  - on timeout, SIGTERM then SIGKILL the direct child; grandchildren in
+ *    the same process group receive SIGHUP when sh dies
+ */
+function runCommand(
+  cmd: string,
+  opts: { cwd: string; env: NodeJS.ProcessEnv; timeout: number; maxBuffer: number },
+): Promise<{ code: number; stdout: string; stderr: string; timedOut: boolean; spawnError?: string }> {
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn('/bin/sh', ['-c', cmd], {
+        cwd: opts.cwd,
+        env: opts.env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (err) {
+      resolve({ code: 1, stdout: '', stderr: '', timedOut: false, spawnError: (err as Error).message });
+      return;
+    }
+
+    let stdout = '';
+    let stderr = '';
+    let overflow = false;
+    let timedOut = false;
+    let settled = false;
+
+    const appendOut = (buf: Buffer) => {
+      const s = buf.toString('utf-8');
+      if (stdout.length + s.length > opts.maxBuffer) overflow = true;
+      else stdout += s;
+    };
+    const appendErr = (buf: Buffer) => {
+      const s = buf.toString('utf-8');
+      if (stderr.length + s.length > opts.maxBuffer) overflow = true;
+      else stderr += s;
+    };
+    child.stdout?.on('data', appendOut);
+    child.stderr?.on('data', appendErr);
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      try {
+        child.kill('SIGTERM');
+      } catch {
+        /* noop */
+      }
+      setTimeout(() => {
+        try {
+          child.kill('SIGKILL');
+        } catch {
+          /* noop */
+        }
+      }, 2000);
+    }, opts.timeout);
+
+    const settle = (code: number | null, signal: NodeJS.Signals | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      // Give the pipes 50ms to flush any pending child output, then destroy
+      // our read ends so backgrounded grandchildren can't keep us hanging.
+      setTimeout(() => {
+        try {
+          child.stdout?.destroy();
+        } catch {
+          /* noop */
+        }
+        try {
+          child.stderr?.destroy();
+        } catch {
+          /* noop */
+        }
+        const exitCode = timedOut ? 124 : code !== null && code !== undefined ? code : signal ? 128 : 1;
+        const trailer = overflow ? '\n[output truncated — exceeded maxBuffer]' : '';
+        resolve({ code: exitCode, stdout: stdout + trailer, stderr, timedOut });
+      }, 50);
+    };
+
+    child.on('exit', settle);
+    child.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ code: 1, stdout, stderr: stderr + '\n' + ((err as Error).message || String(err)), timedOut });
+    });
+  });
+}
 
 export const BLOCKED_PATTERNS = [
   // Destructive filesystem operations
@@ -164,19 +263,22 @@ export class ExecuteTool implements Tool {
 
     const tag = useSandbox ? '[host-fallback]' : '[host]';
 
-    try {
-      const output = execSync(cmd, {
-        cwd,
-        timeout,
-        maxBuffer: 1024 * 1024,
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: safeEnv,
-      });
-      return `${tag} ${output || '(no output)'}`;
-    } catch (err: unknown) {
-      const e = err as { status?: number; stdout?: string; stderr?: string };
-      return `${tag} Exit code ${e.status || 1}\nSTDOUT:\n${e.stdout || ''}\nSTDERR:\n${e.stderr || ''}`;
+    const result = await runCommand(cmd, {
+      cwd,
+      env: safeEnv,
+      timeout,
+      maxBuffer: 1024 * 1024,
+    });
+
+    if (result.spawnError) {
+      return `${tag} Failed to spawn shell: ${result.spawnError}`;
     }
+    if (result.timedOut) {
+      return `${tag} Timed out after ${timeout}ms (killed)\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`;
+    }
+    if (result.code !== 0) {
+      return `${tag} Exit code ${result.code}\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`;
+    }
+    return `${tag} ${result.stdout || '(no output)'}`;
   }
 }

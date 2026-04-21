@@ -37,6 +37,18 @@ if (fs.existsSync(lockSrc)) {
   fs.copyFileSync(lockSrc, path.join(STAGING_DIR, 'package-lock.json'));
 }
 
+// Copy patches/ directory so patch-package (registered as postinstall) can
+// apply cord-engine / other dep patches during the staged install. Without
+// this, the staging install gets FRESH unpatched deps — the bundled Electron
+// app then ships the unpatched cord-engine, which blocks routine dev
+// commands (heredocs, `kill -0 $PID`, Python imports, etc.). See
+// patches/cord-engine+4.3.0.patch and CLAUDE.md "CORD / VIGIL PATCH".
+const patchesSrc = path.join(PARENT_DIR, 'patches');
+if (fs.existsSync(patchesSrc)) {
+  fs.cpSync(patchesSrc, path.join(STAGING_DIR, 'patches'), { recursive: true });
+  console.log(`  Copied ${fs.readdirSync(patchesSrc).length} patch(es) to staging`);
+}
+
 // Install production-only deps
 console.log('  Installing production dependencies only (--omit=dev)...');
 try {
@@ -53,6 +65,31 @@ try {
     stdio: 'pipe',
     timeout: 120_000,
   });
+}
+
+// Apply patches explicitly. The production install uses `--omit=dev` so
+// patch-package (a devDep) is not present in staging and the postinstall
+// hook can't run. Do it directly from the parent's node_modules/.bin.
+// Without this, the staged cord-engine is unpatched and the bundled
+// Electron app will BLOCK benign shell/write commands. Fail loud if the
+// parent's patch-package is missing — shipping without the patch ships a
+// broken agent.
+const stagedPatches = path.join(STAGING_DIR, 'patches');
+if (fs.existsSync(stagedPatches) && fs.readdirSync(stagedPatches).length > 0) {
+  const parentPatchBin = path.join(PARENT_DIR, 'node_modules', '.bin', 'patch-package');
+  if (!fs.existsSync(parentPatchBin)) {
+    throw new Error(
+      `❌ patches/ exists but parent's patch-package is missing at ${parentPatchBin}. ` +
+      `Run 'npm install' in the parent repo first, or patches will not apply to the bundled app.`
+    );
+  }
+  console.log('  Applying patches via patch-package...');
+  execSync(`"${parentPatchBin}" --patch-dir patches`, {
+    cwd: STAGING_DIR,
+    stdio: 'pipe',
+    timeout: 30_000,
+  });
+  console.log('  ✅ Patches applied');
 }
 
 // Handle native module: better-sqlite3.

@@ -3127,28 +3127,28 @@ const App = {
 
   renderMarkdown(text) {
     if (!text) return '';
-    let html = this.escapeHtml(text);
+    var self = this;
 
-    // Code blocks with syntax highlighting
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function (match, lang, code) {
+    // Step 1: Extract fenced code blocks and inline code to placeholders BEFORE
+    // any other transforms. This protects code content from markdown substitutions
+    // (especially `\n -> <br>`, which would otherwise mangle multi-line code output).
+    var codeBlocks = [];
+    var inlineCode = [];
+    var working = String(text);
+
+    working = working.replace(/```(\w*)\n([\s\S]*?)```/g, function (match, lang, code) {
       lang = lang.replace(/[^a-zA-Z0-9-]/g, '');
-      var langClass = lang ? ' class="language-' + lang + '"' : '';
-      var langLabel = lang ? '<span class="code-lang-label">' + lang + '</span>' : '';
-      var copyBtn = '<button class="code-copy-btn" onclick="App.copyCode(this)">Copy</button>';
-      return (
-        '<div class="code-block-wrapper">' +
-        langLabel +
-        copyBtn +
-        '<pre><code' +
-        langClass +
-        '>' +
-        code +
-        '</code></pre></div>'
-      );
+      codeBlocks.push({ lang: lang, code: code });
+      return '\u0000CB' + (codeBlocks.length - 1) + '\u0000';
     });
 
-    // Inline code
-    html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+    working = working.replace(/`([^`\n]+)`/g, function (match, code) {
+      inlineCode.push(code);
+      return '\u0000IC' + (inlineCode.length - 1) + '\u0000';
+    });
+
+    // Step 2: escape and apply markdown transforms on the remaining text only.
+    var html = this.escapeHtml(working);
 
     // Headers
     html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
@@ -3156,10 +3156,8 @@ const App = {
     html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
     html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
 
-    // Bold
+    // Bold / italic
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-
-    // Italic
     html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
     // Numbered lists
@@ -3183,10 +3181,33 @@ const App = {
       return text;
     });
 
-    // Line breaks
+    // Line breaks — only affects text outside code (code blocks are placeholder tokens).
     html = html.replace(/\n/g, '<br>');
 
-    // Clean up
+    // Step 3: restore inline code (escape the inner content since it bypassed step 2).
+    html = html.replace(/\u0000IC(\d+)\u0000/g, function (m, i) {
+      return '<code class="inline-code">' + self.escapeHtml(inlineCode[+i]) + '</code>';
+    });
+
+    // Step 4: restore fenced code blocks (with preserved \n inside <pre><code>).
+    html = html.replace(/\u0000CB(\d+)\u0000/g, function (m, i) {
+      var block = codeBlocks[+i];
+      var langClass = block.lang ? ' class="language-' + block.lang + '"' : '';
+      var langLabel = block.lang ? '<span class="code-lang-label">' + block.lang + '</span>' : '';
+      var copyBtn = '<button class="code-copy-btn" onclick="App.copyCode(this)">Copy</button>';
+      return (
+        '<div class="code-block-wrapper">' +
+        langLabel +
+        copyBtn +
+        '<pre><code' +
+        langClass +
+        '>' +
+        self.escapeHtml(block.code) +
+        '</code></pre></div>'
+      );
+    });
+
+    // Clean up stray <br>s right after block-level elements.
     html = html.replace(/<\/pre><br>/g, '</pre>');
     html = html.replace(/<\/div><br>/g, '</div>');
     html = html.replace(/<\/h1><br>/g, '</h1>');

@@ -96,6 +96,30 @@ A workaround is an admission that it doesn't. Workarounds are theft.
 When I catch myself about to write "option B: change X to avoid the bug" — I stop
 and write the fix instead.
 
+## CORD / VIGIL PATCH (2026-04-20)
+
+Stock `cord-engine@4.3.0` BLOCKed routine dev workflows via over-broad regexes:
+- `regex.injection` matched `<<`, `{{`, `import os`, `subprocess`, `exec`, `eval`
+- `privilegeRisk` / `irreversibilityRisk` fired on bare `kill`, `rm`, `delete`, `remove`
+- VIGIL `dangerousOps` flagged every `subprocess.*`, `exec(`, `spawn(`, `child_process`
+
+Result: `cat > f.py << EOF`, `python3 -c "import os"`, `kill -0 $PID`, `rm file.txt`
+all returned BLOCK. Agent had to work around via `~/.codebot/workspace/` + `cp`.
+
+Fix lives in `patches/cord-engine+4.3.0.patch` (auto-applied by `postinstall`):
+- Narrowed `regex.injection` to shell-injection markers (`; --`, `rm -rf`, `UNION SELECT`, `curl | sh`)
+- Added `policies.destructivePatterns` — each requires BOTH verb AND destructive qualifier
+- `privilegeRisk` / `irreversibilityRisk` now use the contextual patterns
+- VIGIL `subprocess/exec/spawn/__import__` narrowed to hostile-arg form only
+
+Regression tests in `src/constitutional/constitutional.test.ts` lock in both:
+- 13 benign dev commands must not BLOCK
+- 15 destructive commands must BLOCK
+
+If you touch CORD / VIGIL logic, rerun `npm test` and confirm both suites pass.
+If cord-engine upgrades, the patch may fail — reconcile at the upstream level,
+never by removing tests or loosening destructive coverage.
+
 ## REMEMBER
 
 Alex is 46. No funding. No team. Paying max subscriptions.

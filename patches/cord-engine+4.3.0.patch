@@ -1,0 +1,178 @@
+diff --git a/node_modules/cord-engine/cord/cord.js b/node_modules/cord-engine/cord/cord.js
+index a5cd8a2..45a53f4 100644
+--- a/node_modules/cord-engine/cord/cord.js
++++ b/node_modules/cord-engine/cord/cord.js
+@@ -17,7 +17,7 @@
+  */
+ 
+ const path = require("path");
+-const { weights, thresholds, regex, highImpactVerbs, allowlistKeywords, toolRiskTiers } = require("./policies");
++const { weights, thresholds, regex, highImpactVerbs, destructivePatterns, allowlistKeywords, toolRiskTiers } = require("./policies");
+ const { appendLog } = require("./logger");
+ const { loadIntentLock } = require("./intentLock");
+ 
+@@ -45,8 +45,13 @@ function exfilRisk(text = "") {
+ }
+ 
+ function privilegeRisk(proposal = "", grants = []) {
+-  const lower = proposal.toLowerCase();
+-  const dangerous = highImpactVerbs.some((v) => lower.includes(v));
++  // v4.3.1 — require destructive context, not bare verb presence.
++  // Previous behavior fired on any use of "kill", "rm", "delete" etc.,
++  // which blocked routine dev work (`kill -0 $PID`, `rm file.txt`, DELETE
++  // from a queue with a WHERE clause). The destructivePatterns list
++  // requires both the verb AND a dangerous qualifier (force flag, system
++  // target, SQL context, etc.).
++  const dangerous = (destructivePatterns || []).some((p) => p.test(proposal));
+   const elevated = grants.some((g) => /admin|sudo|root|write/.test(g));
+   return dangerous || elevated ? 2 : 0;
+ }
+@@ -59,8 +64,9 @@ function intentDriftRisk(proposal = "", sessionIntent = "") {
+ 
+ function irreversibilityRisk(proposal = "") {
+   if (!proposal) return 0;
++  // v4.3.1 — mirror privilegeRisk: require destructive context, not bare verb.
++  const irreversible = (destructivePatterns || []).some((p) => p.test(proposal));
+   const lower = proposal.toLowerCase();
+-  const irreversible = highImpactVerbs.some((v) => lower.includes(v));
+   const reversibleHint = allowlistKeywords.some((k) => lower.includes(k));
+   if (irreversible) return reversibleHint ? 1 : 3;
+   return 0;
+diff --git a/node_modules/cord-engine/cord/policies.js b/node_modules/cord-engine/cord/policies.js
+index fde7702..9fa1cb6 100644
+--- a/node_modules/cord-engine/cord/policies.js
++++ b/node_modules/cord-engine/cord/policies.js
+@@ -35,7 +35,18 @@ module.exports = {
+ 
+   // ── Security patterns ────────────────────────────────────────────────────
+   regex: {
+-    injection: /(<<|{{|}}\s*--|;\s*--|rm\s+-rf|\bunion\b|\bdrop\b|\binsert\b|\bexec\b|\bshutdown\b|curl\s+https?:|\beval\b|\bimport\s+os\b|\bsubprocess\b|__import__|os\.system|os\.popen)/i,
++    // v4.3.1 — narrowed to patterns that are genuinely dangerous in ANY context.
++    // Removed patterns that were triggering false positives on routine dev work:
++    //   - `<<`          heredocs are the canonical bash way to write files
++    //   - `{{` / `}}`   Jinja/Mustache/Helm template syntax
++    //   - `\bexec\b`    too generic — matches `execvp`, `execute`, `exec(plan)`, etc.
++    //   - `\beval\b`    too generic — matches `evaluate`, `eval()` in JS/Python is routine
++    //   - `\bimport\s+os\b` / `\bsubprocess\b` / `__import__` / `os.system` / `os.popen`
++    //                   agents write Python code for a living; these fire on every script
++    //   - bare `\bdrop\b` / `\binsert\b` without SQL context
++    // Kept: patterns that are dangerous on their face (shell injection markers,
++    // `rm -rf`, pipe-to-shell, SQL injection compound forms).
++    injection: /(;\s*--|\brm\s+-rf\b|\bunion\s+(all\s+)?select\b|\bdrop\s+(table|database|schema)\b|\bor\s+1\s*=\s*1\b|curl\s+[^|]*\|\s*(sh|bash|zsh|python)|wget\s+[^|]*\|\s*(sh|bash|zsh|python)|\bos\.system\s*\(\s*["'][^"']*\b(rm|curl|wget|nc|bash|sh)\b|\bos\.popen\s*\(|\bsubprocess\.(call|run|Popen|check_output)\s*\(\s*\[?\s*["']?[^,)"']*\b(rm|curl|wget|nc)\b)/i,
+     exfil:     /(upload|exfil|curl\s+https?:|wget\s+https?:|scp\s|nc\s|requests\.post|urllib|httpx\.post|send.*to.*server|transmit|beacon)/i,
+     secrets:   /(api[_\- ]?keys?|tokens?|passwords?|secrets?\b|aws_secret|authorization|credentials?|private[_\- ]?keys?|ssh[_\- ]?keys?|\.env\b|keychain|passphrase|system\s+prompts?)/i,
+ 
+@@ -62,6 +73,9 @@ module.exports = {
+   },
+ 
+   // ── High-impact verbs ────────────────────────────────────────────────────
++  // v4.3.1: legacy plain-verb list kept for backward-compat callers.
++  // Actual privilege/irreversibility detection has moved to `destructivePatterns`
++  // (below) which require context, not just verb presence.
+   highImpactVerbs: [
+     "delete", "drop", "shutdown", "format", "wipe",
+     "disable", "lock", "kill", "terminate", "overwrite",
+@@ -69,6 +83,60 @@ module.exports = {
+     "rm", "remove", "uninstall",
+   ],
+ 
++  // ── Context-aware destructive patterns (v4.3.1) ──────────────────────────
++  // Each pattern requires BOTH the verb AND a dangerous qualifier (force flag,
++  // system target, SQL context, etc.). Bare occurrences of "kill", "rm file",
++  // "delete item" don't fire — they are routine dev verbs, not privilege
++  // escalation signals. A pattern match scores 2 for privilege and 3 for
++  // irreversibility (matches legacy behavior).
++  destructivePatterns: [
++    // Filesystem destruction with force/recursion
++    /\brm\s+-[a-z]*[rRfF][a-z]*\s+[\/~]/i,           // rm -rf /, rm -r ~/...
++    /\brm\s+-[a-z]*f[a-z]*\s+-[a-z]*r/i,              // rm -f -r ...
++    /\bshred\s+-/i,
++    /\bdd\s+.*\bof=\/dev\/(sd|hd|nvme|disk)/i,
++    /\bmkfs\./i,                                       // mkfs.ext4, mkfs.xfs, etc.
++    /\bformat\s+[a-z]:/i,                              // format c:
++    /\bwipe\s+(disk|drive|volume|all)/i,
++    /\berase\s+(disk|drive|volume)/i,
++
++    // Process termination with force
++    /\bkill\s+-(9|KILL|SIGKILL)\b/i,
++    /\bkillall\s+-(9|KILL|SIGKILL)/i,
++    /\bpkill\s+-(9|KILL|SIGKILL)/i,
++
++    // System-wide power/state
++    /\bshutdown\s+(-h|now|\+\d)/i,
++    /\b(poweroff|halt|reboot)\b/i,
++    /\binit\s+[06]\b/i,
++    /\bsystemctl\s+(stop|disable)\s+(firewalld|ufw|apparmor|selinux|auditd|sshd)/i,
++
++    // Database destruction
++    /\bdrop\s+(table|database|schema|index|view)\b/i,
++    /\btruncate\s+table\b/i,
++    /\bdelete\s+from\s+\w+\s*(;|$|where\s+1)/i,       // DELETE FROM ... (no WHERE or WHERE 1)
++
++    // Cloud / IaC destruction
++    /\bterraform\s+(destroy|apply\s+-auto-approve)/i,
++    /\baws\s+\w+\s+delete-/i,                          // aws s3 delete-bucket, etc.
++    /\bkubectl\s+delete\s+(namespace|cluster|all)/i,
++    /\bgcloud\s+\w+\s+delete\b/i,
++
++    // Permission / security escalation
++    /\bchmod\s+-R\s+777/i,
++    /\bchown\s+-R\s+\w+\s+\//i,                       // chown -R user /
++    /\bsudo\s+(rm|dd|mkfs|shutdown|init|kill)/i,
++    /\bdisable\s+(firewall|selinux|apparmor|audit)/i,
++    /\brevoke\s+(all|grant)\b/i,
++
++    // Package / system uninstall at scale
++    /\b(apt|yum|dnf|brew)\s+(remove|purge|uninstall)\s+(-y\s+)?(--all|\*)/i,
++    /\bnpm\s+uninstall\s+--global/i,
++
++    // Git destructive
++    /\bgit\s+(reset\s+--hard\s+(HEAD|origin)|clean\s+-[a-z]*[fd]|push\s+.*--force|branch\s+-D)/i,
++  ],
++
+   // ── Allowlist keywords ────────────────────────────────────────────────────
+   allowlistKeywords: [
+     "read-only", "preview", "dry-run", "simulate", "list",
+diff --git a/node_modules/cord-engine/vigil/patterns.js b/node_modules/cord-engine/vigil/patterns.js
+index d683ebc..2744931 100644
+--- a/node_modules/cord-engine/vigil/patterns.js
++++ b/node_modules/cord-engine/vigil/patterns.js
+@@ -95,14 +95,18 @@ const patterns = {
+     /drop\s+database/gi,
+     /delete\s+from.*where\s+1\s*=\s*1/gi,
+     /truncate\s+table/gi,
+-    /exec\s*\(/gi,
+-    /spawn\s*\(/gi,
+-    /child_process/gi,
++    // v4.3.1 — narrowed from bare-name matches to contextual matches.
++    // Previous patterns flagged every `subprocess.*`, `exec(`, `spawn(`,
++    // `child_process`, `__import__(`, which fires on legitimate code.
++    // Now only fires when these functions are being invoked with obviously
++    // hostile arguments (shell strings, env-var interpolation, or with
++    // shell=True in Python).
++    /\bsubprocess\.(call|run|Popen|check_output|check_call)\s*\(\s*([^,)]*\bshell\s*=\s*True|["'][^"']*\b(rm|curl|wget|nc|bash|sh)\b)/gi,
++    /\bos\.system\s*\(\s*["'][^"']*\b(rm|curl|wget|nc|bash|sh|&|;|\|)/gi,
++    /\b(child_process\.)?(exec|spawn)(Sync)?\s*\(\s*["'`][^"'`]*\b(rm\s+-rf|curl\s+https?:|wget\s+https?:|nc\s+-)/gi,
++    /\b__import__\s*\(\s*["'](os|subprocess|socket|ctypes|importlib)["']\s*\)/gi,
+     /\/etc\/passwd/gi,
+     /\/etc\/shadow/gi,
+-    /__import__\s*\(/gi,
+-    /os\.system\s*\(/gi,
+-    /subprocess\./gi,
+     /format\s+c:/gi,
+     /mkfs\./gi,
+     /dd\s+if=.*of=\/dev\//gi,
+@@ -129,7 +133,12 @@ const patterns = {
+     /https?:\/\/[^\/\s]*hack[^\/\s]*/gi,
+     /https?:\/\/[^\/\s]*phish[^\/\s]*/gi,
+     /https?:\/\/[^\/\s]*attacker[^\/\s]*/gi,
+-    /https?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/gi,  // Raw IP addresses
++    // v4.3.2 — exclude loopback, link-local, and RFC1918 private ranges.
++    // 127.0.0.1, ::1, 0.0.0.0, and private LAN IPs are the address space
++    // every local dev server lives on. Flagging them as "suspicious URLs"
++    // at severity 7 made local HTTP testing impossible (curl http://127.0.0.1
++    // → BLOCK severity 10). Public IPs are still flagged.
++    /https?:\/\/(?!(?:127\.|0\.0\.0\.0|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|169\.254\.))\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/gi,  // Raw public IP addresses
+     /https?:\/\/[^\/\s]*\.onion\b/gi,                      // Tor hidden services
+     /https?:\/\/[^\/\s]*ngrok/gi,                           // Tunneling services
+   ],
