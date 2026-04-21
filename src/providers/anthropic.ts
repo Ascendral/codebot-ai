@@ -193,6 +193,21 @@ export class AnthropicProvider implements LLMProvider {
     let currentBlockIndex = -1;
     let currentBlockType = '';
 
+    // MUST be declared outside the chunk-read loop. SSE events are
+    // `event: <name>\ndata: <json>\n\n`. When a chunk boundary falls between
+    // the `event:` line and its `data:` line, the `event:` line is parsed in
+    // iteration N (and sets currentEvent), then iteration N+1 begins with the
+    // chunk containing the `data:` line. If currentEvent were declared inside
+    // the loop it would reset to '' and the `data:` line would hit
+    // `switch('') {}` with no matching case — silently dropping a whole
+    // content_block_delta. That exact bug was caught cold in
+    // ~/.codebot/debug/sse-anthropic-2026-04-21T04-11-47-837Z.jsonl:
+    //   chunk A (28B): "event: content_block_delta\nd"
+    //   chunk B (543B): "ata: {...partial_json:\"head[1\"}\n\nevent:..."
+    // The `head[1` delta vanished and the generated Python had `new_]` where
+    // `new_head[1]` should have been. Persist currentEvent across iterations.
+    let currentEvent = '';
+
     // ─── SSE diagnostic tap ───────────────────────────────────────────────
     // Opt-in with CODEBOT_DEBUG_SSE=1. Writes every raw SSE chunk, every
     // decoded event, every input_json_delta, and the final concatenated
@@ -262,7 +277,9 @@ export class AnthropicProvider implements LLMProvider {
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
-        let currentEvent = '';
+        // currentEvent is declared above the while loop — persists across
+        // chunks so an `event:` line in chunk N correctly scopes a `data:`
+        // line that lands in chunk N+1.
 
         for (const line of lines) {
           const trimmed = line.trim();

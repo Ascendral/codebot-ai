@@ -163,3 +163,73 @@ describe('AnthropicProvider truncated-tool_use guard', () => {
     }
   });
 });
+
+/**
+ * Regression test for the REAL root cause of "Invalid JSON arguments" /
+ * garbled Python in write_file. The SSE parser used to declare
+ * `currentEvent` inside the chunk-read loop, so when a chunk boundary fell
+ * between `event: content_block_delta\n` and its `data: {...}\n` line, the
+ * `data:` line ran through `switch('')` and was silently dropped — the
+ * entire content_block_delta event disappeared.
+ *
+ * Caught cold in ~/.codebot/debug/sse-anthropic-2026-04-21T04-11-47-837Z.jsonl:
+ *   chunk A (28B): "event: content_block_delta\nd"
+ *   chunk B (543B): "ata: {...partial_json:\"head[1\"}\n\nevent:..."
+ * Net result: Python source `new_head[1] < GRID_ROWS` arrived as
+ * `new_] < GRID_ROWS` on disk.
+ *
+ * This test splits a realistic tool_use stream at the worst possible chunk
+ * boundary and asserts that EVERY partial_json delta makes it into
+ * the final tool_call_end arguments.
+ */
+describe('AnthropicProvider chunk-boundary event scoping', () => {
+  it('event: line and its data: line split across chunks → delta is NOT dropped', async () => {
+    const originalFetch = globalThis.fetch;
+    // Build a stream whose "partial_json":"head[1" event is split at the
+    // worst spot: the newline after `event: content_block_delta`. Without
+    // the fix, the data: line hits switch('') and the delta vanishes.
+    const preamble = [
+      'event: message_start\ndata: {"type":"message_start","message":{"id":"msg_1","usage":{"input_tokens":10,"output_tokens":0}}}\n\n',
+      'event: content_block_start\ndata: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"write_file","input":{}}}\n\n',
+      'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"content\\":\\"new_"}}\n\n',
+    ];
+    // Now the split chunk: event line in chunk A, data line in chunk B.
+    const splitA = 'event: content_block_delta\nd';
+    const splitB = 'ata: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"head[1"}}\n\n';
+    // More events after, then close.
+    const tail = [
+      'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"] <"}}\n\n',
+      'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":" END\\"}"}}\n\n',
+      'event: content_block_stop\ndata: {"type":"content_block_stop","index":0}\n\n',
+      'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":10}}\n\n',
+      'event: message_stop\ndata: {"type":"message_stop"}\n\n',
+    ];
+    const sse = [...preamble, splitA, splitB, ...tail];
+    globalThis.fetch = mockFetchWithSSE(sse);
+    try {
+      const provider = new AnthropicProvider({
+        apiKey: 'test-key',
+        baseUrl: 'https://api.anthropic.com',
+        model: 'claude-3-5-sonnet-20241022',
+      });
+      const events = await collect(provider);
+      const toolCallEnds = events.filter(e => e.type === 'tool_call_end');
+      const errors = events.filter(e => e.type === 'error');
+      assert.strictEqual(errors.length, 0, `Expected no errors; got ${JSON.stringify(errors)}`);
+      assert.strictEqual(toolCallEnds.length, 1, `Expected exactly one tool_call_end; got ${toolCallEnds.length}. events: ${JSON.stringify(events.map(e => e.type))}`);
+      const tc = (toolCallEnds[0] as { type: 'tool_call_end'; toolCall: { function: { name: string; arguments: string } } }).toolCall;
+      const parsed = JSON.parse(tc.function.arguments);
+      // Deltas concatenate to: "new_" + "head[1" + "] <" + " END"
+      //                      = "new_head[1] < END"
+      // With the bug: "head[1" vanishes → "new_] < END" (missing 6 chars).
+      // With the fix: all deltas land → "new_head[1] < END".
+      assert.strictEqual(
+        parsed.content,
+        'new_head[1] < END',
+        `Expected all 4 deltas concatenated; got "${parsed.content}". The "head[1" delta after the split-chunk boundary was dropped.`,
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
