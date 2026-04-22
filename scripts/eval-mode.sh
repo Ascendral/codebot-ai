@@ -146,6 +146,8 @@ MARKEREOF
     count=0; worst_exit=0
     for ep in "$target_dir"/*.json; do
       [ -f "$ep" ] || continue
+      # skip the episode-index cache (not an episode)
+      [ "$(basename "$ep")" = "index.json" ] && continue
       count=$((count + 1))
       echo ""
       echo "=== $(basename "$ep") ==="
