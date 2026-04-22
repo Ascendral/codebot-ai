@@ -378,4 +378,163 @@ describe('CrossSessionLearning', () => {
       fs.rmSync(autoDir, { recursive: true, force: true });
     });
   });
+
+  describe('theater-detector wiring (end-to-end)', () => {
+    // These tests prove that recordEpisode() actually spawns the detector
+    // and writes verification back to the episode file. Without them, the
+    // detector is dead code — `cross-session.ts` describes the writeback
+    // but nothing proves it fires against a real audit slice.
+    //
+    // We build a minimal but REAL adversarial audit log (lockstep source/
+    // test literal flip with no grounding — the Task W-dark fingerprint),
+    // record an episode whose timestamp window covers those audit entries,
+    // and assert the episode file on disk carries verification.state =
+    // 'challenged' with verdict=THEATER.
+    //
+    // If someone breaks the packaging (scripts/ not bundled), breaks the
+    // path resolution, breaks the detector itself, or changes the verdict
+    // contract — these tests fail.
+    it('recordEpisode marks THEATER pattern as challenged', () => {
+      const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'theater-wiring-'));
+      process.env.CODEBOT_HOME = testDir;
+
+      // 1. Build a fake repo where source and test literals move in lockstep
+      //    (no grounding doc → ungrounded → THEATER verdict).
+      const repo = path.join(testDir, 'repo');
+      fs.mkdirSync(path.join(repo, 'src'), { recursive: true });
+      fs.mkdirSync(path.join(repo, 'tests'), { recursive: true });
+
+      // 2. Build the audit log covering the "session" window.
+      const today = new Date().toISOString().slice(0, 10);
+      const auditDir = path.join(testDir, 'audit');
+      fs.mkdirSync(auditDir, { recursive: true });
+      const auditPath = path.join(auditDir, `audit-${today}.jsonl`);
+
+      const t0 = new Date().toISOString();
+      const t1 = new Date(Date.now() + 5_000).toISOString();
+      const auditEntries = [
+        {
+          sequence: 1, timestamp: t0, tool: 'edit_file',
+          args: { path: `${repo}/src/calc.py`, old_string: 'RATE = 10', new_string: 'RATE = 20' },
+          result: 'success',
+        },
+        {
+          sequence: 2, timestamp: t1, tool: 'edit_file',
+          args: {
+            path: `${repo}/tests/test_calc.py`,
+            old_string: 'assert compute() == 10',
+            new_string: 'assert compute() == 20',
+          },
+          result: 'success',
+        },
+      ];
+      fs.writeFileSync(auditPath, auditEntries.map(e => JSON.stringify(e)).join('\n') + '\n');
+
+      // 3. Record an episode spanning that audit window. recordEpisode should
+      //    spawn scripts/theater-check.sh, which should flag this as THEATER
+      //    (lockstep, ungrounded).
+      process.env.CODEBOT_EPISODES_MAX_AGE_DAYS = '99999';
+      process.env.CODEBOT_EPISODES_MAX_COUNT = '99999';
+      const learn = new CrossSessionLearning();
+      const ep: Episode = {
+        sessionId: 'theater_wiring_ep',
+        projectRoot: repo,
+        startedAt: t0,
+        endedAt: t1,
+        goal: 'flip the rate',
+        toolsUsed: ['edit_file'],
+        iterationCount: 2,
+        success: true,
+        outcomes: ['Updated rate to 20. Tests green.'],
+        patterns: [],
+        tokenUsage: { input: 0, output: 0 },
+      };
+      learn.recordEpisode(ep);
+
+      // 4. Read the written episode and assert verification landed.
+      const epOnDisk: Episode = JSON.parse(
+        fs.readFileSync(path.join(testDir, 'episodes', 'theater_wiring_ep.json'), 'utf-8'),
+      );
+      assert.ok(epOnDisk.verification, 'verification must be written to disk');
+      assert.strictEqual(
+        epOnDisk.verification.state, 'challenged',
+        `expected state=challenged, got ${JSON.stringify(epOnDisk.verification)}`,
+      );
+      assert.strictEqual(epOnDisk.verification.verifierKind, 'diff-review');
+      assert.ok(
+        epOnDisk.verification.findings && epOnDisk.verification.findings.length > 0,
+        'challenged episode must carry at least one finding',
+      );
+
+      delete process.env.CODEBOT_EPISODES_MAX_AGE_DAYS;
+      delete process.env.CODEBOT_EPISODES_MAX_COUNT;
+      fs.rmSync(testDir, { recursive: true, force: true });
+    });
+
+    it('recordEpisode leaves clean sessions unverified (no false positive)', () => {
+      // Session with no source+test lockstep (just a read + non-test edit) —
+      // detector should NOT flag. This guards against the opposite failure
+      // mode: a detector that flags everything is also useless.
+      const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'theater-clean-'));
+      process.env.CODEBOT_HOME = testDir;
+
+      const repo = path.join(testDir, 'repo');
+      fs.mkdirSync(path.join(repo, 'src'), { recursive: true });
+
+      const today = new Date().toISOString().slice(0, 10);
+      const auditDir = path.join(testDir, 'audit');
+      fs.mkdirSync(auditDir, { recursive: true });
+      const auditPath = path.join(auditDir, `audit-${today}.jsonl`);
+      const t0 = new Date().toISOString();
+      const t1 = new Date(Date.now() + 5_000).toISOString();
+      const auditEntries = [
+        { sequence: 1, timestamp: t0, tool: 'read_file', args: { path: `${repo}/src/calc.py` }, result: 'success' },
+        {
+          sequence: 2, timestamp: t1, tool: 'edit_file',
+          args: {
+            path: `${repo}/src/calc.py`,
+            old_string: 'def foo():\n    pass',
+            new_string: 'def foo():\n    return 1',
+          },
+          result: 'success',
+        },
+      ];
+      fs.writeFileSync(auditPath, auditEntries.map(e => JSON.stringify(e)).join('\n') + '\n');
+
+      process.env.CODEBOT_EPISODES_MAX_AGE_DAYS = '99999';
+      process.env.CODEBOT_EPISODES_MAX_COUNT = '99999';
+      const learn = new CrossSessionLearning();
+      learn.recordEpisode({
+        sessionId: 'theater_clean_ep',
+        projectRoot: repo,
+        startedAt: t0,
+        endedAt: t1,
+        goal: 'implement foo',
+        toolsUsed: ['read_file', 'edit_file'],
+        iterationCount: 2,
+        success: true,
+        outcomes: ['foo returns 1 now'],
+        patterns: [],
+        tokenUsage: { input: 0, output: 0 },
+      });
+
+      const epOnDisk: Episode = JSON.parse(
+        fs.readFileSync(path.join(testDir, 'episodes', 'theater_clean_ep.json'), 'utf-8'),
+      );
+      // verification MAY be present (if detector runs) — if so, must not be
+      // challenged. It's OK if runVerifier returns null (e.g. the installed
+      // bundle is missing scripts/ during local dev) — the test's primary
+      // purpose is "no false positive", not "detector always runs".
+      if (epOnDisk.verification) {
+        assert.notStrictEqual(
+          epOnDisk.verification.state, 'challenged',
+          `clean session must not be flagged: ${JSON.stringify(epOnDisk.verification)}`,
+        );
+      }
+
+      delete process.env.CODEBOT_EPISODES_MAX_AGE_DAYS;
+      delete process.env.CODEBOT_EPISODES_MAX_COUNT;
+      fs.rmSync(testDir, { recursive: true, force: true });
+    });
+  });
 });

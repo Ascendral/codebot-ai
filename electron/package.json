@@ -106,6 +106,14 @@
       {
         "from": "../package.json",
         "to": "codebot/package.json"
+      },
+      {
+        "from": "../scripts",
+        "to": "codebot/scripts",
+        "filter": [
+          "theater_detector.py",
+          "theater-check.sh"
+        ]
       }
     ],
     "win": {
