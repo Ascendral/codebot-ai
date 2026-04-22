@@ -229,6 +229,94 @@ describe('CrossSessionLearning', () => {
     });
   });
 
+  describe('verification retrieval', () => {
+    // These tests bypass recordEpisode() and write episode JSON directly so
+    // they exercise the retrieval-side filter/sort/tag logic WITHOUT spawning
+    // the theater-check.sh child process. The writeback path (runVerifier) is
+    // exercised end-to-end by scripts/theater-check.sh's own golden tests.
+    function writeEpisodeFile(dir: string, sessionId: string, patch: Partial<Episode>): void {
+      const ep: Episode = {
+        sessionId,
+        projectRoot: '/tmp/project',
+        startedAt: new Date().toISOString(),
+        endedAt: new Date().toISOString(),
+        goal: 'Fix a bug',
+        toolsUsed: ['grep', 'edit'],
+        iterationCount: 3,
+        success: true,
+        outcomes: [`${sessionId} outcome`],
+        patterns: [],
+        tokenUsage: { input: 0, output: 0 },
+        ...patch,
+      };
+      const episodesDir = path.join(dir, 'episodes');
+      fs.mkdirSync(episodesDir, { recursive: true });
+      fs.writeFileSync(path.join(episodesDir, `${sessionId}.json`), JSON.stringify(ep, null, 2));
+    }
+
+    it('filters out challenged episodes from getRecentEpisodes', () => {
+      const vDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cross-verif-'));
+      process.env.CODEBOT_HOME = vDir;
+      writeEpisodeFile(vDir, 'clean_ep', {
+        verification: { state: 'verified', honestyScore: 95, verifierKind: 'diff-review' },
+      });
+      writeEpisodeFile(vDir, 'poison_ep', {
+        verification: { state: 'challenged', honestyScore: 60, verifierKind: 'diff-review',
+          reason: 'literal_swap block finding' },
+      });
+      writeEpisodeFile(vDir, 'legacy_ep', {}); // no verification field
+
+      const sl = new CrossSessionLearning();
+      const recent = sl.getRecentEpisodes(10);
+      const ids = recent.map(e => e.sessionId);
+      assert.ok(ids.includes('clean_ep'), 'verified episode should surface');
+      assert.ok(ids.includes('legacy_ep'), 'legacy (no verification) should surface as unverified');
+      assert.ok(!ids.includes('poison_ep'), 'challenged episode must NOT surface');
+      fs.rmSync(vDir, { recursive: true, force: true });
+    });
+
+    it('sorts verified above unverified in getRecentEpisodes', () => {
+      const vDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cross-verif-sort-'));
+      process.env.CODEBOT_HOME = vDir;
+      // Note: older-by-endedAt so endedAt alone wouldn't put it first — rank rules.
+      const older = new Date(Date.now() - 60_000).toISOString();
+      writeEpisodeFile(vDir, 'unver_ep', {
+        endedAt: new Date().toISOString(),
+        verification: { state: 'unverified', honestyScore: 80 },
+      });
+      writeEpisodeFile(vDir, 'ver_ep', {
+        endedAt: older,
+        verification: { state: 'verified', honestyScore: 85 },
+      });
+
+      const sl = new CrossSessionLearning();
+      const recent = sl.getRecentEpisodes(5);
+      assert.strictEqual(recent[0].sessionId, 'ver_ep', 'verified should come first even if older');
+      fs.rmSync(vDir, { recursive: true, force: true });
+    });
+
+    it('buildPromptBlock annotates outcomes with verification tags', () => {
+      const vDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cross-verif-tag-'));
+      process.env.CODEBOT_HOME = vDir;
+      writeEpisodeFile(vDir, 'clean_ep', {
+        outcomes: ['tests green on fx triangle'],
+        verification: { state: 'verified', honestyScore: 95 },
+      });
+      writeEpisodeFile(vDir, 'susp_ep', {
+        outcomes: ['did something'],
+        verification: { state: 'unverified', honestyScore: 55 },
+      });
+      writeEpisodeFile(vDir, 'legacy_ep', { outcomes: ['pre-verification work'] });
+
+      const sl = new CrossSessionLearning();
+      const block = sl.buildPromptBlock();
+      assert.ok(block.includes('[verified]'), `expected [verified] tag in:\n${block}`);
+      assert.ok(/\[suspicious, score=55\]/.test(block), `expected [suspicious, score=55] tag in:\n${block}`);
+      assert.ok(block.includes('[unverified]'), `expected [unverified] tag for legacy episode in:\n${block}`);
+      fs.rmSync(vDir, { recursive: true, force: true });
+    });
+  });
+
   describe('prune', () => {
     it('removes old episodes', () => {
       const pruneDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cross-prune-'));

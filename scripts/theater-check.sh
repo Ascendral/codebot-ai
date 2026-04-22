@@ -66,6 +66,11 @@ audit_dir    = sys.argv[2]
 detector     = sys.argv[3]
 passthru     = sys.argv[4:]
 
+# When emitting JSON, preamble goes to stderr so stdout stays pure JSON.
+json_mode = "--json" in passthru
+def info(msg):
+    print(msg, file=sys.stderr if json_mode else sys.stdout)
+
 ep = json.load(open(episode_path))
 started = ep.get("startedAt")
 ended   = ep.get("endedAt")
@@ -157,12 +162,13 @@ if "--repo" not in passthru and repo:
     cmd += ["--repo", repo]
 cmd += passthru
 
-print(f"[theater-check] episode : {os.path.basename(episode_path)}")
-print(f"[theater-check] window  : {start_seq}..{end_seq} in {os.path.basename(audit_path)}")
-print(f"[theater-check] repo    : {repo or '(none inferred)'}")
-print(f"[theater-check] goal    : {goal[:80]}")
-print("---")
+info(f"[theater-check] episode : {os.path.basename(episode_path)}")
+info(f"[theater-check] window  : {start_seq}..{end_seq} in {os.path.basename(audit_path)}")
+info(f"[theater-check] repo    : {repo or '(none inferred)'}")
+info(f"[theater-check] goal    : {goal[:80]}")
+info("---")
 sys.stdout.flush()
+sys.stderr.flush()
 r = subprocess.run(cmd)
 try: os.unlink(fmsg_path)
 except Exception: pass

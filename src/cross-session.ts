@@ -10,6 +10,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { spawnSync } from 'child_process';
 import { codebotPath } from './paths';
 
 // ── Types ──
@@ -25,7 +26,8 @@ export interface Episode {
   toolsUsed: string[];
   /** Number of iterations/tool calls */
   iterationCount: number;
-  /** Whether the session ended successfully */
+  /** Whether the session ended successfully (MODEL SELF-REPORT — do not trust
+   *  without cross-checking `verification.state`). */
   success: boolean;
   /** Key outcomes or error messages */
   outcomes: string[];
@@ -33,6 +35,35 @@ export interface Episode {
   patterns: EpisodePattern[];
   /** Token usage */
   tokenUsage: { input: number; output: number };
+  /**
+   * External verification state. Set by the diff-review verifier (theater
+   * detector) at episode close. See docs/memory-verifier-spec.md. Optional
+   * for backward compatibility with episodes written before the verifier
+   * existed — absent means "assume unverified".
+   */
+  verification?: EpisodeVerification;
+}
+
+export type VerificationState = 'unverified' | 'verified' | 'challenged';
+
+export interface EpisodeVerification {
+  state: VerificationState;
+  verifiedAt?: string;
+  verifierKind?: 'tests' | 'diff-review' | 'user' | 'other';
+  /** Short human-readable evidence (e.g. "detector verdict: CLEAN, 100/100"). */
+  evidence?: string;
+  /** Why the episode was challenged, if applicable. */
+  reason?: string;
+  /** The session or user that flagged the episode. */
+  challengedBy?: string;
+  /** Detector honesty score in [0, 100]. Higher = more trustworthy. */
+  honestyScore?: number;
+  /** Machine-readable findings from the detector. */
+  findings?: Array<{
+    check: string;
+    severity: 'block' | 'warn' | 'info';
+    message: string;
+  }>;
 }
 
 export interface EpisodePattern {
@@ -93,6 +124,17 @@ export class CrossSessionLearning {
   /**
    * Record a completed session as an episode.
    * Automatically prunes stale episodes by age and count after writing.
+   *
+   * After the episode file lands, invokes the diff-review verifier (theater
+   * detector) to populate `verification`. This is the anti-theater writeback:
+   * an episode whose audit-log shows the W-dark pattern (test literals moved
+   * in lockstep with source literals, claims of edits not in audit, etc.)
+   * gets state=`challenged` so it is filtered from future `getRecentEpisodes`
+   * calls. See docs/memory-verifier-spec.md.
+   *
+   * Verification is best-effort — failures are swallowed to avoid breaking
+   * session recording when the detector script is missing or the Python
+   * runtime is unavailable.
    */
   recordEpisode(episode: Episode): void {
     fs.mkdirSync(this.episodesDir, { recursive: true });
@@ -104,6 +146,18 @@ export class CrossSessionLearning {
     // Update pattern index
     this.updatePatternIndex(episode);
 
+    // Run the diff-review verifier and write the result back into the episode.
+    // This is the only automated gate between model-self-report `success` and
+    // memory retrieval — without it, confident-wrong outcomes poison future
+    // sessions (see Task W-dark, 2026-04-21).
+    try {
+      const verification = this.runVerifier(episodePath);
+      if (verification) {
+        const updated: Episode = { ...episode, verification };
+        fs.writeFileSync(episodePath, JSON.stringify(updated, null, 2));
+      }
+    } catch { /* best effort — verifier failures must not break recording */ }
+
     // Auto-rotate: remove old/overflow episode files. Failures are swallowed
     // because rotation should never break session recording.
     try {
@@ -112,6 +166,120 @@ export class CrossSessionLearning {
       this.pruneByAge(maxAgeDays);
       this.prune(maxCount);
     } catch { /* best effort */ }
+  }
+
+  /**
+   * Invoke scripts/theater-check.sh on the just-written episode. Returns the
+   * `verification` object on success, or null if the verifier could not be
+   * run (missing script, missing python3, missing audit log slice).
+   *
+   * Fully synchronous so the verification field is persisted before the next
+   * session can retrieve the episode. The detector is fast (<2s on slices
+   * we've measured) and this is a one-shot-per-session cost.
+   *
+   * Override the script path via CODEBOT_THEATER_CHECK env var (useful for
+   * tests and for pointing at a dev checkout).
+   */
+  private runVerifier(episodePath: string): EpisodeVerification | null {
+    const scriptPath = this.resolveTheaterCheckPath();
+    if (!scriptPath || !fs.existsSync(scriptPath)) return null;
+
+    const result = spawnSync(
+      scriptPath,
+      [episodePath, '--no-mutation', '--json'],
+      {
+        encoding: 'utf-8',
+        timeout: 30_000,
+        // Detach from parent TTY to avoid stdio weirdness in Electron.
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
+
+    // Exit codes: 0=CLEAN, 1=SUSPICIOUS, 2=THEATER, 64/65=script error.
+    // We treat 64/65 as "couldn't verify" and leave verification unset so
+    // the caller records no `verification` field (== unverified, legacy
+    // fallback).
+    if (result.status === null || result.status === 64 || result.status === 65) {
+      return null;
+    }
+
+    let parsed: {
+      verdict?: 'CLEAN' | 'SUSPICIOUS' | 'THEATER';
+      honesty_score?: number;
+      findings?: Array<{ check: string; severity: string; message: string }>;
+    } = {};
+    try {
+      parsed = JSON.parse(result.stdout || '{}');
+    } catch { return null; }
+
+    const verdict = parsed.verdict;
+    if (!verdict) return null;
+
+    const now = new Date().toISOString();
+    const findings = (parsed.findings || []).map(f => ({
+      check: f.check,
+      severity: (f.severity === 'block' || f.severity === 'warn' || f.severity === 'info')
+        ? f.severity
+        : 'info',
+      message: f.message,
+    } as { check: string; severity: 'block' | 'warn' | 'info'; message: string }));
+
+    const honestyScore = typeof parsed.honesty_score === 'number'
+      ? parsed.honesty_score
+      : undefined;
+
+    if (verdict === 'THEATER') {
+      return {
+        state: 'challenged',
+        verifiedAt: now,
+        verifierKind: 'diff-review',
+        evidence: `detector verdict: THEATER, ${honestyScore ?? '?'}/100`,
+        reason: findings.find(f => f.severity === 'block')?.message
+          || 'diff-review detector flagged theater pattern',
+        honestyScore,
+        findings,
+      };
+    }
+
+    // SUSPICIOUS → leave unverified but record warnings.
+    // CLEAN → unverified unless upgraded later by a test-run promotion. We
+    // intentionally do not auto-promote to `verified` here; a green pytest
+    // does not prove correctness (see memory-verifier-spec.md rationale).
+    return {
+      state: 'unverified',
+      verifiedAt: now,
+      verifierKind: 'diff-review',
+      evidence: `detector verdict: ${verdict}, ${honestyScore ?? '?'}/100`,
+      honestyScore,
+      findings,
+    };
+  }
+
+  /**
+   * Resolve the location of the theater-check.sh script. Checks:
+   *   1. CODEBOT_THEATER_CHECK env var (explicit override)
+   *   2. codebotPath('scripts', 'theater-check.sh') — installed location
+   *   3. ../../scripts/theater-check.sh relative to this source — dev checkout
+   * Returns null if none exist.
+   */
+  private resolveTheaterCheckPath(): string | null {
+    const override = process.env.CODEBOT_THEATER_CHECK;
+    if (override) return override;
+
+    const installed = codebotPath('scripts', 'theater-check.sh');
+    if (fs.existsSync(installed)) return installed;
+
+    // Dev-checkout fallback: <repo>/scripts/theater-check.sh.
+    // Walk up from __dirname looking for scripts/theater-check.sh.
+    let dir = __dirname;
+    for (let i = 0; i < 6; i++) {
+      const candidate = path.join(dir, 'scripts', 'theater-check.sh');
+      if (fs.existsSync(candidate)) return candidate;
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+    return null;
   }
 
   /**
@@ -199,12 +367,28 @@ export class CrossSessionLearning {
 
   /**
    * Get the most recent episodes, preferring the current project when provided.
+   *
+   * Filters out `challenged` episodes so a theater-flagged outcome never
+   * surfaces as guidance. Within the remaining set, `verified` ranks above
+   * `unverified`; ties resolve by honestyScore (desc) then endedAt (desc).
+   *
+   * This is the retrieval half of the anti-theater writeback. The writeback
+   * half happens in `recordEpisode` via `runVerifier`.
    */
   getRecentEpisodes(n = 3, projectRoot?: string): Episode[] {
     const episodes = this.listEpisodes()
       .map(sessionId => this.getEpisode(sessionId))
       .filter((episode): episode is Episode => !!episode)
-      .sort((a, b) => b.endedAt.localeCompare(a.endedAt));
+      .filter(e => e.verification?.state !== 'challenged')
+      .sort((a, b) => {
+        // verified > unverified (absent verification treated as unverified)
+        const rank = (e: Episode) => e.verification?.state === 'verified' ? 1 : 0;
+        if (rank(b) !== rank(a)) return rank(b) - rank(a);
+        // higher honesty first (undefined honesty sorts as 50 — neutral)
+        const hs = (e: Episode) => e.verification?.honestyScore ?? 50;
+        if (hs(b) !== hs(a)) return hs(b) - hs(a);
+        return b.endedAt.localeCompare(a.endedAt);
+      });
 
     if (!projectRoot) return episodes.slice(0, n);
 
@@ -242,7 +426,11 @@ export class CrossSessionLearning {
       lines.push('Recent remembered outcomes:');
       for (const episode of recent) {
         const outcome = episode.outcomes[0] || (episode.success ? 'Completed successfully' : 'Ended unsuccessfully');
-        lines.push(`  - ${this.truncate(episode.goal, 90)} → ${this.truncate(outcome, 110)}`);
+        // Annotate with verification state so the model weights memory
+        // correctly. Absent verification (legacy episodes) renders as
+        // [unverified] — same treatment as new unverified outcomes.
+        const tag = this.formatVerificationTag(episode);
+        lines.push(`  - ${tag}${this.truncate(episode.goal, 90)} → ${this.truncate(outcome, 110)}`);
       }
     }
 
@@ -425,5 +613,25 @@ export class CrossSessionLearning {
   private truncate(text: string, maxLength: number): string {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength - 3).trimEnd() + '...';
+  }
+
+  /**
+   * Render a short tag that tells the model how much to trust a recalled
+   * outcome. Absent or `unverified` with score >=70 → `[unverified] `.
+   * `unverified` with score <70 → `[suspicious, score=NN] `. `verified`
+   * → `[verified] `. Challenged episodes should never reach here (they are
+   * filtered in getRecentEpisodes) but if one does, we fail loud with
+   * `[CHALLENGED] `.
+   */
+  private formatVerificationTag(episode: Episode): string {
+    const v = episode.verification;
+    if (!v) return '[unverified] ';
+    if (v.state === 'verified') return '[verified] ';
+    if (v.state === 'challenged') return '[CHALLENGED] ';
+    const score = v.honestyScore;
+    if (typeof score === 'number' && score < 70) {
+      return `[suspicious, score=${score}] `;
+    }
+    return '[unverified] ';
   }
 }
