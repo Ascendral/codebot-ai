@@ -223,6 +223,10 @@ export class Agent {
     this.sessionToolCalls = [];
     this.sessionGoal = '';
     this.sessionStartedAt = new Date().toISOString();
+    // Drop any surfaced-lesson IDs from the previous session so the next
+    // session-outcome feedback doesn't reinforce/weaken lessons that were
+    // never shown to the current conversation.
+    try { this.experientialMemory.clearSurfacedIds(); } catch { /* best effort */ }
   }
 
   /**
@@ -939,10 +943,25 @@ export class Agent {
             : [success ? 'Session completed successfully' : 'Session ended (max iterations or error)'],
         tokenUsage: { input: summary.totalInputTokens, output: summary.totalOutputTokens },
       });
-      this.crossSession.recordEpisode(episode);
+      const verification = this.crossSession.recordEpisode(episode);
       try {
         this.experientialMemory.decayAndConsolidate();
       } catch {}
+      // Close the feedback loop on every lesson that was surfaced into this
+      // session's prompt. Signal priority:
+      //   - detector challenged the episode      → weaken (theater caught)
+      //   - session ended with success=false     → weaken
+      //   - session ended with success=true      → reinforce
+      //   - otherwise                            → neutral (no change)
+      // Without this call, `reinforceLesson` / `weakenLesson` are dead code.
+      try {
+        const signal: 'reinforce' | 'weaken' | 'neutral' =
+          verification?.state === 'challenged' ? 'weaken'
+          : success === false ? 'weaken'
+          : success === true ? 'reinforce'
+          : 'neutral';
+        this.experientialMemory.applySessionOutcome(signal);
+      } catch { /* best effort — feedback must not crash session end */ }
     } catch {
       /* cross-session recording should never crash the agent */
     }

@@ -131,6 +131,21 @@ export class ExperientialMemory {
   private db: any;
   private _active = false;
 
+  /**
+   * Lesson IDs surfaced into the prompt during the CURRENT session.
+   *
+   * Populated by buildPromptBlock() on every retrieval and drained by
+   * applySessionOutcome() at session end. This closes the feedback loop:
+   * a lesson that was injected into the prompt and preceded a successful
+   * session gets its confidence nudged up; a lesson that preceded a
+   * failed or theater-flagged session gets nudged down.
+   *
+   * Cleared by clearSurfacedIds() at session start and by
+   * applySessionOutcome() after applying the delta — so the accounting
+   * is strictly per-session and can't leak across runs.
+   */
+  private surfacedIds: Set<string> = new Set();
+
   get isActive(): boolean { return this._active; }
 
   constructor(dbPath?: string) {
@@ -312,6 +327,12 @@ export class ExperientialMemory {
 
       if (failures.length === 0 && successes.length === 0) return '';
 
+      // Record every lesson ID we're about to inject so the session-end
+      // feedback loop can reinforce/weaken based on outcome. See
+      // applySessionOutcome().
+      for (const f of failures) this.surfacedIds.add(f.id);
+      for (const s of successes) this.surfacedIds.add(s.id);
+
       const parts: string[] = ['--- Lessons from Experience ---'];
 
       if (failures.length > 0) {
@@ -374,6 +395,49 @@ export class ExperientialMemory {
         UPDATE lessons SET confidence = MAX(0.0, confidence - 0.1) WHERE id = ?
       `).run(id);
     } catch {}
+  }
+
+  /** Lesson IDs surfaced into the prompt since the last clear. Test/debug use. */
+  getSurfacedIds(): string[] {
+    return Array.from(this.surfacedIds);
+  }
+
+  /** Reset the per-session surfaced-IDs set. Called at session start. */
+  clearSurfacedIds(): void {
+    this.surfacedIds.clear();
+  }
+
+  /**
+   * Apply a session outcome to every lesson whose ID was surfaced into the
+   * prompt during this session. `signal`:
+   *   - 'reinforce' : session succeeded without being theater-flagged →
+   *                   nudge confidence UP (reinforceLesson).
+   *   - 'weaken'    : session failed OR detector flagged it as THEATER →
+   *                   nudge confidence DOWN (weakenLesson). Theater
+   *                   detection is a stronger negative signal than a
+   *                   plain failure, but both treat the injected lessons
+   *                   as not-currently-useful.
+   *   - 'neutral'   : session ended without a clear outcome (e.g. max
+   *                   iterations) → leave confidence untouched, just clear.
+   *
+   * Always drains `surfacedIds` so state does not leak across sessions.
+   * Returns the count of lessons touched for observability / tests.
+   */
+  applySessionOutcome(signal: 'reinforce' | 'weaken' | 'neutral'): number {
+    const ids = Array.from(this.surfacedIds);
+    this.surfacedIds.clear();
+    if (!this._active || signal === 'neutral' || ids.length === 0) {
+      return 0;
+    }
+    const apply = signal === 'reinforce'
+      ? (id: string) => this.reinforceLesson(id)
+      : (id: string) => this.weakenLesson(id);
+    let touched = 0;
+    for (const id of ids) {
+      apply(id);
+      touched += 1;
+    }
+    return touched;
   }
 
   /** Decay scores, merge similar lessons, prune old ones */

@@ -136,7 +136,7 @@ export class CrossSessionLearning {
    * session recording when the detector script is missing or the Python
    * runtime is unavailable.
    */
-  recordEpisode(episode: Episode): void {
+  recordEpisode(episode: Episode): EpisodeVerification | null {
     fs.mkdirSync(this.episodesDir, { recursive: true });
 
     // Save episode
@@ -150,8 +150,9 @@ export class CrossSessionLearning {
     // This is the only automated gate between model-self-report `success` and
     // memory retrieval — without it, confident-wrong outcomes poison future
     // sessions (see Task W-dark, 2026-04-21).
+    let verification: EpisodeVerification | null = null;
     try {
-      const verification = this.runVerifier(episodePath);
+      verification = this.runVerifier(episodePath);
       if (verification) {
         const updated: Episode = { ...episode, verification };
         fs.writeFileSync(episodePath, JSON.stringify(updated, null, 2));
@@ -166,6 +167,8 @@ export class CrossSessionLearning {
       this.pruneByAge(maxAgeDays);
       this.prune(maxCount);
     } catch { /* best effort */ }
+
+    return verification;
   }
 
   /**

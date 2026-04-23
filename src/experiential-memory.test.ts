@@ -242,6 +242,66 @@ describe('ExperientialMemory', () => {
     assert.ok(results[0].accessCount >= 2, `Access count should be >= 2, got ${results[0].accessCount}`);
   });
 
+  it('applySessionOutcome("reinforce") bumps every surfaced lesson and drains the set', () => {
+    const id1 = mem.recordLesson({ toolName: 'write_file', outcome: 'failure', lesson: 'surface-me-1', confidence: 0.5 });
+    const id2 = mem.recordLesson({ toolName: 'read_file',  outcome: 'success', lesson: 'surface-me-2', confidence: 0.5 });
+    // Force both into buildPromptBlock so surfacedIds gets populated through
+    // the real code path — not via a test-only helper. This is the wiring
+    // the Agent actually uses, so we exercise it as-is.
+    const block = mem.buildPromptBlock({ currentTask: 'anything' });
+    assert.ok(block.includes('surface-me-1'), 'lesson 1 must be in the prompt block');
+    assert.ok(block.includes('surface-me-2'), 'lesson 2 must be in the prompt block');
+    const surfaced = mem.getSurfacedIds();
+    assert.deepStrictEqual(surfaced.sort(), [id1!, id2!].sort(), 'buildPromptBlock must register surfaced IDs');
+
+    const before1 = mem.queryLessons({ toolName: 'write_file' })[0].confidence;
+    const before2 = mem.queryLessons({ toolName: 'read_file'  })[0].confidence;
+
+    const touched = mem.applySessionOutcome('reinforce');
+    assert.strictEqual(touched, 2, 'should apply to both surfaced IDs');
+    assert.deepStrictEqual(mem.getSurfacedIds(), [], 'surfacedIds must drain after apply');
+
+    const after1 = mem.queryLessons({ toolName: 'write_file' })[0].confidence;
+    const after2 = mem.queryLessons({ toolName: 'read_file'  })[0].confidence;
+    assert.ok(after1 > before1, `reinforce must raise confidence on lesson 1 (${before1} -> ${after1})`);
+    assert.ok(after2 > before2, `reinforce must raise confidence on lesson 2 (${before2} -> ${after2})`);
+  });
+
+  it('applySessionOutcome("weaken") drops confidence on every surfaced lesson', () => {
+    mem.recordLesson({ toolName: 'grep', outcome: 'success', lesson: 'weaken-me', confidence: 0.6 });
+    mem.buildPromptBlock({ currentTask: 'anything' });
+    const before = mem.queryLessons({ toolName: 'grep' })[0].confidence;
+    const touched = mem.applySessionOutcome('weaken');
+    assert.strictEqual(touched, 1);
+    const after = mem.queryLessons({ toolName: 'grep' })[0].confidence;
+    assert.ok(after < before, `weaken must drop confidence (${before} -> ${after})`);
+  });
+
+  it('applySessionOutcome("neutral") drains surfacedIds but does not change confidence', () => {
+    mem.recordLesson({ toolName: 'edit_file', outcome: 'failure', lesson: 'neutral-me', confidence: 0.55 });
+    mem.buildPromptBlock({ currentTask: 'anything' });
+    assert.strictEqual(mem.getSurfacedIds().length, 1);
+    const before = mem.queryLessons({ toolName: 'edit_file' })[0].confidence;
+    const touched = mem.applySessionOutcome('neutral');
+    assert.strictEqual(touched, 0, 'neutral signal must not reinforce or weaken');
+    assert.deepStrictEqual(mem.getSurfacedIds(), [], 'neutral must still drain surfacedIds');
+    const after = mem.queryLessons({ toolName: 'edit_file' })[0].confidence;
+    assert.strictEqual(after, before, 'neutral signal must leave confidence exactly unchanged');
+  });
+
+  it('clearSurfacedIds drops any pending lesson IDs without touching confidence', () => {
+    mem.recordLesson({ toolName: 'browser', outcome: 'success', lesson: 'pending-surface', confidence: 0.5 });
+    mem.buildPromptBlock({ currentTask: 'anything' });
+    assert.strictEqual(mem.getSurfacedIds().length, 1);
+    const before = mem.queryLessons({ toolName: 'browser' })[0].confidence;
+    mem.clearSurfacedIds();
+    assert.deepStrictEqual(mem.getSurfacedIds(), []);
+    const touched = mem.applySessionOutcome('reinforce');
+    assert.strictEqual(touched, 0, 'nothing to apply after clear');
+    const after = mem.queryLessons({ toolName: 'browser' })[0].confidence;
+    assert.strictEqual(after, before, 'clearSurfacedIds must not change confidence');
+  });
+
   it('inactive memory returns safe defaults', () => {
     const inactive = new ExperientialMemory('/nonexistent/path/that/will/fail.db');
     assert.strictEqual(inactive.isActive, false);
