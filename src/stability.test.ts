@@ -1,8 +1,34 @@
-import { describe, it } from 'node:test';
+import { describe, it, before, after } from 'node:test';
 import * as assert from 'node:assert';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { Agent } from './agent';
 import { LLMProvider, Message, ToolSchema, StreamEvent } from './types';
 import { isRetryable, isFatalError, getRetryDelay, sleep, RETRY_DEFAULTS } from './retry';
+
+// ─── Test isolation ──────────────────────────────────────────────────────────
+// stability.test.ts runs real Agent instances against mock providers. The
+// agent's session-end path (recordSessionEpisode → recordEpisode) writes
+// episode JSON to ~/.codebot/episodes/ by default, which was polluting the
+// user's production memory on every test run (14 episodes per `npm test`,
+// verified 2026-04-22 against ~/.codebot/episodes leak). Isolate to a
+// tmp dir for the life of this test file.
+const _origCodebotHome = process.env.CODEBOT_HOME;
+let _stabilityTmpHome: string | undefined;
+
+before(() => {
+  _stabilityTmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-stability-home-'));
+  process.env.CODEBOT_HOME = _stabilityTmpHome;
+});
+
+after(() => {
+  if (_origCodebotHome === undefined) delete process.env.CODEBOT_HOME;
+  else process.env.CODEBOT_HOME = _origCodebotHome;
+  if (_stabilityTmpHome) {
+    try { fs.rmSync(_stabilityTmpHome, { recursive: true, force: true }); } catch { /* best effort */ }
+  }
+});
 
 // ─── Mock Providers ──────────────────────────────────────────────────────────
 
