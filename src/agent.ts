@@ -1,4 +1,5 @@
 import * as readline from 'readline';
+import * as path from 'path';
 import { Message, ToolCall, AgentEvent, LLMProvider, Tool } from './types';
 import { ToolRegistry } from './tools';
 import { parseToolCalls } from './parser';
@@ -1017,7 +1018,76 @@ export class Agent {
       }
     }
 
+    // 2026-04-23 hardening: graphics tool writes to agent-controlled
+    // output paths (svg, og_image, favicon, resize, convert, compress,
+    // crop, watermark, combine). Before this, none of those paths were
+    // gated through `fs_write` capability — so a graphics svg call with
+    // output=~/.ssh/authorized_keys would slip past the write-side
+    // blocklist that write_file/edit_file honor. Route every graphics
+    // write target through the same fs_write check.
+    if (toolName === 'graphics') {
+      for (const target of this.resolveGraphicsWritePaths(args)) {
+        const check = this.policyEnforcer.checkCapability(toolName, 'fs_write', target);
+        if (!check.allowed) return check.reason || 'Capability blocked';
+      }
+    }
+
     return null;
+  }
+
+  /**
+   * Resolve every filesystem path the graphics tool *might* write to,
+   * given its args. Keeps the capability check in lockstep with the
+   * graphics handlers in src/tools/graphics.ts: each write action either
+   * takes an explicit `output`, auto-derives one next to `input`, or
+   * (for favicon/og_image/combine) defaults into cwd. We cover all
+   * three so the check can't be bypassed by just omitting `output`.
+   */
+  private resolveGraphicsWritePaths(args: Record<string, unknown>): string[] {
+    const action = (args.action as string) || '';
+    const output = typeof args.output === 'string' ? args.output : '';
+    const input = typeof args.input === 'string' ? args.input : '';
+    const targets: string[] = [];
+
+    switch (action) {
+      // input-derived writes: output defaults to a sibling of input
+      case 'resize':
+      case 'convert':
+      case 'compress':
+      case 'crop':
+      case 'watermark':
+        if (output) targets.push(output);
+        else if (input) targets.push(input); // sibling path sits in the same dir
+        break;
+
+      // explicit output required
+      case 'svg':
+        if (output) targets.push(output);
+        break;
+
+      // favicon writes a set of files INTO a directory (output or dirname(input))
+      case 'favicon': {
+        const dir = output || (input ? path.dirname(input) : '');
+        if (dir) targets.push(dir);
+        break;
+      }
+
+      // og_image: output or ./og-image.svg
+      case 'og_image':
+        targets.push(output || path.join(process.cwd(), 'og-image.svg'));
+        break;
+
+      // combine: output or ./combined-<ts>.png
+      case 'combine':
+        targets.push(output || path.join(process.cwd(), 'combined.png'));
+        break;
+
+      // info: read-only, no capability check needed
+      default:
+        break;
+    }
+
+    return targets;
   }
 
   /** Track tool call with bounded growth */

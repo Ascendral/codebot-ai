@@ -305,3 +305,125 @@ describe('Agent', () => {
     assert.strictEqual(profile.getData().preferences.verbosity, 'concise');
   });
 });
+
+// ── 2026-04-23 sweep: graphics tool fs_write capability gating ──────────
+//
+// Before this fix, `checkToolCapabilities` only gated fs_write on
+// `write_file` / `edit_file` / `batch_edit`. The graphics tool writes to
+// an agent-controlled `output` path (svg / og_image / favicon / resize /
+// convert / compress / crop / watermark / combine) — none of which ran
+// through `policyEnforcer.checkCapability(..., 'fs_write', ...)`. A
+// graphics call with `output="../.ssh/authorized_keys"` would slip
+// straight past the write-side policy.
+//
+// These tests seed a `.codebot/policy.json` restricting graphics writes
+// to `./assets/**`, then exercise `agent.evaluateToolCall('graphics', …)`
+// with both allowed and disallowed output paths. evaluateToolCall is the
+// single source of truth the real tool-dispatch path and the dashboard
+// /tool/run endpoint both call into, so a pass here proves the gate
+// covers every entry point.
+describe('Agent.evaluateToolCall — graphics fs_write gating (2026-04-23)', () => {
+  function setupAgent(): { agent: Agent; projectRoot: string } {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-graphics-cap-'));
+    fs.mkdirSync(path.join(projectRoot, '.codebot'), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectRoot, '.codebot', 'policy.json'),
+      JSON.stringify({
+        tools: {
+          capabilities: {
+            graphics: { fs_write: ['./assets/**'] },
+          },
+        },
+      }),
+    );
+    // Pre-create the allowed dir and a sibling image so input-derived paths work
+    fs.mkdirSync(path.join(projectRoot, 'assets'), { recursive: true });
+    fs.writeFileSync(path.join(projectRoot, 'assets', 'source.png'), 'fake-png');
+
+    const agent = new Agent({
+      provider: new MockProvider([]),
+      model: 'mock-model',
+      autoApprove: true,
+      projectRoot,
+    });
+    return { agent, projectRoot };
+  }
+
+  it('allows graphics.svg when output is inside allowed glob', () => {
+    const { agent, projectRoot } = setupAgent();
+    const verdict = agent.evaluateToolCall('graphics', {
+      action: 'svg',
+      svg_type: 'icon',
+      output: path.join(projectRoot, 'assets', 'icon.svg'),
+      text: 'CB',
+    });
+    assert.strictEqual(verdict.allowed, true, `expected allowed, got: ${verdict.reason}`);
+  });
+
+  it('blocks graphics.svg when output escapes to a sensitive path', () => {
+    const { agent, projectRoot } = setupAgent();
+    const verdict = agent.evaluateToolCall('graphics', {
+      action: 'svg',
+      svg_type: 'icon',
+      output: path.join(projectRoot, '.env'),
+      text: 'CB',
+    });
+    assert.strictEqual(verdict.allowed, false);
+    assert.strictEqual(verdict.category, 'capability_block');
+    assert.match(verdict.reason || '', /fs_write/);
+  });
+
+  it('blocks graphics.og_image when output lands outside allowed glob', () => {
+    const { agent, projectRoot } = setupAgent();
+    const verdict = agent.evaluateToolCall('graphics', {
+      action: 'og_image',
+      title: 'Hi',
+      output: path.join(projectRoot, 'public', 'og.svg'),
+    });
+    assert.strictEqual(verdict.allowed, false);
+    assert.strictEqual(verdict.category, 'capability_block');
+  });
+
+  it('blocks graphics.favicon when output directory is outside allowed glob', () => {
+    const { agent, projectRoot } = setupAgent();
+    const verdict = agent.evaluateToolCall('graphics', {
+      action: 'favicon',
+      input: path.join(projectRoot, 'assets', 'source.png'),
+      output: path.join(projectRoot, 'dist'), // dist/ not in ./assets/**
+      sizes: '16,32',
+    });
+    assert.strictEqual(verdict.allowed, false);
+    assert.strictEqual(verdict.category, 'capability_block');
+  });
+
+  it('blocks graphics.resize when auto-derived output (from input) is outside allowed glob', () => {
+    // resize with no `output` writes to a sibling of `input`. The sibling
+    // path must still be checked — this is exactly the "omit output to
+    // bypass the gate" attack vector the fix closes.
+    const { agent, projectRoot } = setupAgent();
+    // Drop a source image OUTSIDE the allowed ./assets/** glob
+    const outsideDir = path.join(projectRoot, 'downloads');
+    fs.mkdirSync(outsideDir, { recursive: true });
+    const outsideInput = path.join(outsideDir, 'pic.png');
+    fs.writeFileSync(outsideInput, 'fake-png');
+
+    const verdict = agent.evaluateToolCall('graphics', {
+      action: 'resize',
+      input: outsideInput, // no output → sibling write lands in downloads/
+      width: 64,
+      height: 64,
+    });
+    assert.strictEqual(verdict.allowed, false);
+    assert.strictEqual(verdict.category, 'capability_block');
+  });
+
+  it('does not gate graphics.info (read-only action)', () => {
+    const { agent, projectRoot } = setupAgent();
+    const verdict = agent.evaluateToolCall('graphics', {
+      action: 'info',
+      input: path.join(projectRoot, 'assets', 'source.png'),
+    });
+    // No output path → no fs_write check at all
+    assert.strictEqual(verdict.allowed, true, `expected allowed for info, got: ${verdict.reason}`);
+  });
+});

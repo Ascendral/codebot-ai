@@ -142,8 +142,17 @@ export async function executeSingleTool(prep: PreparedCall, deps: ToolExecutorDe
       if (filePath) deps.cache.invalidate(filePath);
     }
 
-    // Audit log: check if tool returned a security block
-    if (output.startsWith('Error: Blocked:') || output.startsWith('Error: CWD')) {
+    // Audit log: check if tool returned a security block.
+    //
+    // 2026-04-23 hardening: earlier we only matched `Error: Blocked:` and
+    // `Error: CWD`, but write_file / edit_file / secret-guard return
+    // `Error: Blocked by policy — …` and `Error: Blocked — …` (em-dash).
+    // Those were silently audited as generic `error`, not `security_block`
+    // — so the security-blocks metric and any review querying the audit
+    // log by action would undercount real policy hits. Accept every
+    // `Error: Blocked` prefix so the classification matches what tools
+    // actually emit.
+    if (output.startsWith('Error: Blocked') || output.startsWith('Error: CWD')) {
       deps.auditLogger.log({ tool: toolName, action: 'security_block', args: prep.args, reason: output });
       deps.metricsCollector.increment('security_blocks_total', { tool: toolName, type: 'security' });
     }
