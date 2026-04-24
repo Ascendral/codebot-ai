@@ -27,6 +27,24 @@ export interface ToolResult {
   is_error?: boolean;
 }
 
+/**
+ * Optional callbacks for streaming-capable tools. Tools that implement
+ * `stream()` emit stdout/stderr chunks through these callbacks instead
+ * of buffering. Transport-agnostic by design — an HTTP/SSE bridge lives
+ * in the caller, not the tool.
+ */
+export interface ToolStreamEvents {
+  onStdout?: (text: string) => void;
+  onStderr?: (text: string) => void;
+}
+
+export interface ToolStreamResult {
+  exitCode: number;
+  stdoutTail: string;
+  stderrTail: string;
+  timedOut: boolean;
+}
+
 export interface Tool {
   name: string;
   description: string;
@@ -34,6 +52,17 @@ export interface Tool {
   permission: 'auto' | 'prompt' | 'always-ask';
   cacheable?: boolean;
   execute(args: Record<string, unknown>): Promise<string>;
+  /**
+   * Optional streaming entry point. Implementers MUST re-run the same
+   * preflight/validation as `execute()` inside `stream()` — the caller's
+   * gate chain runs first, but the tool must defend itself independently
+   * against the "gated, then walked around the fence" pattern.
+   */
+  stream?(
+    args: Record<string, unknown>,
+    events: ToolStreamEvents,
+    opts?: { timeoutMs?: number },
+  ): Promise<ToolStreamResult>;
 }
 
 export interface ProviderConfig {

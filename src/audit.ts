@@ -24,7 +24,23 @@ export interface AuditEntry {
   sessionId: string;
   sequence: number;
   tool: string;
-  action: 'execute' | 'deny' | 'error' | 'security_block' | 'policy_block' | 'capability_block' | 'constitutional_block';
+  action:
+    | 'execute'
+    | 'deny'
+    | 'error'
+    | 'security_block'
+    | 'policy_block'
+    | 'capability_block'
+    | 'constitutional_block'
+    // Streaming-exec actions (dashboard terminal). exec_start is the
+    // allow evidence written after the gate chain passes; _prepareToolCall
+    // does not audit allows, so without this the streaming path would
+    // leave no positive trail. exec_complete records exitCode + 512-byte
+    // tails. exec_error records tool-level refusals (sandbox_required,
+    // spawn_error, etc.).
+    | 'exec_start'
+    | 'exec_complete'
+    | 'exec_error';
   args: Record<string, unknown>;
   result?: string;
   reason?: string;

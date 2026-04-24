@@ -1,5 +1,5 @@
 import * as readline from 'readline';
-import { Message, ToolCall, AgentEvent, LLMProvider, Tool } from './types';
+import { Message, ToolCall, AgentEvent, LLMProvider, Tool, ToolStreamEvents } from './types';
 import { ToolRegistry } from './tools';
 import { parseToolCalls } from './parser';
 import { ContextManager } from './context/manager';
@@ -883,6 +883,119 @@ export class Agent {
       blocked: false,
       durationMs: output.durationMs,
     };
+  }
+
+  /**
+   * Streaming single-tool entry point for non-LLM callers (dashboard
+   * SSE, IPC, scripts). Runs the full gate chain via `_prepareToolCall`,
+   * then — if allowed — invokes the tool's `stream()` method. Tools
+   * without `stream()` are rejected (only `execute` implements it today).
+   *
+   * Audit semantics — `_prepareToolCall` writes entries only for
+   * BLOCKS (policy/constitutional/capability/permission), not for
+   * allows. So `runStreamingTool` writes `exec_start` after the gate
+   * passes (the allow evidence), then `exec_complete` on process close
+   * with the 512-byte tails, or `exec_error` if `stream()` throws.
+   *
+   * Tail size is fixed at 512 bytes per stream inside the tool; never
+   * logs full output.
+   */
+  async runStreamingTool(
+    toolName: string,
+    args: Record<string, unknown>,
+    events: ToolStreamEvents,
+    opts: { interactivePrompt?: boolean; streamTimeoutMs?: number } = {},
+  ): Promise<
+    | { blocked: true; reason: string; errorCode?: string }
+    | { blocked: false; error: true; errorCode: string; reason: string }
+    | { blocked: false; error: false; exitCode: number; stdoutTail: string; stderrTail: string; timedOut: boolean }
+  > {
+    const { prepared } = await this._prepareToolCall(
+      toolName,
+      args ?? {},
+      { interactivePrompt: opts.interactivePrompt ?? false },
+    );
+
+    if (prepared.error) {
+      if (prepared.denied) {
+        return { blocked: true, reason: prepared.error };
+      }
+      return {
+        blocked: false,
+        error: true,
+        errorCode: 'gate_error',
+        reason: prepared.error,
+      };
+    }
+    if (prepared.denied) {
+      return { blocked: true, reason: 'Denied by policy / CORD / SPARK / permission gate' };
+    }
+
+    const tool = prepared.tool;
+    if (typeof tool.stream !== 'function') {
+      return {
+        blocked: false,
+        error: true,
+        errorCode: 'not_streamable',
+        reason: `Tool "${toolName}" does not support streaming execution.`,
+      };
+    }
+
+    // Fine-grained capability check — the buffered path runs this
+    // inside executeSingleTool() (src/agent/tool-executor.ts:79), but
+    // `_prepareToolCall` does NOT. Without this call, a policy like
+    //   tools.capabilities.execute.shell_commands: ['npm']
+    // would block `npm install` via the buffered tool runner but let
+    // `git status` stream through /api/command/exec unchecked. Mirror
+    // the exact contract: audit `capability_block`, bump the same
+    // metric tag the buffered path uses, return a blocked outcome.
+    const capBlock = this.checkToolCapabilities(toolName, args);
+    if (capBlock) {
+      this.auditLogger.log({ tool: toolName, action: 'capability_block', args, reason: capBlock });
+      this.metricsCollector.increment('security_blocks_total', { tool: toolName, type: 'capability' });
+      return { blocked: true, reason: capBlock, errorCode: 'capability_block' };
+    }
+
+    // Allow evidence — `_prepareToolCall` doesn't audit allows, so we
+    // write exec_start here. This is the authoritative record that the
+    // gate chain approved this specific args payload for streaming.
+    this.auditLogger.log({
+      tool: toolName,
+      action: 'exec_start',
+      args,
+      reason: 'streaming execution approved by gate chain',
+    });
+
+    const startedAt = Date.now();
+    try {
+      const result = await tool.stream(args, events, { timeoutMs: opts.streamTimeoutMs });
+      this.auditLogger.log({
+        tool: toolName,
+        action: 'exec_complete',
+        args,
+        result: `exit:${result.exitCode}${result.timedOut ? ' timed_out' : ''}`,
+        reason: `stdout_tail=${JSON.stringify(result.stdoutTail)} stderr_tail=${JSON.stringify(result.stderrTail)} duration_ms=${Date.now() - startedAt}`,
+      });
+      return {
+        blocked: false,
+        error: false,
+        exitCode: result.exitCode,
+        stdoutTail: result.stdoutTail,
+        stderrTail: result.stderrTail,
+        timedOut: result.timedOut,
+      };
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string };
+      const code = e.code || 'stream_error';
+      const reason = e.message || 'streaming exec failed';
+      this.auditLogger.log({
+        tool: toolName,
+        action: 'exec_error',
+        args,
+        reason: `code=${code} message=${reason} duration_ms=${Date.now() - startedAt}`,
+      });
+      return { blocked: false, error: true, errorCode: code, reason };
+    }
   }
 
   /** Get the policy enforcer for inspection */

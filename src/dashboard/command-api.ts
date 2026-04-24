@@ -36,13 +36,18 @@ function filteredEnv(): NodeJS.ProcessEnv {
   return env;
 }
 
-/** Spawn a shell command and stream stdout/stderr as SSE events */
+/**
+ * Spawn a shell command and stream stdout/stderr as SSE events.
+ * `headersAlreadySent` lets the caller write headers + an init event
+ * first, then invoke this without double-writing status/headers.
+ */
 function execAndStream(
   res: http.ServerResponse,
   command: string,
   cwd?: string,
+  headersAlreadySent = false,
 ): void {
-  DashboardServer.sseHeaders(res);
+  if (!headersAlreadySent) DashboardServer.sseHeaders(res);
 
   let closed = false;
   const child = spawn('sh', ['-c', command], {
@@ -523,7 +528,17 @@ export function registerCommandRoutes(
     execAndStream(res, actionDef.command);
   });
 
-  // ── POST /api/command/exec (always works) ──
+  // ── POST /api/command/exec ──
+  //
+  // Agent-backed mode (default): routes through Agent.runStreamingTool
+  // → ExecuteTool.stream, replaying the full gate chain (policy, risk,
+  // CORD, SPARK, capability, permission) AND the tool's own preflight
+  // (BLOCKED_PATTERNS, cwd containment, sandbox decision). Writes
+  // exec_start / exec_complete / exec_error audit entries.
+  //
+  // Standalone mode (agent=null): keeps the pre-2026-04-24 behavior —
+  // inline regex check + direct spawn. The SSE init event advertises
+  // `{ mode: 'standalone', guarded: false }` so clients can warn.
   server.route('POST', '/api/command/exec', async (req, res) => {
     let body: { command?: string; cwd?: string };
     try {
@@ -538,14 +553,82 @@ export function registerCommandRoutes(
       return;
     }
 
+    // Belt-and-suspenders: keep the inline regex pre-check even in
+    // agent-backed mode. The tool-level preflight re-checks the same
+    // patterns, but this guarantees a 403 before any SSE headers go
+    // out for the obvious bad cases, and keeps the standalone path
+    // working unchanged if the agent is unavailable.
+    //
+    // Audit honesty: when the agent is attached, log the block through
+    // the agent's audit logger so the claim "dangerous command blocked
+    // and audited" is actually true on this code path. If the request
+    // never reaches `runStreamingTool`, nothing downstream will ever
+    // write that entry for us. Standalone mode has no audit logger —
+    // that is a known gap and is exactly what `guarded:false` warns
+    // about in the init event.
     for (const pattern of BLOCKED_PATTERNS) {
       if (pattern.test(body.command)) {
+        if (agent) {
+          agent.getAuditLogger().log({
+            tool: 'execute',
+            action: 'policy_block',
+            args: { command: body.command, ...(typeof body.cwd === 'string' ? { cwd: body.cwd } : {}) },
+            reason: 'inline BLOCKED_PATTERNS pre-check (dashboard /api/command/exec)',
+          });
+        }
         DashboardServer.error(res, 403, 'Blocked: dangerous command pattern detected');
         return;
       }
     }
 
-    execAndStream(res, body.command, body.cwd);
+    if (!agent) {
+      DashboardServer.sseHeaders(res);
+      DashboardServer.sseSend(res, { type: 'init', mode: 'standalone', guarded: false });
+      execAndStream(res, body.command, body.cwd, /* headersAlreadySent */ true);
+      return;
+    }
+
+    DashboardServer.sseHeaders(res);
+    DashboardServer.sseSend(res, { type: 'init', mode: 'agent', guarded: true });
+
+    // Schema validator rejects `cwd: undefined` (expected string), so
+    // only include cwd in args when the caller actually supplied one.
+    // The tool defaults to projectRoot when cwd is absent.
+    const streamArgs: Record<string, unknown> = { command: body.command };
+    if (typeof body.cwd === 'string' && body.cwd.length > 0) {
+      streamArgs.cwd = body.cwd;
+    }
+
+    const outcome = await agent.runStreamingTool(
+      'execute',
+      streamArgs,
+      {
+        onStdout: (text) => DashboardServer.sseSend(res, { type: 'stdout', text }),
+        onStderr: (text) => DashboardServer.sseSend(res, { type: 'stderr', text }),
+      },
+      { interactivePrompt: false, streamTimeoutMs: 30_000 },
+    );
+
+    if (outcome.blocked) {
+      DashboardServer.sseSend(res, { type: 'blocked', reason: outcome.reason });
+      DashboardServer.sseClose(res);
+      return;
+    }
+    if (outcome.error) {
+      // Map tool-level refusals to structured SSE events. The client
+      // currently renders these as a red line in the terminal UI.
+      const httpCode = outcome.errorCode === 'sandbox_required' ? 501 : 500;
+      DashboardServer.sseSend(res, {
+        type: 'error',
+        code: httpCode,
+        errorCode: outcome.errorCode,
+        reason: outcome.reason,
+      });
+      DashboardServer.sseClose(res);
+      return;
+    }
+    DashboardServer.sseSend(res, { type: 'exit', code: outcome.exitCode });
+    DashboardServer.sseClose(res);
   });
 
 
