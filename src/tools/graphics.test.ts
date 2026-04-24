@@ -3,23 +3,25 @@ import * as assert from 'node:assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { GraphicsTool, __resetMagickCache } from './graphics';
+import { GraphicsTool, __resetMagickCache, __setMagickFlavorForTest } from './graphics';
 
 /**
- * GraphicsTool — injection, containment, and validation tests (Row 12).
+ * GraphicsTool — injection, containment, validation, and flavor-aware
+ * planning tests (Row 12).
  *
  * Pre-fix, every exec sink used execSync(string) with user-supplied paths,
  * format, numeric dimensions, and watermark text pasted straight in. A
  * malicious `output = 'x"; touch /tmp/pwned; echo "'` broke out of the
  * quote and executed the second branch.
  *
- * These tests pin the argv-based fix:
- *   - buildMagickPlan() returns argv as a real array; filter/text/path are
- *     single elements, never pre-quoted shell fragments
- *   - containment rejects anything outside process.cwd()
- *   - invalid hex colors return errors (no silent fallback)
- *   - numeric validation catches non-finite / string / negative inputs
- *   - canary real-exec tests assert no marker file ever materializes
+ * These tests pin the argv-based fix plus two post-review patches:
+ *   P2 — plans carry a `command` field. `info` and `combine grid` dispatch
+ *        `identify` / `montage` as their own binaries on ImageMagick v6
+ *        and via `magick <subcmd>` on v7. Pre-patch, v6 hosts silently
+ *        ran `convert identify -verbose <file>`.
+ *   P3 — numeric fields require `typeof v === 'number'`. Strings are
+ *        rejected. Favicon `sizes` is a deliberately-string field and
+ *        uses a separate digits-only parser.
  */
 
 describe('GraphicsTool — metadata', () => {
@@ -41,7 +43,7 @@ describe('GraphicsTool — metadata', () => {
 
 /**
  * Argv-shape tests. We call buildMagickPlan() directly — it returns the
- * planned (backend, argv) without executing. If anyone reverts to string
+ * planned (command, argv) without executing. If anyone reverts to string
  * interpolation, these fail loudly.
  */
 describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
@@ -70,35 +72,62 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
     assert.ok(!('error' in plan), `expected plan, got: ${'error' in plan ? plan.error : ''}`);
     if ('error' in plan) return;
 
-    // argv must be an array of discrete elements. No '"' in any element.
     for (const el of plan.argv) {
       assert.ok(!el.includes('"'), `argv element should have no embedded quote: ${el}`);
     }
     if (plan.backend === 'magick') {
+      // command is 'magick' (v7) or 'convert' (v6). argv shape is identical.
+      assert.ok(['magick', 'convert'].includes(plan.command),
+        `expected magick or convert, got ${plan.command}`);
       assert.deepStrictEqual(plan.argv, [
         path.resolve(workDir, 'in.png'),
         '-resize', '100x50!',
         path.resolve(workDir, 'out.png'),
       ]);
     } else {
-      // sips fallback on darwin when magick is absent — still argv-shaped.
-      assert.strictEqual(plan.argv[0], '-z');
-      assert.strictEqual(plan.argv[1], '50');
-      assert.strictEqual(plan.argv[2], '100');
-      assert.strictEqual(plan.argv[3], path.resolve(workDir, 'out.png'));
+      assert.strictEqual(plan.command, 'sips');
+      assert.deepStrictEqual(plan.argv, [
+        '-z', '50', '100', path.resolve(workDir, 'out.png'),
+      ]);
     }
   });
 
-  it('resize: rejects string "100; rm -rf ~" as width', () => {
+  it('resize: rejects string "100; rm -rf ~" as width (not a number)', () => {
     const tool = new GraphicsTool();
     const plan = tool.buildMagickPlan('resize',
       { action: 'resize', input: 'in.png', width: '100; rm -rf ~', output: 'out.png' },
       workDir,
     );
     assert.ok('error' in plan);
-    if ('error' in plan) {
-      assert.match(plan.error, /width must be a finite integer/);
-    }
+    if ('error' in plan) assert.match(plan.error, /width must be a number/);
+  });
+
+  it('resize: rejects string "100" as width (P3: strict number, no coercion)', () => {
+    const tool = new GraphicsTool();
+    const plan = tool.buildMagickPlan('resize',
+      { action: 'resize', input: 'in.png', width: '100', height: 50 },
+      workDir,
+    );
+    assert.ok('error' in plan, 'string "100" must be rejected even though it parses to 100');
+    if ('error' in plan) assert.match(plan.error, /width must be a number/);
+  });
+
+  it('resize: rejects "1e3" as width (P3: no exponential coercion)', () => {
+    const tool = new GraphicsTool();
+    const plan = tool.buildMagickPlan('resize',
+      { action: 'resize', input: 'in.png', width: '1e3', height: 50 },
+      workDir,
+    );
+    assert.ok('error' in plan);
+  });
+
+  it('resize: rejects non-integer number as width', () => {
+    const tool = new GraphicsTool();
+    const plan = tool.buildMagickPlan('resize',
+      { action: 'resize', input: 'in.png', width: 100.5, height: 50 },
+      workDir,
+    );
+    assert.ok('error' in plan);
   });
 
   it('resize: rejects output that escapes cwd', () => {
@@ -108,14 +137,10 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
       workDir,
     );
     assert.ok('error' in plan);
-    if ('error' in plan) {
-      assert.match(plan.error, /output escapes project root/);
-    }
+    if ('error' in plan) assert.match(plan.error, /output escapes project root/);
   });
 
   it('resize: rejects sibling-prefix output (not true containment)', () => {
-    // Classic startsWith bug: workDir + '-evil' shares a prefix but is a
-    // different directory. path.relative catches it.
     const tool = new GraphicsTool();
     const sibling = workDir + '-evil';
     const plan = tool.buildMagickPlan('resize',
@@ -123,9 +148,7 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
       workDir,
     );
     assert.ok('error' in plan, 'sibling-prefix must be rejected');
-    if ('error' in plan) {
-      assert.match(plan.error, /output escapes project root/);
-    }
+    if ('error' in plan) assert.match(plan.error, /output escapes project root/);
   });
 
   it('watermark: text is one argv element, never pre-quoted', () => {
@@ -136,17 +159,13 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
       workDir,
     );
     if ('error' in plan) {
-      // If magick isn't installed, watermark refuses. That's fine — skip.
       assert.match(plan.error, /ImageMagick not found|input|text/);
       return;
     }
-    // The exact malicious string must appear as ONE argv element, unmodified.
     assert.ok(plan.argv.includes(payload),
       `text must be its own argv element; got argv: ${JSON.stringify(plan.argv)}`);
-    // No element should contain the shell-injection continuation.
     assert.ok(!plan.argv.some(a => a.startsWith('-annotate +') && a.includes(';')),
       'text must NOT be pre-joined into a flag argument');
-    // -annotate must be its own element, followed by '+10+10', then the text.
     const annotateIdx = plan.argv.indexOf('-annotate');
     assert.ok(annotateIdx >= 0);
     assert.strictEqual(plan.argv[annotateIdx + 1], '+10+10');
@@ -170,7 +189,6 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
         path.resolve(workDir, 'cr-out.png'),
       ]);
     } else {
-      // sips: -c H W --cropOffset Y X out
       assert.deepStrictEqual(plan.argv, [
         '-c', '50', '100',
         '--cropOffset', '20', '10',
@@ -186,7 +204,7 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
       workDir,
     );
     assert.ok('error' in plan);
-    if ('error' in plan) assert.match(plan.error, /width must be a finite integer/);
+    if ('error' in plan) assert.match(plan.error, /width must be a number/);
   });
 
   it('convert: rejects malicious format string', () => {
@@ -221,26 +239,6 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
     if ('error' in plan) assert.match(plan.error, /input escapes project root/);
   });
 
-  it('info: argv uses identify -verbose, no shell pipe', () => {
-    const tool = new GraphicsTool();
-    fs.writeFileSync(path.join(workDir, 'it.png'), 'x');
-    const plan = tool.buildMagickPlan('info',
-      { action: 'info', input: 'it.png' },
-      workDir,
-    );
-    if ('error' in plan) {
-      // No magick AND not darwin — tool returns an error. Acceptable.
-      assert.match(plan.error, /no image introspection tool/);
-      return;
-    }
-    if (plan.backend === 'magick') {
-      assert.deepStrictEqual(plan.argv, ['identify', '-verbose', path.resolve(workDir, 'it.png')]);
-    }
-    // No element should contain a shell pipe.
-    assert.ok(!plan.argv.some(a => a.includes('|')),
-      `info argv must not contain shell pipes; got ${JSON.stringify(plan.argv)}`);
-  });
-
   it('combine: every comma-split input is resolved and contained', () => {
     const tool = new GraphicsTool();
     fs.writeFileSync(path.join(workDir, 'a.png'), 'x');
@@ -250,11 +248,10 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
       workDir,
     );
     if ('error' in plan) {
-      // magick missing — skip argv-shape assertion, just ensure the error
-      // is the 'no magick' message, not an injection.
       assert.match(plan.error, /ImageMagick not found/);
       return;
     }
+    assert.ok(['magick', 'convert'].includes(plan.command));
     assert.deepStrictEqual(plan.argv, [
       path.resolve(workDir, 'a.png'),
       path.resolve(workDir, 'b.png'),
@@ -272,8 +269,6 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
     );
     assert.ok('error' in plan);
     if ('error' in plan) {
-      // Either "input escapes" OR "magick not found" is acceptable — both
-      // mean no exec happens. Prefer the containment message.
       assert.ok(
         /input escapes project root|ImageMagick not found/.test(plan.error),
         `expected containment or no-magick error, got: ${plan.error}`,
@@ -283,9 +278,161 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
 });
 
 /**
+ * P2 — flavor-aware planning. Under ImageMagick v7, `info` dispatches via
+ * `magick identify …` and `combine grid` via `magick montage …`. Under
+ * v6, those are their own binaries — plans must carry `command:
+ * 'identify'` / `command: 'montage'` directly.
+ *
+ * Pre-patch, on a v6 host (only `convert`, `identify`, `montage` installed,
+ * no `magick`), the runner executed `convert identify -verbose <file>` —
+ * silently broken because `convert` doesn't dispatch subcommands.
+ */
+describe('GraphicsTool — flavor-aware planning (P2)', () => {
+  let workDir: string;
+  let originalCwd: string;
+
+  before(() => {
+    originalCwd = process.cwd();
+    workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-row12-flavor-'));
+    process.chdir(workDir);
+    fs.writeFileSync(path.join(workDir, 'f.png'), 'x');
+    fs.writeFileSync(path.join(workDir, 'a.png'), 'x');
+    fs.writeFileSync(path.join(workDir, 'b.png'), 'x');
+  });
+
+  after(() => {
+    __setMagickFlavorForTest(null);
+    process.chdir(originalCwd);
+    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+  });
+
+  it('planInfo under v7: command="magick", argv starts with "identify"', () => {
+    __setMagickFlavorForTest('v7');
+    const tool = new GraphicsTool();
+    const plan = tool.buildMagickPlan('info',
+      { action: 'info', input: 'f.png' }, workDir);
+    assert.ok(!('error' in plan));
+    if ('error' in plan) return;
+    assert.strictEqual(plan.command, 'magick');
+    assert.deepStrictEqual(plan.argv, ['identify', '-verbose', path.resolve(workDir, 'f.png')]);
+  });
+
+  it('planInfo under v6: command="identify" directly (not "convert identify")', () => {
+    __setMagickFlavorForTest('v6');
+    const tool = new GraphicsTool();
+    const plan = tool.buildMagickPlan('info',
+      { action: 'info', input: 'f.png' }, workDir);
+    assert.ok(!('error' in plan));
+    if ('error' in plan) return;
+    // This is the P2 fix. Pre-patch, command would have been 'convert' and
+    // argv[0] would have been 'identify' — which breaks on v6 hosts.
+    assert.strictEqual(plan.command, 'identify',
+      'under v6, info MUST exec identify directly, not convert');
+    assert.deepStrictEqual(plan.argv, ['-verbose', path.resolve(workDir, 'f.png')]);
+  });
+
+  it('planCombine grid under v7: command="magick", argv starts with "montage"', () => {
+    __setMagickFlavorForTest('v7');
+    const tool = new GraphicsTool();
+    const plan = tool.buildMagickPlan('combine',
+      { action: 'combine', inputs: 'a.png,b.png', direction: 'grid', output: 'g.png' },
+      workDir);
+    assert.ok(!('error' in plan));
+    if ('error' in plan) return;
+    assert.strictEqual(plan.command, 'magick');
+    assert.strictEqual(plan.argv[0], 'montage');
+  });
+
+  it('planCombine grid under v6: command="montage" directly', () => {
+    __setMagickFlavorForTest('v6');
+    const tool = new GraphicsTool();
+    const plan = tool.buildMagickPlan('combine',
+      { action: 'combine', inputs: 'a.png,b.png', direction: 'grid', output: 'g.png' },
+      workDir);
+    assert.ok(!('error' in plan));
+    if ('error' in plan) return;
+    assert.strictEqual(plan.command, 'montage',
+      'under v6, combine grid MUST exec montage directly');
+    assert.notStrictEqual(plan.argv[0], 'montage',
+      'argv must NOT double-prefix montage when command is already montage');
+  });
+
+  it('planCombine horizontal under v6: command="convert", argv has no subcommand prefix', () => {
+    __setMagickFlavorForTest('v6');
+    const tool = new GraphicsTool();
+    const plan = tool.buildMagickPlan('combine',
+      { action: 'combine', inputs: 'a.png,b.png', direction: 'horizontal', output: 'h.png' },
+      workDir);
+    assert.ok(!('error' in plan));
+    if ('error' in plan) return;
+    assert.strictEqual(plan.command, 'convert');
+    assert.deepStrictEqual(plan.argv, [
+      path.resolve(workDir, 'a.png'),
+      path.resolve(workDir, 'b.png'),
+      '+append',
+      path.resolve(workDir, 'h.png'),
+    ]);
+  });
+
+  it('planResize under v7 uses command="magick"; under v6 uses "convert"', () => {
+    const tool = new GraphicsTool();
+
+    __setMagickFlavorForTest('v7');
+    let plan = tool.buildMagickPlan('resize',
+      { action: 'resize', input: 'f.png', width: 32, output: 'o.png' }, workDir);
+    assert.ok(!('error' in plan));
+    if (!('error' in plan)) assert.strictEqual(plan.command, 'magick');
+
+    __setMagickFlavorForTest('v6');
+    plan = tool.buildMagickPlan('resize',
+      { action: 'resize', input: 'f.png', width: 32, output: 'o.png' }, workDir);
+    assert.ok(!('error' in plan));
+    if (!('error' in plan)) assert.strictEqual(plan.command, 'convert');
+  });
+});
+
+/**
+ * Favicon sizes uses a separate string-to-int parser on purpose — that
+ * field is comma-separated by design. Make sure the parser still rejects
+ * anything that isn't pure digits.
+ */
+describe('GraphicsTool — favicon sizes parser (P3 carve-out)', () => {
+  let workDir: string;
+  let originalCwd: string;
+
+  before(() => {
+    originalCwd = process.cwd();
+    workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-row12-sizes-'));
+    process.chdir(workDir);
+  });
+
+  after(() => {
+    process.chdir(originalCwd);
+    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+  });
+
+  it('rejects a non-digit token in sizes', async () => {
+    const tool = new GraphicsTool();
+    fs.writeFileSync(path.join(workDir, 'src.png'), 'x');
+    const result = await tool.execute({
+      action: 'favicon', input: 'src.png', sizes: '16,32,bad',
+    });
+    assert.match(result, /sizes entry "bad" must be a positive integer/);
+  });
+
+  it('rejects "16; ls" injection attempt in sizes', async () => {
+    const tool = new GraphicsTool();
+    fs.writeFileSync(path.join(workDir, 'src.png'), 'x');
+    const result = await tool.execute({
+      action: 'favicon', input: 'src.png', sizes: '16; ls',
+    });
+    assert.match(result, /sizes entry .* must be a positive integer/);
+  });
+});
+
+/**
  * Color/svg validation: hostile hex colors must be rejected, not silently
- * replaced. Silent fallback hides hostile input in what looks like a
- * normal SVG — we want a clear error surface.
+ * replaced.
  */
 describe('GraphicsTool — color/text validation (svg + og_image)', () => {
   let workDir: string;
@@ -383,8 +530,6 @@ describe('GraphicsTool — shell-injection canaries (real exec)', () => {
     originalCwd = process.cwd();
     workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-row12-canary-'));
     process.chdir(workDir);
-    // Write a non-empty file where the tool expects a real image. Magick
-    // will error on the content; we don't care — only about the shell.
     fs.writeFileSync(path.join(workDir, 'in.png'), 'not-a-real-png');
   });
 
@@ -454,9 +599,6 @@ describe('GraphicsTool — shell-injection canaries (real exec)', () => {
   it('convert/format: shell metacharacters in format are NEVER interpreted', async () => {
     const marker = path.join(workDir, 'PWNED_CONVERT');
     const tool = new GraphicsTool();
-    // Even if this reaches sips on macOS, the format is validated against
-    // a whitelist before any exec, so it should bounce with the format
-    // error. The canary asserts no shell ran.
     await tool.execute({
       action: 'convert',
       input: 'in.png',
@@ -473,8 +615,7 @@ describe('GraphicsTool — shell-injection canaries (real exec)', () => {
 
 /**
  * Happy-path regression: the non-exec actions (svg, og_image) still work
- * end-to-end. These mirror the previous test file so we know we didn't
- * break legitimate usage.
+ * end-to-end.
  */
 describe('GraphicsTool — happy-path regression', () => {
   let workDir: string;
@@ -566,7 +707,6 @@ describe('GraphicsTool — happy-path regression', () => {
 
   it('info: missing file returns a clean error, no exec', async () => {
     const tool = new GraphicsTool();
-    // Path is inside cwd but doesn't exist — containment passes, exists check fails.
     const result = await tool.execute({ action: 'info', input: 'missing.png' });
     assert.match(result, /file not found|no image introspection tool/);
   });

@@ -13,13 +13,19 @@
  * agent-supplied inputs (paths, text, format, numeric dimensions) pasted
  * straight into the string. That routes through `sh -c` on Unix and
  * `cmd.exe /c` on Windows. A malicious `output = 'x"; touch /tmp/pwned; echo "'`
- * broke out of the quote and executed the `touch` branch. Same bug class
- * as Rows 9, 10 and 12. Agent reached it with a single `prompt`-tier
- * approval — a one-click RCE primitive.
+ * broke out of the quote and executed the `touch` branch.
  *
  * This file now:
  *   - Uses `execFileSync(cmd, argv)`. No shell involved.
- *   - Validates numeric dimensions, colors, and format against whitelists.
+ *   - Uses a plan shape `{ command, argv }` that names the actual binary to
+ *     exec. Handles ImageMagick v7 (`magick <subcmd>`) and v6
+ *     (`identify`, `montage`) correctly — pre-patch, info/combine-grid
+ *     silently invoked `convert identify …` on v6 hosts.
+ *   - Strict numeric validation — `typeof v === 'number'` is required for
+ *     width/height/quality/x/y. No implicit string-to-number coercion.
+ *     Favicon `sizes` is intentionally a string field and uses a separate
+ *     digits-only parser.
+ *   - Validates colors / format against whitelists.
  *   - Contains every input/output/derived path under `process.cwd()` using
  *     `path.relative` (sibling-prefix safe).
  *   - Exposes `buildMagickPlan()` — a pure seam that returns the planned
@@ -70,14 +76,34 @@ function resolveInside(root: string, p: string, label: string):
 // ─── Validators ─────────────────────────────────────────────────────────────
 
 /**
- * Validate a value is a finite non-negative integer. TypeScript's `as number`
- * cast is erased at runtime — the agent can still send a string. Guard here.
+ * Strict numeric validator. The agent can send anything the JSON schema
+ * says is a number — but wire-format JSON strings still reach us as
+ * strings at the TS level (`as number` is erased). Reject non-numbers
+ * outright. Favicon `sizes` is a string field by design; it uses
+ * `parseSizeToken` below.
  */
 function validateInt(v: unknown, name: string, min = 0, max = 100_000):
   { n: number } | { error: string } {
-  const n = typeof v === 'number' ? v : Number(v);
+  if (typeof v !== 'number' || !Number.isFinite(v) || !Number.isInteger(v) || v < min || v > max) {
+    return { error: `Error: ${name} must be a number (integer in [${min}, ${max}])` };
+  }
+  return { n: v };
+}
+
+/**
+ * Parse a single token from a comma-separated sizes string. Accepts only
+ * decimal digits — no '1e3', no '0x10', no '100; ls'. Kept separate from
+ * validateInt() because `sizes` is intentionally a string parameter.
+ */
+function parseSizeToken(raw: string, min = 1, max = 2048):
+  { n: number } | { error: string } {
+  const s = raw.trim();
+  if (!/^\d+$/.test(s)) {
+    return { error: `Error: sizes entry "${raw}" must be a positive integer` };
+  }
+  const n = Number(s);
   if (!Number.isFinite(n) || !Number.isInteger(n) || n < min || n > max) {
-    return { error: `Error: ${name} must be a finite integer in [${min}, ${max}]` };
+    return { error: `Error: sizes entry "${raw}" must be an integer in [${min}, ${max}]` };
   }
   return { n };
 }
@@ -106,65 +132,85 @@ function validateHexColor(v: unknown, name: string):
 }
 
 // ─── ImageMagick probe (cached) ─────────────────────────────────────────────
+//
+// Flavors:
+//   'v7'  — `magick` binary present. Use `magick` for convert-style ops and
+//           `magick identify` / `magick montage` for subcommands.
+//   'v6'  — legacy `convert`, `identify`, `montage` as separate binaries.
+//   null  — no ImageMagick. Fall back to sips where possible.
+//
+// Pre-patch bug: the old code called `convert identify -verbose …` on v6
+// hosts because plans carried only argv and the runner re-used the
+// convert-style command. Plans now carry the actual executable.
 
-/**
- * Probe once, cache forever. Expanding the probe into every action call
- * would make the tool flaky and slow. A process-lifetime cache is fine
- * because the binary state doesn't change mid-run.
- */
-let _magickCache: { present: boolean; cmd: 'magick' | 'convert' | null } | null = null;
+type MagickFlavor = 'v7' | 'v6' | null;
 
-function probeMagick(): { present: boolean; cmd: 'magick' | 'convert' | null } {
+let _magickCache: { flavor: MagickFlavor } | null = null;
+
+function probeMagick(): { flavor: MagickFlavor } {
   if (_magickCache !== null) return _magickCache;
   try {
     execFileSync('magick', ['--version'], { stdio: 'pipe', timeout: 5_000 });
-    _magickCache = { present: true, cmd: 'magick' };
+    _magickCache = { flavor: 'v7' };
     return _magickCache;
   } catch { /* fall through */ }
   try {
     execFileSync('convert', ['--version'], { stdio: 'pipe', timeout: 5_000 });
-    _magickCache = { present: true, cmd: 'convert' };
+    _magickCache = { flavor: 'v6' };
     return _magickCache;
   } catch { /* fall through */ }
-  _magickCache = { present: false, cmd: null };
+  _magickCache = { flavor: null };
   return _magickCache;
 }
 
-function hasMagick(): boolean { return probeMagick().present; }
-function magickCmd(): string { return probeMagick().cmd ?? 'magick'; }
+function hasMagick(): boolean { return probeMagick().flavor !== null; }
+
+/** The convert-style command: `magick` on v7, `convert` on v6. */
+function magickConvertCmd(): string {
+  return probeMagick().flavor === 'v7' ? 'magick' : 'convert';
+}
+
+/**
+ * Build the leading tokens for a magick subcommand (identify, montage).
+ * On v7 this is `magick <sub> …`. On v6 the subcommand is its own binary.
+ * Returned as `{ command, prefix }` so plans can splat prefix into argv.
+ */
+function magickSubcommand(sub: 'identify' | 'montage'):
+  { command: string; prefix: string[] } {
+  if (probeMagick().flavor === 'v7') return { command: 'magick', prefix: [sub] };
+  return { command: sub, prefix: [] };
+}
 
 /** Reset the magick probe cache. Exposed for tests only. */
 export function __resetMagickCache(): void { _magickCache = null; }
 
+/**
+ * Test-only: override the magick probe result. Lets tests exercise v7 and
+ * v6 planning branches without depending on what's installed on the host.
+ * Pass `null` to clear and let the real probe run next time.
+ */
+export function __setMagickFlavorForTest(flavor: MagickFlavor): void {
+  if (flavor === null) { _magickCache = null; return; }
+  _magickCache = { flavor };
+}
+
 // ─── Exec helpers ───────────────────────────────────────────────────────────
 
 /**
- * Run magick/convert with an argv array. No shell. Metacharacters inside
- * argv elements stay literal.
+ * Execute a planned command. Plan's `command` names the actual executable
+ * (e.g. 'magick', 'convert', 'identify', 'montage'). No shell involved;
+ * metacharacters inside argv stay literal.
  */
-function runMagickArgv(argv: string[]): string {
+function runPlan(command: string, argv: string[], label: 'magick' | 'sips'): string {
   try {
-    return execFileSync(magickCmd(), argv, {
+    return execFileSync(command, argv, {
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 30_000,
       maxBuffer: 10 * 1024 * 1024,
     }).toString().trim();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`ImageMagick error: ${msg.substring(0, 200)}`);
-  }
-}
-
-/** Run sips with an argv array. No shell. */
-function runSipsArgv(argv: string[]): string {
-  try {
-    return execFileSync('sips', argv, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      timeout: 30_000,
-    }).toString().trim();
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`sips error: ${msg.substring(0, 200)}`);
+    throw new Error(`${label === 'sips' ? 'sips' : 'ImageMagick'} error: ${msg.substring(0, 200)}`);
   }
 }
 
@@ -195,8 +241,8 @@ function escapeXml(str: string): string {
 // ─── Plan type exported for tests ───────────────────────────────────────────
 
 export type MagickPlan =
-  | { backend: 'magick'; argv: string[] }
-  | { backend: 'sips'; argv: string[] }
+  | { backend: 'magick'; command: string; argv: string[] }
+  | { backend: 'sips'; command: 'sips'; argv: string[] }
   | { error: string };
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -262,7 +308,7 @@ export class GraphicsTool implements Tool {
   }
 
   /**
-   * Pure seam for tests. Returns the planned (backend, argv) without
+   * Pure seam for tests. Returns the planned (command, argv) without
    * executing. Lets tests pin the argv contract and catch regressions to
    * string interpolation without stubbing child_process (whose exports are
    * read-only getters in modern Node).
@@ -320,16 +366,19 @@ export class GraphicsTool implements Tool {
     if ('error' in outRes) return outRes;
 
     if (hasMagick()) {
-      return { backend: 'magick', argv: [inRes.resolved, '-resize', geometry, outRes.resolved] };
+      return {
+        backend: 'magick',
+        command: magickConvertCmd(),
+        argv: [inRes.resolved, '-resize', geometry, outRes.resolved],
+      };
     }
     if (os.platform() === 'darwin') {
-      // sips modifies in place. The wrapper (runTests-style) copies first.
       const sipsArgv = w !== null && h !== null
         ? ['-z', String(h), String(w), outRes.resolved]
         : w !== null
           ? ['--resampleWidth', String(w), outRes.resolved]
           : ['--resampleHeight', String(h), outRes.resolved];
-      return { backend: 'sips', argv: sipsArgv };
+      return { backend: 'sips', command: 'sips', argv: sipsArgv };
     }
     return { error: 'Error: ImageMagick not found. Install with: brew install imagemagick (macOS) or apt install imagemagick (Linux)' };
   }
@@ -339,17 +388,14 @@ export class GraphicsTool implements Tool {
     if ('error' in plan) return plan.error;
     try {
       if (plan.backend === 'sips') {
-        // Derive the resolved input/output from the plan's last arg.
         const outPath = plan.argv[plan.argv.length - 1];
-        // Re-resolve input (it's not in the sips argv; pull from args).
-        const inputArg = args.input as string;
-        const inputResolved = path.resolve(process.cwd(), inputArg);
+        const inputResolved = path.resolve(process.cwd(), args.input as string);
         fs.copyFileSync(inputResolved, outPath);
-        runSipsArgv(plan.argv);
+        runPlan(plan.command, plan.argv, 'sips');
         const stats = fs.statSync(outPath);
         return `Resized → ${outPath} (${(stats.size / 1024).toFixed(1)}KB)`;
       }
-      runMagickArgv(plan.argv);
+      runPlan(plan.command, plan.argv, 'magick');
       const outPath = plan.argv[plan.argv.length - 1];
       const stats = fs.statSync(outPath);
       const geometry = plan.argv[plan.argv.indexOf('-resize') + 1];
@@ -384,12 +430,19 @@ export class GraphicsTool implements Tool {
     }
 
     if (hasMagick()) {
-      return { backend: 'magick', argv: [inRes.resolved, ...qualityArgs, outRes.resolved] };
+      return {
+        backend: 'magick',
+        command: magickConvertCmd(),
+        argv: [inRes.resolved, ...qualityArgs, outRes.resolved],
+      };
     }
     if (os.platform() === 'darwin') {
-      // sips maps jpg → jpeg.
       const sipsFmt = fmt.ok === 'jpg' ? 'jpeg' : fmt.ok;
-      return { backend: 'sips', argv: ['-s', 'format', sipsFmt, outRes.resolved] };
+      return {
+        backend: 'sips',
+        command: 'sips',
+        argv: ['-s', 'format', sipsFmt, outRes.resolved],
+      };
     }
     return { error: 'Error: ImageMagick not found' };
   }
@@ -402,11 +455,11 @@ export class GraphicsTool implements Tool {
         const outPath = plan.argv[plan.argv.length - 1];
         const inputResolved = path.resolve(process.cwd(), args.input as string);
         fs.copyFileSync(inputResolved, outPath);
-        runSipsArgv(plan.argv);
+        runPlan(plan.command, plan.argv, 'sips');
         const stats = fs.statSync(outPath);
         return `Converted → ${outPath} (${(stats.size / 1024).toFixed(1)}KB)`;
       }
-      runMagickArgv(plan.argv);
+      runPlan(plan.command, plan.argv, 'magick');
       const outPath = plan.argv[plan.argv.length - 1];
       const stats = fs.statSync(outPath);
       return `Converted → ${outPath} (${(stats.size / 1024).toFixed(1)}KB)`;
@@ -435,6 +488,7 @@ export class GraphicsTool implements Tool {
     if (!hasMagick()) return { error: 'Error: ImageMagick not found (needed for compression)' };
     return {
       backend: 'magick',
+      command: magickConvertCmd(),
       argv: [inRes.resolved, '-strip', '-quality', String(q.n), outRes.resolved],
     };
   }
@@ -445,7 +499,7 @@ export class GraphicsTool implements Tool {
     try {
       const inputResolved = path.resolve(process.cwd(), args.input as string);
       const beforeSize = fs.statSync(inputResolved).size;
-      runMagickArgv(plan.argv);
+      runPlan(plan.command, plan.argv, 'magick');
       const outPath = plan.argv[plan.argv.length - 1];
       const afterSize = fs.statSync(outPath).size;
       const qIdx = plan.argv.indexOf('-quality');
@@ -482,11 +536,16 @@ export class GraphicsTool implements Tool {
 
     if (hasMagick()) {
       const geom = `${w.n}x${h.n}+${x.n}+${y.n}`;
-      return { backend: 'magick', argv: [inRes.resolved, '-crop', geom, '+repage', outRes.resolved] };
+      return {
+        backend: 'magick',
+        command: magickConvertCmd(),
+        argv: [inRes.resolved, '-crop', geom, '+repage', outRes.resolved],
+      };
     }
     if (os.platform() === 'darwin') {
       return {
         backend: 'sips',
+        command: 'sips',
         argv: ['-c', String(h.n), String(w.n), '--cropOffset', String(y.n), String(x.n), outRes.resolved],
       };
     }
@@ -501,10 +560,10 @@ export class GraphicsTool implements Tool {
         const outPath = plan.argv[plan.argv.length - 1];
         const inputResolved = path.resolve(process.cwd(), args.input as string);
         fs.copyFileSync(inputResolved, outPath);
-        runSipsArgv(plan.argv);
+        runPlan(plan.command, plan.argv, 'sips');
         return `Cropped → ${outPath}`;
       }
-      runMagickArgv(plan.argv);
+      runPlan(plan.command, plan.argv, 'magick');
       const outPath = plan.argv[plan.argv.length - 1];
       const geom = plan.argv[plan.argv.indexOf('-crop') + 1];
       return `Cropped ${geom} → ${outPath}`;
@@ -539,11 +598,9 @@ export class GraphicsTool implements Tool {
     };
     const gravity = gravityMap[position] ?? 'SouthEast';
 
-    // `text` is one argv element. Magick `-annotate` consumes it as the
-    // literal annotation string; shell metacharacters inside never reach
-    // any shell.
     return {
       backend: 'magick',
+      command: magickConvertCmd(),
       argv: [
         inRes.resolved,
         '-gravity', gravity,
@@ -559,7 +616,7 @@ export class GraphicsTool implements Tool {
     const plan = this.planWatermark(args, process.cwd());
     if ('error' in plan) return plan.error;
     try {
-      runMagickArgv(plan.argv);
+      runPlan(plan.command, plan.argv, 'magick');
       const outPath = plan.argv[plan.argv.length - 1];
       const gravity = plan.argv[plan.argv.indexOf('-gravity') + 1];
       return `Watermarked (${gravity}) → ${outPath}`;
@@ -578,11 +635,20 @@ export class GraphicsTool implements Tool {
     if ('error' in inRes) return inRes;
 
     if (hasMagick()) {
-      return { backend: 'magick', argv: ['identify', '-verbose', inRes.resolved] };
+      // v7: `magick identify -verbose <file>`; v6: `identify -verbose <file>`.
+      // Pre-patch, this ran `convert identify -verbose <file>` on v6 hosts
+      // — silently broken.
+      const sub = magickSubcommand('identify');
+      return {
+        backend: 'magick',
+        command: sub.command,
+        argv: [...sub.prefix, '-verbose', inRes.resolved],
+      };
     }
     if (os.platform() === 'darwin') {
       return {
         backend: 'sips',
+        command: 'sips',
         argv: ['-g', 'pixelWidth', '-g', 'pixelHeight', '-g', 'format', inRes.resolved],
       };
     }
@@ -590,8 +656,6 @@ export class GraphicsTool implements Tool {
   }
 
   private info(args: Record<string, unknown>): string {
-    // `info` wants filesystem metadata even if magick/sips aren't installed.
-    // We still validate & contain the path via the plan.
     const plan = this.planInfo(args, process.cwd());
     if ('error' in plan) return plan.error;
     const inputResolved = plan.argv[plan.argv.length - 1];
@@ -602,12 +666,7 @@ export class GraphicsTool implements Tool {
     let details = `File: ${inputResolved}\n  Size: ${(stats.size / 1024).toFixed(1)}KB\n  Format: ${ext.slice(1)}`;
 
     try {
-      let raw: string;
-      if (plan.backend === 'magick') {
-        raw = runMagickArgv(plan.argv);
-      } else {
-        raw = runSipsArgv(plan.argv);
-      }
+      const raw = runPlan(plan.command, plan.argv, plan.backend === 'sips' ? 'sips' : 'magick');
       // Row 12 note: the old code piped through `| head -20` via a shell.
       // Replaced with JS slicing — no shell dependency.
       const truncated = raw.split('\n').slice(0, 20).join('\n');
@@ -736,16 +795,19 @@ export class GraphicsTool implements Tool {
     if ('error' in outDirRes) return outDirRes.error;
     const outputDir = outDirRes.resolved;
 
+    // `sizes` is a string-typed field by design (comma-separated). Parse
+    // each token with the strict digits-only validator.
     const sizesStr = typeof args.sizes === 'string' ? args.sizes : '16,32,48,64,128,256';
     const sizes: number[] = [];
     for (const raw of sizesStr.split(',')) {
-      const v = validateInt(raw.trim(), 'sizes entry', 1, 2048);
+      const v = parseSizeToken(raw, 1, 2048);
       if ('error' in v) return v.error;
       sizes.push(v.n);
     }
 
     ensureDir(outputDir);
     const results: string[] = [];
+    const convertCmd = magickConvertCmd();
 
     if (inRes.resolved.endsWith('.svg')) {
       const svgDest = path.join(outputDir, 'favicon.svg');
@@ -756,12 +818,12 @@ export class GraphicsTool implements Tool {
         for (const size of sizes) {
           const pngPath = path.join(outputDir, `favicon-${size}x${size}.png`);
           try {
-            runMagickArgv([
+            runPlan(convertCmd, [
               '-background', 'none', '-density', '300',
               inRes.resolved,
               '-resize', `${size}x${size}`,
               pngPath,
-            ]);
+            ], 'magick');
             results.push(`  ${pngPath} (${size}x${size})`);
           } catch { /* skip failed sizes */ }
         }
@@ -771,7 +833,7 @@ export class GraphicsTool implements Tool {
         if (icoSources.length) {
           const icoPath = path.join(outputDir, 'favicon.ico');
           try {
-            runMagickArgv([...icoSources, icoPath]);
+            runPlan(convertCmd, [...icoSources, icoPath], 'magick');
             results.push(`  ${icoPath} (ICO)`);
           } catch { /* ico generation failed */ }
         }
@@ -788,10 +850,10 @@ export class GraphicsTool implements Tool {
       const pngPath = path.join(outputDir, `favicon-${size}x${size}.png`);
       try {
         if (hasMagick()) {
-          runMagickArgv([inRes.resolved, '-resize', `${size}x${size}`, pngPath]);
+          runPlan(convertCmd, [inRes.resolved, '-resize', `${size}x${size}`, pngPath], 'magick');
         } else {
           fs.copyFileSync(inRes.resolved, pngPath);
-          runSipsArgv(['-z', String(size), String(size), pngPath]);
+          runPlan('sips', ['-z', String(size), String(size), pngPath], 'sips');
         }
         results.push(`  ${pngPath} (${size}x${size})`);
       } catch { /* skip failed sizes */ }
@@ -804,7 +866,7 @@ export class GraphicsTool implements Tool {
       if (icoSources.length) {
         const icoPath = path.join(outputDir, 'favicon.ico');
         try {
-          runMagickArgv([...icoSources, icoPath]);
+          runPlan(convertCmd, [...icoSources, icoPath], 'magick');
           results.push(`  ${icoPath} (ICO)`);
         } catch { /* ico failed */ }
       }
@@ -834,6 +896,7 @@ export class GraphicsTool implements Tool {
     const pngPath = outRes.resolved.replace(/\.svg$/, '.png');
     return {
       backend: 'magick',
+      command: magickConvertCmd(),
       argv: ['-background', 'none', '-density', '150', outRes.resolved, '-resize', '1200x630!', pngPath],
     };
   }
@@ -872,12 +935,12 @@ export class GraphicsTool implements Tool {
     if (hasMagick() && outRes.resolved.endsWith('.svg')) {
       const pngPath = outRes.resolved.replace(/\.svg$/, '.png');
       try {
-        runMagickArgv([
+        runPlan(magickConvertCmd(), [
           '-background', 'none', '-density', '150',
           outRes.resolved,
           '-resize', '1200x630!',
           pngPath,
-        ]);
+        ], 'magick');
         pngNote = `\n  PNG: ${pngPath}`;
       } catch { /* png conversion failed */ }
     }
@@ -915,17 +978,26 @@ export class GraphicsTool implements Tool {
     if ('error' in outRes) return outRes;
 
     if (direction === 'horizontal') {
-      return { backend: 'magick', argv: [...resolved, '+append', outRes.resolved] };
+      return {
+        backend: 'magick',
+        command: magickConvertCmd(),
+        argv: [...resolved, '+append', outRes.resolved],
+      };
     }
     if (direction === 'vertical') {
-      return { backend: 'magick', argv: [...resolved, '-append', outRes.resolved] };
+      return {
+        backend: 'magick',
+        command: magickConvertCmd(),
+        argv: [...resolved, '-append', outRes.resolved],
+      };
     }
-    // grid — use `montage` as the first argv element. Magick dispatches to
-    // the montage tool internally when invoked this way.
+    // grid — v7: `magick montage …`; v6: `montage …` as a separate binary.
     const cols = Math.ceil(Math.sqrt(resolved.length));
+    const sub = magickSubcommand('montage');
     return {
       backend: 'magick',
-      argv: ['montage', ...resolved, '-geometry', '+2+2', '-tile', `${cols}x`, outRes.resolved],
+      command: sub.command,
+      argv: [...sub.prefix, ...resolved, '-geometry', '+2+2', '-tile', `${cols}x`, outRes.resolved],
     };
   }
 
@@ -933,20 +1005,14 @@ export class GraphicsTool implements Tool {
     const plan = this.planCombine(args, process.cwd());
     if ('error' in plan) return plan.error;
     try {
-      // Verify each input file exists (containment already done in the plan).
-      for (const el of plan.argv) {
-        // Only check elements that look like paths (skip the magick flags).
-        if (el.startsWith('+') || el.startsWith('-') || el === 'montage') continue;
-        // Skip tile spec / the output (last).
-        if (/^\d+x$/.test(el)) continue;
-      }
-      runMagickArgv(plan.argv);
+      runPlan(plan.command, plan.argv, 'magick');
       const outPath = plan.argv[plan.argv.length - 1];
       const direction = typeof args.direction === 'string' ? args.direction : 'horizontal';
-      // Count inputs: argv length minus known flag count.
+      // Count inputs: argv elements that aren't flags, aren't the 'montage'
+      // subcommand, aren't tile specs, minus the trailing output.
       const countGuess = plan.argv.filter(a =>
         !a.startsWith('+') && !a.startsWith('-') && a !== 'montage' && !/^\d+x$/.test(a)
-      ).length - 1; // minus the output
+      ).length - 1;
       return `Combined ${countGuess} images (${direction}) → ${outPath}`;
     } catch (err: unknown) {
       return `Error: ${err instanceof Error ? err.message : String(err)}`;
