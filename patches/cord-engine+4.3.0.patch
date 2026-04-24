@@ -57,11 +57,8 @@ index a5cd8a2..603aafe 100644
 +    return !rel.startsWith("..") && !path.isAbsolute(rel);
 +  });
  }
- 
+
  function isNetworkAllowed(target = "", scope) {
-diff --git a/node_modules/cord-engine/cord/cord.log.jsonl b/node_modules/cord-engine/cord/cord.log.jsonl
-new file mode 100644
-index 0000000..e69de29
 diff --git a/node_modules/cord-engine/cord/policies.js b/node_modules/cord-engine/cord/policies.js
 index fde7702..b8b7a04 100644
 --- a/node_modules/cord-engine/cord/policies.js
@@ -245,6 +242,3 @@ index d683ebc..2744931 100644
      /https?:\/\/[^\/\s]*\.onion\b/gi,                      // Tor hidden services
      /https?:\/\/[^\/\s]*ngrok/gi,                           // Tunneling services
    ],
-diff --git a/node_modules/cord-engine/vigil/vigil-alerts.jsonl b/node_modules/cord-engine/vigil/vigil-alerts.jsonl
-new file mode 100644
-index 0000000..e69de29
