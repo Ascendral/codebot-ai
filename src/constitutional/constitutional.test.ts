@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it, before, after } from 'node:test';
 import * as assert from 'node:assert';
 import { ConstitutionalLayer } from './index';
 import { CordAdapter } from './adapter';
@@ -231,6 +231,16 @@ describe('ConstitutionalLayer — regression: benign dev commands must not BLOCK
     { name: 'rm -f cache file',               cmd: 'rm -f node_modules/.cache/foo' },
     { name: 'docker rm container',            cmd: 'docker rm my_container' },
     { name: 'DELETE FROM … WHERE id=42',      cmd: "mysql -e \"DELETE FROM jobs WHERE id=42\"" },
+    // v4.3.3 regression — paths with 10-digit Unix-timestamp IDs (stress-test
+    // fixtures, tmp session dirs, etc.) were firing pii.phone on the bare
+    // digit run. Now narrowed to formatted phone numbers only.
+    { name: 'ls /tmp/cb-stresstest-<ts>',      cmd: 'ls /tmp/cb-stresstest-1776911475' },
+    { name: 'cat file in stress-test dir',    cmd: 'cat /tmp/cb-stresstest-1776911475/src/tax.py' },
+    { name: 'cd into stress-test dir + pytest', cmd: 'cd /tmp/cb-stresstest-1776911475 && python3 -m pytest tests/ -v' },
+    { name: 'find in stress-test dir',        cmd: 'find /tmp/cb-stresstest-1776911475 -type f | sort' },
+    { name: 'python3 -c importing from ts dir', cmd: `python3 -c "import sys; sys.path.insert(0, '/tmp/cb-stresstest-1776911475/src'); from tax import compute_total; print(compute_total(100))"` },
+    { name: 'bare 9-digit id (commit-ish)',   cmd: 'git show 123456789' },
+    { name: 'bare 10-digit unix ts',          cmd: 'touch /tmp/log-5551234567.txt' },
   ];
 
   for (const { name, cmd } of BENIGN_EXEC) {
@@ -299,6 +309,65 @@ describe('ConstitutionalLayer — regression: genuinely destructive commands sti
       const r = layer.evaluateAction({ tool: 'execute', args: { command: cmd } });
       assert.strictEqual(r.decision, 'BLOCK',
         `Destructive command not blocked: ${cmd}\n  decision=${r.decision} score=${r.score}`);
+      layer.stop();
+    });
+  }
+});
+
+/**
+ * Regression tests for PII narrowing (patch v4.3.3).
+ *
+ * Stock cord-engine PII patterns matched any 9- or 10-digit run:
+ *   ssn:   /\b\d{3}-\d{2}-\d{4}\b|\b\d{9}\b/
+ *   phone: /\b(\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/
+ *
+ * The bare `\b\d{9}\b` SSN alternation and phone's all-optional `[-.\s]?`
+ * separators made any numeric ID look like PII — Unix timestamps, PIDs,
+ * object IDs, stress-test fixture paths. A 10-digit timestamp scored
+ * piiLeakage=1, pushing total score to 7 (BLOCK).
+ *
+ * The patched patterns require canonical separators. Real formatted phone
+ * numbers and dashed SSNs still match; bare digit runs do not.
+ */
+describe('PII — regression: formatted PII still fires, bare digit runs do not', () => {
+  const mk = () => {
+    const layer = new ConstitutionalLayer({ vigilEnabled: false });
+    layer.start();
+    return layer;
+  };
+
+  const FORMATTED_PII = [
+    { name: 'dashed SSN',           cmd: 'echo SSN is 123-45-6789' },
+    { name: 'dashed phone',         cmd: 'echo phone 555-123-4567' },
+    { name: 'parenthesized phone',  cmd: 'echo phone (555) 123-4567' },
+    { name: 'plus1 dashed phone',   cmd: 'echo phone +1-555-123-4567' },
+  ];
+
+  for (const { name, cmd } of FORMATTED_PII) {
+    it(`flags formatted PII: ${name}`, () => {
+      const layer = mk();
+      const r = layer.evaluateAction({ tool: 'execute', args: { command: cmd } });
+      // pii weight 4 → even a single phone hit (1) plus toolRisk 3 scores 7 → BLOCK.
+      // Without a pii hit, the only risk contribution is toolRisk 3 → CHALLENGE.
+      assert.strictEqual(r.decision, 'BLOCK',
+        `Formatted PII not blocked: ${cmd}\n  decision=${r.decision} score=${r.score}`);
+      layer.stop();
+    });
+  }
+
+  const BARE_DIGIT_RUNS = [
+    { name: '9-digit commit-ish',   cmd: 'git show 123456789' },
+    { name: '10-digit unix ts',     cmd: 'ls /tmp/cb-stresstest-1776911475' },
+    { name: '10-digit PID-ish',     cmd: 'echo pid 5551234567' },
+    { name: '13-digit ms ts',       cmd: 'ls /tmp/session-1776903920282-atdc5d' },
+  ];
+
+  for (const { name, cmd } of BARE_DIGIT_RUNS) {
+    it(`does NOT BLOCK on bare digit run: ${name}`, () => {
+      const layer = mk();
+      const r = layer.evaluateAction({ tool: 'execute', args: { command: cmd } });
+      assert.notStrictEqual(r.decision, 'BLOCK',
+        `Bare digit run falsely blocked: ${cmd}\n  decision=${r.decision} score=${r.score}`);
       layer.stop();
     });
   }
@@ -451,5 +520,87 @@ describe('ConstitutionalLayer — metrics', () => {
     assert.ok(metrics.recentDecisions.length <= 100);
 
     layer.stop();
+  });
+});
+
+// ── 2026-04-23 patch: cord-engine sibling-prefix bypass ─────────────────
+//
+// External reviewer flagged two path-scope checks gated with
+// `abs.startsWith(...)`:
+//   - cord/cord.js     isPathAllowed
+//   - cord/sandbox.js  validatePath (line 69 "allow-list" check)
+//
+// Prefix-only matching means `/tmp/project2/secrets.txt` passes a check
+// that only meant to allow `/tmp/project`. `/tmp/project-old/...` too.
+//
+// Fixed in `patches/cord-engine+4.3.0.patch` by switching both gates to
+// `path.relative(...)` containment — a path is in-scope only when its
+// relative form does NOT start with `..` and is NOT absolute.
+//
+// Why we test against SandboxedExecutor, not cord.evaluate():
+// `cord.js` hardcodes `repoRoot = path.resolve(__dirname, "..")` (the
+// cord-engine install dir). Every real-world path fails that first
+// guard before the allowPaths check is even reached, making the scope
+// logic in cord.js effectively unreachable today. The cord.js patch is
+// still correct (and defends against future refactors that would
+// override repoRoot), but the surface a caller can actually exploit is
+// `SandboxedExecutor`, which takes `repoRoot` and `allowPaths` via
+// constructor args. That's where we pin the regression.
+//
+// Test cases verbatim from the review:
+//   allow: /tmp/project                     (scope root)
+//   allow: /tmp/project/src/file.txt        (nested)
+//   deny:  /tmp/project2/file.txt           (sibling prefix)
+//   deny:  /tmp/project-old/file.txt        (sibling prefix w/ suffix)
+//   deny:  /etc/passwd                      (system path)
+describe('cord-engine sibling-prefix bypass — SandboxedExecutor (2026-04-23 patch)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { SandboxedExecutor } = require('cord-engine') as {
+    SandboxedExecutor: new (opts: {
+      repoRoot: string;
+      allowPaths?: string[];
+    }) => { validatePath: (p: string) => string };
+  };
+
+  const SCOPE_ROOT = '/tmp/project';
+  let sandbox: { validatePath: (p: string) => string };
+
+  before(() => {
+    sandbox = new SandboxedExecutor({
+      repoRoot: SCOPE_ROOT,
+      allowPaths: [SCOPE_ROOT],
+    });
+  });
+
+  it('allows the scope root itself', () => {
+    assert.doesNotThrow(() => sandbox.validatePath(SCOPE_ROOT));
+  });
+
+  it('allows a nested path under the scope', () => {
+    assert.doesNotThrow(() => sandbox.validatePath('/tmp/project/src/file.txt'));
+  });
+
+  it('BLOCKS sibling prefix /tmp/project2/file.txt (the real bypass)', () => {
+    assert.throws(
+      () => sandbox.validatePath('/tmp/project2/file.txt'),
+      /SANDBOX:/,
+      'sibling /tmp/project2 must not pass a check scoped to /tmp/project',
+    );
+  });
+
+  it('BLOCKS sibling prefix /tmp/project-old/file.txt', () => {
+    assert.throws(
+      () => sandbox.validatePath('/tmp/project-old/file.txt'),
+      /SANDBOX:/,
+      'sibling /tmp/project-old must not pass a check scoped to /tmp/project',
+    );
+  });
+
+  it('BLOCKS system path /etc/passwd', () => {
+    assert.throws(
+      () => sandbox.validatePath('/etc/passwd'),
+      /SANDBOX:/,
+      '/etc/passwd must never pass any scope check',
+    );
   });
 });

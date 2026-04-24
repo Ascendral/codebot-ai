@@ -1,5 +1,5 @@
 diff --git a/node_modules/cord-engine/cord/cord.js b/node_modules/cord-engine/cord/cord.js
-index a5cd8a2..45a53f4 100644
+index a5cd8a2..603aafe 100644
 --- a/node_modules/cord-engine/cord/cord.js
 +++ b/node_modules/cord-engine/cord/cord.js
 @@ -17,7 +17,7 @@
@@ -38,8 +38,32 @@ index a5cd8a2..45a53f4 100644
    const reversibleHint = allowlistKeywords.some((k) => lower.includes(k));
    if (irreversible) return reversibleHint ? 1 : 3;
    return 0;
+@@ -251,9 +257,18 @@ function ensureIntentLock() {
+ function isPathAllowed(targetPath, scope, repoRoot) {
+   if (!targetPath) return true;
+   const abs = path.resolve(targetPath);
+-  if (!abs.startsWith(repoRoot)) return false;
++  // v4.3.4 patch — prefix matching is a known bypass class.
++  // `/tmp/project2/secrets.txt`.startsWith(`/tmp/project`) returns true
++  // even though /tmp/project2 is a completely separate tree. Same hazard
++  // on each allowPaths entry. Use path.relative so a separator-aware
++  // containment check rejects sibling prefixes.
++  const relToRoot = path.relative(repoRoot, abs);
++  if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) return false;
+   if (!scope?.allowPaths || scope.allowPaths.length === 0) return false;
+-  return scope.allowPaths.some((p) => abs.startsWith(path.resolve(p)));
++  return scope.allowPaths.some((p) => {
++    const rel = path.relative(path.resolve(p), abs);
++    return !rel.startsWith("..") && !path.isAbsolute(rel);
++  });
+ }
+ 
+ function isNetworkAllowed(target = "", scope) {
+diff --git a/node_modules/cord-engine/cord/cord.log.jsonl b/node_modules/cord-engine/cord/cord.log.jsonl
+new file mode 100644
+index 0000000..e69de29
 diff --git a/node_modules/cord-engine/cord/policies.js b/node_modules/cord-engine/cord/policies.js
-index fde7702..9fa1cb6 100644
+index fde7702..b8b7a04 100644
 --- a/node_modules/cord-engine/cord/policies.js
 +++ b/node_modules/cord-engine/cord/policies.js
 @@ -35,7 +35,18 @@ module.exports = {
@@ -62,7 +86,28 @@ index fde7702..9fa1cb6 100644
      exfil:     /(upload|exfil|curl\s+https?:|wget\s+https?:|scp\s|nc\s|requests\.post|urllib|httpx\.post|send.*to.*server|transmit|beacon)/i,
      secrets:   /(api[_\- ]?keys?|tokens?|passwords?|secrets?\b|aws_secret|authorization|credentials?|private[_\- ]?keys?|ssh[_\- ]?keys?|\.env\b|keychain|passphrase|system\s+prompts?)/i,
  
-@@ -62,6 +73,9 @@ module.exports = {
+@@ -52,16 +63,28 @@ module.exports = {
+     promptInjection: /(ignore\s*(?:\w+\s+){0,3}instructions?|disregard\s*(?:\w+\s+){0,3}(instructions?|rules?|guidelines?|constraints?)|forget\s*(everything|your\s*instructions?|what\s*you\s*were\s*told)|new\s*instructions?\s*:|override\s*:|system\s*override|you\s*are\s*now|from\s*now\s*on\s*you\s*(are|will|must)|act\s*as\s*(a|an|if\s*you\s*are)|your\s*new\s*(role|purpose|mission|goal|task)\s*is|pretend\s*(you\s*have\s*no|you\s*don.t\s*have|there\s*are\s*no)\s*(rules?|constraints?|limits?)|jailbreak|DAN\s*mode|developer\s*mode|god\s*mode|unrestricted\s*mode|<\|.*?\|>|<system>|<\/system>|\[INST\]|\[\/INST\]|\[SYSTEM\]|###\s*system|###\s*instruction|ignoreprevious\w*instruct|disregardall\w*|youarenow\w*)/i,
+ 
+     // PII patterns
++    // v4.3.3 — ssn and phone narrowed to formatted variants only.
++    // Previous patterns matched any 9- or 10-digit run (ssn's `\b\d{9}\b`
++    // alternation, phone's all-optional `[-.\s]?` separators). That made
++    // bare numeric IDs — Unix timestamps, PIDs, object IDs, commit prefixes —
++    // look like PII. Example: `ls /tmp/cb-stresstest-1776911475` fired
++    // phone regex on the 10-digit timestamp, pushing piiLeakage to 1 and
++    // total score to 7 (BLOCK). A genuine phone/SSN in agent proposal text
++    // is virtually always written with canonical separators; bare digit
++    // runs are not.
+     pii: {
+-      ssn:        /\b\d{3}-\d{2}-\d{4}\b|\b\d{9}\b/,
++      ssn:        /\b\d{3}-\d{2}-\d{4}\b/,
+       creditCard: /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b/,
+       email:      /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/,
+-      phone:      /\b(\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/,
++      phone:      /(?:\+1[-.\s]\d{3}[-.\s]\d{3}[-.\s]\d{4}|\(\d{3}\)\s*\d{3}[-.\s]?\d{4}|\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b)/,
+     },
+     piiFieldNames: /\b(social_security|ssn|credit_card|card_number|cvv|date_of_birth|dob|passport|drivers_license|medical_record|bank_account|routing_number|tax_id)\b/i,
    },
  
    // ── High-impact verbs ────────────────────────────────────────────────────
@@ -72,7 +117,7 @@ index fde7702..9fa1cb6 100644
    highImpactVerbs: [
      "delete", "drop", "shutdown", "format", "wipe",
      "disable", "lock", "kill", "terminate", "overwrite",
-@@ -69,6 +83,60 @@ module.exports = {
+@@ -69,6 +92,60 @@ module.exports = {
      "rm", "remove", "uninstall",
    ],
  
@@ -133,6 +178,30 @@ index fde7702..9fa1cb6 100644
    // ── Allowlist keywords ────────────────────────────────────────────────────
    allowlistKeywords: [
      "read-only", "preview", "dry-run", "simulate", "list",
+diff --git a/node_modules/cord-engine/cord/sandbox.js b/node_modules/cord-engine/cord/sandbox.js
+index 107db84..62c1b1d 100644
+--- a/node_modules/cord-engine/cord/sandbox.js
++++ b/node_modules/cord-engine/cord/sandbox.js
+@@ -65,8 +65,17 @@ class SandboxedExecutor {
+       ? path.resolve(filePath)
+       : path.resolve(this.repoRoot, filePath);
+ 
+-    // Check against allow-list
+-    const allowed = this.allowPaths.some(p => abs.startsWith(p));
++    // Check against allow-list.
++    // v4.3.4 patch — prefix matching is a known bypass class:
++    // `/tmp/project2`.startsWith(`/tmp/project`) is true even though the
++    // two trees are unrelated. The path.relative form below already
++    // catches it (line 82+), but relying on a second check as the rescue
++    // means one refactor away from silent loss of containment. Harden
++    // this check too so both gates agree.
++    const allowed = this.allowPaths.some(p => {
++      const rel = path.relative(p, abs);
++      return !rel.startsWith("..") && !path.isAbsolute(rel);
++    });
+     if (!allowed) {
+       throw new Error(`SANDBOX: Path outside allowed scope: ${abs}`);
+     }
 diff --git a/node_modules/cord-engine/vigil/patterns.js b/node_modules/cord-engine/vigil/patterns.js
 index d683ebc..2744931 100644
 --- a/node_modules/cord-engine/vigil/patterns.js
@@ -176,3 +245,6 @@ index d683ebc..2744931 100644
      /https?:\/\/[^\/\s]*\.onion\b/gi,                      // Tor hidden services
      /https?:\/\/[^\/\s]*ngrok/gi,                           // Tunneling services
    ],
+diff --git a/node_modules/cord-engine/vigil/vigil-alerts.jsonl b/node_modules/cord-engine/vigil/vigil-alerts.jsonl
+new file mode 100644
+index 0000000..e69de29
