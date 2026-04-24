@@ -1,8 +1,72 @@
-import { execSync } from 'child_process';
+import { execSync, spawn } from 'child_process';
 import { Tool } from '../types';
 import { isCwdSafe } from '../security';
 import { sandboxExec, isDockerAvailable } from '../sandbox';
 import { PolicyEnforcer } from '../policy';
+
+/**
+ * Stream events emitted by {@link ExecuteTool.stream}. Transport-agnostic —
+ * the HTTP/SSE bridge lives in the dashboard layer, not here.
+ */
+export interface ExecStreamEvents {
+  onStdout?: (text: string) => void;
+  onStderr?: (text: string) => void;
+}
+
+/**
+ * Machine-readable failure codes for streaming exec. The dashboard maps
+ * `sandbox_required` → HTTP 501 ("transport cannot satisfy policy"), and
+ * the other codes → 403 (the gate itself refused the command).
+ */
+export type ExecStreamErrorCode =
+  | 'bad_args'
+  | 'blocked_pattern'
+  | 'unsafe_cwd'
+  | 'sandbox_required'
+  | 'spawn_error';
+
+export class ExecStreamError extends Error {
+  readonly code: ExecStreamErrorCode;
+  constructor(message: string, code: ExecStreamErrorCode) {
+    super(message);
+    this.name = 'ExecStreamError';
+    this.code = code;
+  }
+}
+
+/** Result of a successful streaming exec. Tails capped at 512 bytes each. */
+export interface ExecStreamResult {
+  exitCode: number;
+  stdoutTail: string;
+  stderrTail: string;
+  timedOut: boolean;
+}
+
+/** Validated execution plan produced by {@link ExecuteTool.preflight}. */
+interface ExecPlan {
+  cmd: string;
+  cwd: string;
+  timeoutMs: number;
+  useSandbox: boolean;
+  sandboxMode: 'auto' | 'docker' | 'host';
+  sandboxNetwork: boolean;
+  sandboxMemoryMb: number;
+  safeEnv: NodeJS.ProcessEnv;
+}
+
+/** Outcome of {@link ExecuteTool.preflight} — plan on success, structured reason on failure. */
+export type PreflightResult =
+  | { ok: true; plan: ExecPlan }
+  | { ok: false; reason: string; code: 'bad_args' | 'blocked_pattern' | 'unsafe_cwd' };
+
+const STREAM_TAIL_MAX = 512;
+
+function clampTail(chunks: string[]): string {
+  if (chunks.length === 0) return '';
+  const joined = chunks.join('');
+  if (joined.length <= STREAM_TAIL_MAX) return joined;
+  return joined.slice(joined.length - STREAM_TAIL_MAX);
+}
 
 export const BLOCKED_PATTERNS = [
   // Destructive filesystem operations
@@ -100,40 +164,125 @@ export class ExecuteTool implements Tool {
     required: ['command'],
   };
 
-  async execute(args: Record<string, unknown>): Promise<string> {
+  /**
+   * Shared preflight — validates args, checks patterns, verifies cwd
+   * containment, and resolves the sandbox plan. Pure: no side effects,
+   * no spawn. Both {@link execute} (buffered) and {@link stream} (SSE)
+   * call this first so there is a single source of truth for what a
+   * given `args` payload means. If you add a rule, add it here.
+   *
+   * Does NOT throw for blocked patterns — returns a structured
+   * `{ ok: false, code: 'blocked_pattern' }`. The {@link execute}
+   * wrapper preserves the historical throwing behavior for its
+   * callers; new callers should handle the result directly.
+   */
+  preflight(args: Record<string, unknown>): PreflightResult {
     if (!args.command || typeof args.command !== 'string') {
-      return 'Error: command is required';
+      return { ok: false, reason: 'command is required', code: 'bad_args' };
     }
     const cmd = args.command;
 
     for (const pattern of BLOCKED_PATTERNS) {
       if (pattern.test(cmd)) {
-        throw new Error(`Blocked: "${cmd}" matches a dangerous command pattern.`);
+        return {
+          ok: false,
+          reason: `Blocked: "${cmd}" matches a dangerous command pattern.`,
+          code: 'blocked_pattern',
+        };
       }
     }
 
-    // Security: validate CWD
     const cwd = (args.cwd as string) || this.projectRoot;
-    const projectRoot = this.projectRoot;
-    const cwdSafety = isCwdSafe(cwd, projectRoot);
+    const cwdSafety = isCwdSafe(cwd, this.projectRoot);
     if (!cwdSafety.safe) {
-      return `Error: ${cwdSafety.reason}`;
+      return { ok: false, reason: cwdSafety.reason || 'CWD outside project root', code: 'unsafe_cwd' };
     }
 
-    const timeout = (args.timeout as number) || 180000;
+    const timeoutMs = (args.timeout as number) || 180000;
 
-    // ── v1.7.0: Sandbox routing (v2.1.5: uses PolicyEnforcer for RBAC) ──
-    const enforcer = new PolicyEnforcer(undefined, projectRoot);
+    const enforcer = new PolicyEnforcer(undefined, this.projectRoot);
     const sandboxMode = enforcer.getSandboxMode();
     const useSandbox =
       sandboxMode === 'docker' ||
       (sandboxMode === 'auto' && isDockerAvailable());
 
-    if (useSandbox) {
-      const result = sandboxExec(cmd, projectRoot, {
-        network: enforcer.isNetworkAllowed(),
-        memoryMb: enforcer.getMaxMemoryMb(),
-        timeoutMs: timeout,
+    const safeEnv = { ...process.env };
+    for (const key of FILTERED_ENV_VARS) {
+      delete safeEnv[key];
+    }
+
+    return {
+      ok: true,
+      plan: {
+        cmd,
+        cwd,
+        timeoutMs,
+        useSandbox,
+        sandboxMode,
+        sandboxNetwork: enforcer.isNetworkAllowed(),
+        sandboxMemoryMb: enforcer.getMaxMemoryMb(),
+        safeEnv,
+      },
+    };
+  }
+
+  async execute(args: Record<string, unknown>): Promise<string> {
+    const pre = this.preflight(args);
+    if (!pre.ok) {
+      // Preserve historical behavior of the buffered path: blocked
+      // patterns throw (callers catch and surface); arg/cwd errors
+      // return as `Error: ...` strings.
+      if (pre.code === 'blocked_pattern') {
+        throw new Error(pre.reason);
+      }
+      return `Error: ${pre.reason}`;
+    }
+    return this.runBuffered(pre.plan);
+  }
+
+  /**
+   * Streaming exec. Same {@link preflight} as {@link execute} plus one
+   * fail-closed rule: if policy requires sandbox, we do NOT host-fallback
+   * and we do NOT audit-and-proceed — we throw `sandbox_required`. The
+   * SSE transport cannot satisfy Docker-sandbox semantics, so we refuse
+   * the transport and tell the caller to use the non-streaming runner.
+   *
+   * Caller owns audit: Agent.runStreamingTool writes exec_start before
+   * this returns a stream, and exec_complete after the returned promise
+   * resolves (or exec_error if we throw). Tails are capped at 512 bytes
+   * each and returned in the resolved value.
+   */
+  async stream(
+    args: Record<string, unknown>,
+    events: ExecStreamEvents,
+    opts: { timeoutMs?: number } = {},
+  ): Promise<ExecStreamResult> {
+    const pre = this.preflight(args);
+    if (!pre.ok) {
+      throw new ExecStreamError(pre.reason, pre.code);
+    }
+    // Fail closed only when policy EXPLICITLY requires sandbox
+    // (`sandbox: 'docker'`). Under `auto` the buffered path may sandbox
+    // when Docker is available, but the intent is "prefer sandbox, OK
+    // to host-fallback" — not a hard requirement. Host-streaming under
+    // auto is the same UX as the pre-2026-04-24 behavior and we do NOT
+    // silently downgrade from a hard `docker` requirement.
+    if (pre.plan.sandboxMode === 'docker') {
+      throw new ExecStreamError(
+        'Streaming exec is not supported when policy requires sandbox. Use the non-streaming tool runner.',
+        'sandbox_required',
+      );
+    }
+    return this.runStreaming(pre.plan, events, opts.timeoutMs ?? pre.plan.timeoutMs);
+  }
+
+  /** Buffered runner — used by {@link execute}. Sandbox-aware. */
+  private runBuffered(plan: ExecPlan): string {
+    if (plan.useSandbox) {
+      const result = sandboxExec(plan.cmd, this.projectRoot, {
+        network: plan.sandboxNetwork,
+        memoryMb: plan.sandboxMemoryMb,
+        timeoutMs: plan.timeoutMs,
       });
 
       if (result.sandboxed) {
@@ -144,30 +293,102 @@ export class ExecuteTool implements Tool {
         }
         return `${tag} ${output}`;
       }
-      // Fallthrough: sandboxExec returned sandboxed=false (Docker wasn't available after all)
+      // Sandbox declined at runtime — fall through to host.
     }
 
-    // ── Host execution (existing path) ──
-    const safeEnv = { ...process.env };
-    for (const key of FILTERED_ENV_VARS) {
-      delete safeEnv[key];
-    }
-
-    const tag = useSandbox ? '[host-fallback]' : '[host]';
+    const tag = plan.useSandbox ? '[host-fallback]' : '[host]';
 
     try {
-      const output = execSync(cmd, {
-        cwd,
-        timeout,
+      const output = execSync(plan.cmd, {
+        cwd: plan.cwd,
+        timeout: plan.timeoutMs,
         maxBuffer: 1024 * 1024,
         encoding: 'utf-8',
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: safeEnv,
+        env: plan.safeEnv,
       });
       return `${tag} ${output || '(no output)'}`;
     } catch (err: unknown) {
       const e = err as { status?: number; stdout?: string; stderr?: string };
       return `${tag} Exit code ${e.status || 1}\nSTDOUT:\n${e.stdout || ''}\nSTDERR:\n${e.stderr || ''}`;
     }
+  }
+
+  /**
+   * Streaming runner — spawns via sh, pipes stdout/stderr through
+   * callbacks, enforces the timeout, captures 512-byte rolling tails
+   * for audit forensics.
+   */
+  private runStreaming(
+    plan: ExecPlan,
+    events: ExecStreamEvents,
+    timeoutMs: number,
+  ): Promise<ExecStreamResult> {
+    return new Promise<ExecStreamResult>((resolve, reject) => {
+      let settled = false;
+      const stdoutChunks: string[] = [];
+      const stderrChunks: string[] = [];
+      let stdoutLen = 0;
+      let stderrLen = 0;
+
+      // Rolling tail — keep only the final STREAM_TAIL_MAX bytes of each stream.
+      const pushBounded = (buf: string[], incoming: string, currentLen: number): number => {
+        buf.push(incoming);
+        let total = currentLen + incoming.length;
+        while (total > STREAM_TAIL_MAX * 2 && buf.length > 1) {
+          total -= buf.shift()!.length;
+        }
+        return total;
+      };
+
+      let child;
+      try {
+        child = spawn('sh', ['-c', plan.cmd], { cwd: plan.cwd, env: plan.safeEnv });
+      } catch (err) {
+        reject(new ExecStreamError((err as Error).message || 'spawn failed', 'spawn_error'));
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        if (!child.killed) child.kill('SIGTERM');
+      }, timeoutMs);
+      let timedOut = false;
+      timer.unref?.();
+      const armTimeoutFlag = setTimeout(() => { timedOut = true; }, timeoutMs);
+      armTimeoutFlag.unref?.();
+
+      child.stdout.on('data', (d: Buffer) => {
+        const text = d.toString('utf-8');
+        stdoutLen = pushBounded(stdoutChunks, text, stdoutLen);
+        try { events.onStdout?.(text); } catch { /* consumer errors must not kill the stream */ }
+      });
+
+      child.stderr.on('data', (d: Buffer) => {
+        const text = d.toString('utf-8');
+        stderrLen = pushBounded(stderrChunks, text, stderrLen);
+        try { events.onStderr?.(text); } catch { /* ditto */ }
+      });
+
+      child.on('error', (err: Error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        clearTimeout(armTimeoutFlag);
+        reject(new ExecStreamError(err.message || 'spawn failed', 'spawn_error'));
+      });
+
+      child.on('close', (code: number | null) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        clearTimeout(armTimeoutFlag);
+        resolve({
+          exitCode: code ?? (timedOut ? 124 : 0),
+          stdoutTail: clampTail(stdoutChunks),
+          stderrTail: clampTail(stderrChunks),
+          timedOut,
+        });
+      });
+    });
   }
 }
