@@ -3,7 +3,7 @@ import * as assert from 'node:assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { GraphicsTool, __resetMagickCache, __setMagickFlavorForTest } from './graphics';
+import { GraphicsTool, __setMagickFlavorForTest } from './graphics';
 
 /**
  * GraphicsTool — injection, containment, validation, and flavor-aware
@@ -38,6 +38,97 @@ describe('GraphicsTool — metadata', () => {
   it('returns error for unknown action', async () => {
     const result = await tool.execute({ action: 'explode' });
     assert.ok(result.includes('Error: unknown action'));
+  });
+});
+
+/**
+ * Issue #17 — projectRoot is the policy boundary, not process.cwd().
+ *
+ * Pre-fix, every method gated against `process.cwd()`. A permission-
+ * approved graphics call could touch any path inside the launch dir,
+ * even ones outside the agent's declared project. Plumbing
+ * `Agent.projectRoot` through `ToolRegistry` into the tool closes
+ * that gap. Default `cwd` in `buildMagickPlan` now resolves to
+ * `this.projectRoot`, not `process.cwd()`.
+ */
+describe('GraphicsTool — Issue #17: projectRoot as policy boundary', () => {
+  let isolated: string;
+  let outerDir: string;
+  let outerFile: string;
+
+  before(() => {
+    // Two siblings under os.tmpdir(): one is the agent's projectRoot, the
+    // other is "outer" — outside projectRoot but a real, existing path.
+    // Creating both ourselves means the test doesn't depend on any repo
+    // file existing (per review tweak: containment is the point).
+    isolated = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-issue17-gfx-inner-'));
+    outerDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-issue17-gfx-outer-'));
+    outerFile = path.join(outerDir, 'outside.png');
+    fs.writeFileSync(outerFile, 'x');
+    // Sanity-check: assertions below depend on the outer file actually
+    // existing on disk and being outside isolated.
+    assert.ok(fs.existsSync(outerFile), 'precondition: outer file must exist');
+    assert.ok(!outerFile.startsWith(isolated),
+      'precondition: outer file must be outside projectRoot');
+  });
+
+  after(() => {
+    try { fs.rmSync(isolated, { recursive: true, force: true }); } catch { /* ignore */ }
+    try { fs.rmSync(outerDir, { recursive: true, force: true }); } catch { /* ignore */ }
+  });
+
+  it('input outside agent projectRoot is rejected (default cwd from constructor)', () => {
+    const tool = new GraphicsTool(isolated);
+    // No `cwd` override on buildMagickPlan — it must default to projectRoot,
+    // not process.cwd(). The outer file is a real, existing path; only
+    // containment can save us.
+    const plan = tool.buildMagickPlan('info', { input: outerFile });
+    assert.ok('error' in plan,
+      `expected containment rejection; got plan: ${JSON.stringify(plan)}`);
+    if ('error' in plan) {
+      assert.match(plan.error, /input escapes project root/);
+    }
+  });
+
+  it('input inside agent projectRoot is accepted (default cwd from constructor)', () => {
+    const inside = path.join(isolated, 'in.png');
+    fs.writeFileSync(inside, 'x');
+    const tool = new GraphicsTool(isolated);
+    // Force flavor so planning hits the magick branch even on no-IM hosts.
+    __setMagickFlavorForTest('v7');
+    try {
+      const plan = tool.buildMagickPlan('info', { input: inside });
+      assert.ok(!('error' in plan),
+        `expected plan; got error: ${'error' in plan ? plan.error : ''}`);
+    } finally {
+      __setMagickFlavorForTest(null);
+    }
+  });
+
+  it('back-compat: GraphicsTool() with no constructor arg still uses process.cwd() for containment', () => {
+    // The "no projectRoot supplied" case must keep behaving exactly as
+    // pre-Issue-17 — i.e. containment root is process.cwd(). We verify by
+    // creating a file inside a tmpdir under process.cwd(), then calling
+    // the tool with no constructor arg and asserting acceptance.
+    const innerInRepo = fs.mkdtempSync(path.join(process.cwd(), '.cb-issue17-bc-'));
+    const innerFile = path.join(innerInRepo, 'in.png');
+    fs.writeFileSync(innerFile, 'x');
+    try {
+      const tool = new GraphicsTool();  // no arg — back-compat path
+      __setMagickFlavorForTest('v7');
+      try {
+        const plan = tool.buildMagickPlan('info', { input: innerFile });
+        // Must NOT reject for containment, since innerFile is under process.cwd().
+        if ('error' in plan) {
+          assert.doesNotMatch(plan.error, /escapes project root/,
+            `back-compat path rejected an in-cwd file: ${plan.error}`);
+        }
+      } finally {
+        __setMagickFlavorForTest(null);
+      }
+    } finally {
+      try { fs.rmSync(innerInRepo, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
   });
 });
 

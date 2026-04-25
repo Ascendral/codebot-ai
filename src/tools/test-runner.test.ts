@@ -61,6 +61,51 @@ describe('TestRunnerTool — cwd containment', () => {
 });
 
 /**
+ * Issue #17 — projectRoot is the policy boundary, not process.cwd().
+ *
+ * Pre-fix, `TestRunnerTool` baked `process.cwd()` into containment via
+ * Row 10. If CodeBot was launched from a directory broader than the
+ * agent's actual project (home dir, monorepo parent), a permission-
+ * approved `test_runner` call could hop sideways within that broader
+ * directory. Plumbing `Agent.projectRoot` through `ToolRegistry` into
+ * the tool closes that gap.
+ */
+describe('TestRunnerTool — Issue #17: projectRoot as policy boundary', () => {
+  it('rejects cwd outside the agent projectRoot, even when inside process.cwd()', async () => {
+    // Put projectRoot at a tmpdir that does NOT contain the test repo.
+    // process.cwd() is the test repo itself — broader than projectRoot.
+    // A cwd of process.cwd() must be rejected.
+    const isolated = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-issue17-tr-'));
+    try {
+      const tool = new TestRunnerTool(isolated);
+      const result = await tool.execute({ action: 'detect', cwd: process.cwd() });
+      assert.ok(
+        result.startsWith('Error: cwd escapes project root'),
+        `expected rejection (projectRoot=${isolated}, cwd=${process.cwd()}), got: ${result}`,
+      );
+    } finally {
+      try { fs.rmSync(isolated, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
+  });
+
+  it('accepts cwd inside the agent projectRoot, even when projectRoot != process.cwd()', async () => {
+    const isolated = fs.mkdtempSync(path.join(os.tmpdir(), 'codebot-issue17-tr-'));
+    const sub = path.join(isolated, 'sub');
+    fs.mkdirSync(sub);
+    try {
+      const tool = new TestRunnerTool(isolated);
+      const result = await tool.execute({ action: 'detect', cwd: sub });
+      assert.ok(
+        !result.startsWith('Error: cwd escapes project root'),
+        `expected accept (projectRoot=${isolated}, cwd=${sub}), got: ${result}`,
+      );
+    } finally {
+      try { fs.rmSync(isolated, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
+  });
+});
+
+/**
  * Real integration test. We build a tiny fake jest project in an
  * isolated tmpdir, drive the tool with a filter that would spawn a
  * subprocess if — and only if — the shell interpreted it. Then we

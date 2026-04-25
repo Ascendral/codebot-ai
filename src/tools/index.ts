@@ -164,7 +164,7 @@ export class ToolRegistry {
     regIf(new DiffViewerTool());
     regIf(new DockerTool());
     regIf(new DatabaseTool());
-    regIf(new TestRunnerTool());
+    regIf(new TestRunnerTool(projectRoot));
     regIf(new HttpClientTool());
     regIf(new ImageInfoTool());
     regIf(new SshRemoteTool());
@@ -206,7 +206,7 @@ export class ToolRegistry {
     }
 
     // Non-connector tools — always register regardless of connector status
-    regIf(new GraphicsTool());
+    regIf(new GraphicsTool(projectRoot));
     regIf(new DeepResearchTool());
     regIf(new SkillForgeTool());
     regIf(new DecomposeGoalTool());
