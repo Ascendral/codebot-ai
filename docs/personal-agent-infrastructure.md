@@ -105,7 +105,7 @@ These are the load-bearing rules. New code that violates one is rejected at revi
 │ ToolRegistry: src/tools/index.ts                                 │  (4)
 │   - capability gate, projectRoot plumbing, vault-mode filter     │
 ├──────────────────────────────────────────────────────────────────┤
-│ Tools (35 today): file I/O, exec, browser, connectors, ...      │  (5)
+│ Tools (36 today): file I/O, exec, browser, connectors, ...      │  (5)
 │   - each declares permission, capability label (NEW — see §7)   │
 ├──────────────────────────────────────────────────────────────────┤
 │ Capability layer (NEW — see §7)                                  │  (6)
@@ -194,7 +194,7 @@ Every tool gets one or more capability labels. Labels are **declarative metadata
 
 ### Migration path
 
-Labels do not yet exist on the `Tool` interface. Adding them is a metadata-only change — no behavior change in the tools themselves, no new gating until the agent loop reads the labels. See §10 for the rollout.
+The `CapabilityLabel` type and the optional `capabilities?: CapabilityLabel[]` slot on the `Tool` interface **landed in PR 2** (`src/types.ts`). No tool declares any labels yet; no code reads the field. PR 3 populates labels on each existing tool (mechanical). PR 4 wires the agent loop to read the field and apply per-label gating per the table above. Visibility to the model (via `ToolSchema`) is a separate later decision — PR 2 deliberately does not expose `capabilities` to the LLM. See §10 for the full rollout.
 
 ## 8. Connector roadmap
 
@@ -264,7 +264,7 @@ The doc itself does not change behavior. The execution order to actually build t
 
 1. **PR 1 — this doc.** Architecture commitment, no code change. ← *this PR*
 2. **PR 2 — capability labels on `Tool` interface (metadata only).** Adds optional `capabilities?: CapabilityLabel[]` to `Tool`. Existing tools keep working with no labels declared. No gate change. Pure type addition. ~50 lines.
-3. **PR 3 — declare capability labels on existing 35 tools.** Mechanical. Each tool gets its label list. No behavior change. Reviewable in one sitting because it's a table.
+3. **PR 3 — declare capability labels on existing 36 tools.** Mechanical. Each tool gets its label list. No behavior change. Reviewable in one sitting because it's a table.
 4. **PR 4 — agent loop reads capabilities, escalates `permission` to `always-ask` when label demands it.** This is where capability labels start gating. Tests pin which (tool, action) combos require always-ask.
 5. **PR 5 — model router skeleton.** Pure decision-table function `pickModel(taskClass, sensitivity, budgetRemaining)`. Consumed by the agent loop. Replaces the current single-model selection.
 6. **PR 6 — budget controls.** Per-session cap, escalation logging, summarize-on-overflow. Wired into the router.
@@ -323,4 +323,4 @@ This rule applies to this file, not the broader codebase. Other docs may rot at 
 
 ---
 
-*Last updated 2026-04-25 (third pass: resolved spend-money vs. ordering contradiction by splitting `move-money` PROHIBITED from `spend-money` always-ask; reframed Phase 2 ordering as one example of the general high-risk browser-write class; fixed stale section refs after the §3 insertion). Earlier passes: 2026-04-24 user-owned multi-device-over-time vision; 2026-04-24 engineering-contract discipline (anti-premature-abstraction, doc-rot rule, measurement, connector contract). Against `main @ de6cad7`.*
+*Last updated 2026-04-25 (PR 2 landed: `CapabilityLabel` union and optional `capabilities?` slot now live on `Tool` in `src/types.ts`; tool count corrected 35 → 36 to reflect actual `ToolRegistry` registration; §7 migration-path note updated to reflect that the slot exists). Earlier passes: 2026-04-25 split `move-money` (PROHIBITED) from `spend-money` (always-ask) and reframed Phase 2; 2026-04-24 engineering-contract discipline; 2026-04-24 user-owned multi-device-over-time vision. Against `main @ b8a5433` + this PR.*
