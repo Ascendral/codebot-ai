@@ -45,12 +45,46 @@ export interface ToolStreamResult {
   timedOut: boolean;
 }
 
+/**
+ * Capability labels (§7 of `docs/personal-agent-infrastructure.md`).
+ *
+ * PR 2 — metadata only. The slot exists on `Tool` but no tool declares
+ * a value yet, and no code reads it. PR 3 populates labels on each
+ * existing tool. PR 4 wires the agent loop to gate on them per §7.
+ *
+ * Adding labels here is a doc-rot triggering change: any new label or
+ * removal of an existing label must be reflected in §7 of the
+ * architecture doc in the same PR (§13 doc-rot rule).
+ */
+export type CapabilityLabel =
+  | 'read-only'
+  | 'write-fs'
+  | 'run-cmd'
+  | 'browser-read'
+  | 'browser-write'
+  | 'net-fetch'
+  | 'account-access'
+  | 'send-on-behalf'   // always-ask (§7)
+  | 'delete-data'      // always-ask (§7)
+  | 'spend-money'      // always-ask + preview required (§7)
+  | 'move-money';      // PROHIBITED — tools/connectors with this label must not be usable (§7)
+
 export interface Tool {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
   permission: 'auto' | 'prompt' | 'always-ask';
   cacheable?: boolean;
+  /**
+   * Declared capability labels (PR 2: metadata only).
+   *
+   * Optional during the rollout so existing tools compile without
+   * change. PR 3 declares labels on each tool. PR 4 has the agent
+   * loop read this and apply per-label gating per §7. Visibility to
+   * the model (via `ToolSchema`) is a separate later decision — PR 2
+   * does NOT expose this to the LLM.
+   */
+  capabilities?: CapabilityLabel[];
   execute(args: Record<string, unknown>): Promise<string>;
   /**
    * Optional streaming entry point. Implementers MUST re-run the same
