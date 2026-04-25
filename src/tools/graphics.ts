@@ -26,14 +26,18 @@
  *     Favicon `sizes` is intentionally a string field and uses a separate
  *     digits-only parser.
  *   - Validates colors / format against whitelists.
- *   - Contains every input/output/derived path under `process.cwd()` using
- *     `path.relative` (sibling-prefix safe).
+ *   - Contains every input/output/derived path under the agent's project
+ *     root using `path.relative` (sibling-prefix safe).
  *   - Exposes `buildMagickPlan()` — a pure seam that returns the planned
  *     (command, argv) without executing, so tests can pin the argv contract.
  *
- * Same `projectRoot` limitation as Row 10's TestRunnerTool — the tool is
- * constructed without knowledge of the agent's project root, so it gates
- * against `process.cwd()`. Tracked in Issue #17.
+ * Issue #17 fix (2026-04-24): the containment root is now `this.projectRoot`,
+ * threaded from `Agent.projectRoot` via `ToolRegistry`. Pre-fix it was
+ * `process.cwd()` — strictly safer than nothing, but it conflated "where
+ * the process was launched" with "what directory tree the agent is allowed
+ * to touch." A permission-approved graphics call can no longer hop
+ * sideways out of the declared project. Constructor still falls back to
+ * `process.cwd()` for back-compat with ad-hoc instantiation (tests).
  */
 
 import * as fs from 'fs';
@@ -251,6 +255,16 @@ export class GraphicsTool implements Tool {
   name = 'graphics';
   description = 'Image processing, SVG generation & design assets. Actions: resize, convert, compress, crop, watermark, info, svg, favicon, og_image, combine. Uses ImageMagick/sips.';
   permission: Tool['permission'] = 'prompt';
+  /**
+   * Containment root. Issue #17: plumbed from `Agent.projectRoot` via
+   * `ToolRegistry`. Pre-fix every method gated against `process.cwd()`.
+   * Falls back to `process.cwd()` when constructed with no arg (tests,
+   * ad-hoc instantiation).
+   */
+  private readonly projectRoot: string;
+  constructor(projectRoot?: string) {
+    this.projectRoot = projectRoot || process.cwd();
+  }
   parameters = {
     type: 'object',
     properties: {
@@ -316,7 +330,7 @@ export class GraphicsTool implements Tool {
   public buildMagickPlan(
     action: string,
     args: Record<string, unknown>,
-    cwd: string = process.cwd(),
+    cwd: string = this.projectRoot,
   ): MagickPlan {
     switch (action) {
       case 'resize': return this.planResize(args, cwd);
@@ -384,12 +398,12 @@ export class GraphicsTool implements Tool {
   }
 
   private resize(args: Record<string, unknown>): string {
-    const plan = this.planResize(args, process.cwd());
+    const plan = this.planResize(args, this.projectRoot);
     if ('error' in plan) return plan.error;
     try {
       if (plan.backend === 'sips') {
         const outPath = plan.argv[plan.argv.length - 1];
-        const inputResolved = path.resolve(process.cwd(), args.input as string);
+        const inputResolved = path.resolve(this.projectRoot, args.input as string);
         fs.copyFileSync(inputResolved, outPath);
         runPlan(plan.command, plan.argv, 'sips');
         const stats = fs.statSync(outPath);
@@ -448,12 +462,12 @@ export class GraphicsTool implements Tool {
   }
 
   private convert(args: Record<string, unknown>): string {
-    const plan = this.planConvert(args, process.cwd());
+    const plan = this.planConvert(args, this.projectRoot);
     if ('error' in plan) return plan.error;
     try {
       if (plan.backend === 'sips') {
         const outPath = plan.argv[plan.argv.length - 1];
-        const inputResolved = path.resolve(process.cwd(), args.input as string);
+        const inputResolved = path.resolve(this.projectRoot, args.input as string);
         fs.copyFileSync(inputResolved, outPath);
         runPlan(plan.command, plan.argv, 'sips');
         const stats = fs.statSync(outPath);
@@ -494,10 +508,10 @@ export class GraphicsTool implements Tool {
   }
 
   private compress(args: Record<string, unknown>): string {
-    const plan = this.planCompress(args, process.cwd());
+    const plan = this.planCompress(args, this.projectRoot);
     if ('error' in plan) return plan.error;
     try {
-      const inputResolved = path.resolve(process.cwd(), args.input as string);
+      const inputResolved = path.resolve(this.projectRoot, args.input as string);
       const beforeSize = fs.statSync(inputResolved).size;
       runPlan(plan.command, plan.argv, 'magick');
       const outPath = plan.argv[plan.argv.length - 1];
@@ -553,12 +567,12 @@ export class GraphicsTool implements Tool {
   }
 
   private crop(args: Record<string, unknown>): string {
-    const plan = this.planCrop(args, process.cwd());
+    const plan = this.planCrop(args, this.projectRoot);
     if ('error' in plan) return plan.error;
     try {
       if (plan.backend === 'sips') {
         const outPath = plan.argv[plan.argv.length - 1];
-        const inputResolved = path.resolve(process.cwd(), args.input as string);
+        const inputResolved = path.resolve(this.projectRoot, args.input as string);
         fs.copyFileSync(inputResolved, outPath);
         runPlan(plan.command, plan.argv, 'sips');
         return `Cropped → ${outPath}`;
@@ -613,7 +627,7 @@ export class GraphicsTool implements Tool {
   }
 
   private watermark(args: Record<string, unknown>): string {
-    const plan = this.planWatermark(args, process.cwd());
+    const plan = this.planWatermark(args, this.projectRoot);
     if ('error' in plan) return plan.error;
     try {
       runPlan(plan.command, plan.argv, 'magick');
@@ -656,7 +670,7 @@ export class GraphicsTool implements Tool {
   }
 
   private info(args: Record<string, unknown>): string {
-    const plan = this.planInfo(args, process.cwd());
+    const plan = this.planInfo(args, this.projectRoot);
     if ('error' in plan) return plan.error;
     const inputResolved = plan.argv[plan.argv.length - 1];
     if (!fs.existsSync(inputResolved)) return `Error: file not found: ${inputResolved}`;
@@ -679,7 +693,7 @@ export class GraphicsTool implements Tool {
   // ─── svg ─────────────────────────────────────────────────────────────────
 
   private svg(args: Record<string, unknown>): string {
-    const cwd = process.cwd();
+    const cwd = this.projectRoot;
     const svgContent = args.svg_content;
     const svgType = args.svg_type;
     const outputArg = args.output;
@@ -780,7 +794,7 @@ export class GraphicsTool implements Tool {
   // ─── favicon ─────────────────────────────────────────────────────────────
 
   private favicon(args: Record<string, unknown>): string {
-    const cwd = process.cwd();
+    const cwd = this.projectRoot;
     if (typeof args.input !== 'string' || args.input.length === 0) {
       return 'Error: input path (source image or SVG) is required';
     }
@@ -902,7 +916,7 @@ export class GraphicsTool implements Tool {
   }
 
   private ogImage(args: Record<string, unknown>): string {
-    const cwd = process.cwd();
+    const cwd = this.projectRoot;
     const title = typeof args.title === 'string' ? args.title : 'Untitled';
     const subtitle = typeof args.subtitle === 'string' ? args.subtitle : '';
 
@@ -1002,7 +1016,7 @@ export class GraphicsTool implements Tool {
   }
 
   private combine(args: Record<string, unknown>): string {
-    const plan = this.planCombine(args, process.cwd());
+    const plan = this.planCombine(args, this.projectRoot);
     if ('error' in plan) return plan.error;
     try {
       runPlan(plan.command, plan.argv, 'magick');

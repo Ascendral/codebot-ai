@@ -38,13 +38,25 @@ export class TestRunnerTool implements Tool {
   name = 'test_runner';
   description = 'Run tests with auto-detected framework. Actions: run (execute tests), detect (show detected framework), list (list test files).';
   permission: Tool['permission'] = 'prompt';
+  /**
+   * Containment root. Issue #17: was `process.cwd()` baked in via Row 10;
+   * now plumbed from `Agent.projectRoot` via `ToolRegistry` so a permission-
+   * approved test_runner call can never hop sideways out of the agent's
+   * declared project, regardless of where the process happens to be CWD'd.
+   * Falls back to `process.cwd()` for back-compat with callers that still
+   * `new TestRunnerTool()` with no arg (tests, ad-hoc instantiation).
+   */
+  private readonly projectRoot: string;
+  constructor(projectRoot?: string) {
+    this.projectRoot = projectRoot || process.cwd();
+  }
   parameters = {
     type: 'object',
     properties: {
       action: { type: 'string', description: 'Action: run, detect, list' },
       path: { type: 'string', description: 'Test file or directory (defaults to project root)' },
       filter: { type: 'string', description: 'Test name filter / grep pattern' },
-      cwd: { type: 'string', description: 'Working directory (must be inside the process cwd)' },
+      cwd: { type: 'string', description: 'Working directory (must be inside the project root)' },
     },
     required: ['action'],
   };
@@ -54,18 +66,18 @@ export class TestRunnerTool implements Tool {
     if (!action) return 'Error: action is required';
 
     // cwd containment. If the caller passes a cwd, it must be within the
-    // process cwd. We never clamp silently — we reject. This matches the
-    // streaming exec gate's behavior.
-    const processRoot = process.cwd();
+    // agent's declared project root (Issue #17). We never clamp silently —
+    // we reject. This matches the streaming exec gate's behavior.
+    const root = this.projectRoot;
     let cwd: string;
     if (typeof args.cwd === 'string' && args.cwd.length > 0) {
-      const resolved = path.resolve(processRoot, args.cwd);
-      if (!isContained(processRoot, resolved)) {
-        return `Error: cwd escapes project root (${resolved} not under ${processRoot})`;
+      const resolved = path.resolve(root, args.cwd);
+      if (!isContained(root, resolved)) {
+        return `Error: cwd escapes project root (${resolved} not under ${root})`;
       }
       cwd = resolved;
     } else {
-      cwd = processRoot;
+      cwd = root;
     }
 
     switch (action) {
