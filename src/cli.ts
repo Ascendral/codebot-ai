@@ -347,6 +347,7 @@ export async function main() {
       maxIterations: config.maxIterations,
       autoApprove: true,
       routerConfig: config.router,
+      budgetConfig: config.budget,
     });
     const daemon = new Daemon();
     daemon.onExecuteJob = async (job) => {
@@ -485,6 +486,7 @@ export async function main() {
     onMessage: (msg: Message) => session.save(msg),
     vaultMode: vaultModeOpts,
     routerConfig: config.router,
+    budgetConfig: config.budget,
   });
 
   agent.setAskPermission(async (tool, args, risk, sandbox) => {
@@ -643,12 +645,20 @@ function printSessionSummary(agent: Agent) {
   const riskAvg = riskScorer.getSessionAverage();
   if (riskScorer.getHistory().length > 0) console.log(`  Risk:      avg ${riskAvg}/100`);
 
+  // PR 6 — surface session cost + budget remaining when an effective
+  // cap exists. Without a cap, banner falls back to "no cap" rendering.
+  const tokenTracker = agent.getTokenTracker();
+  const budgetCapUsd = agent.getEffectiveBudgetCapUsd();
+  const remainingUsd = tokenTracker.getRemainingBudget();
   console.log(
     sessionSummaryBanner({
       iterations: summary.requestCount,
       toolCalls: summary.toolCalls,
       tokensUsed: summary.totalInputTokens + summary.totalOutputTokens,
+      cost: summary.totalCostUsd,
       duration,
+      budgetCapUsd,
+      budgetRemainingUsd: remainingUsd,
     }),
   );
   metrics.save();

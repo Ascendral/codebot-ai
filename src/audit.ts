@@ -47,7 +47,14 @@ export interface AuditEntry {
     // typically because the desired tier model lives on a different
     // provider family, which PR 5 does not yet support.
     | 'switch'
-    | 'fallback';
+    | 'fallback'
+    // Budget actions (PR 6 of personal-agent-infrastructure.md).
+    // `budget_block` records that an additional model call was refused
+    // because the session has already reached the effective cap.
+    // `budget_warning` records crossing a configured threshold (default
+    // 50/75/95% of cap). Each threshold fires at most once per session.
+    | 'budget_block'
+    | 'budget_warning';
   args: Record<string, unknown>;
   result?: string;
   reason?: string;

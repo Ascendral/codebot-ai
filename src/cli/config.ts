@@ -80,6 +80,10 @@ export async function resolveConfig(args: Record<string, string | boolean>): Pro
     // Router config from saved settings only (PR 5: no CLI flag yet).
     // Absent or `enabled: false` → routing OFF, identical to pre-PR-5.
     router: saved.router,
+    // Budget config from saved settings only (PR 6: no CLI flag yet).
+    // Absent or `perSessionCapUsd: 0` → no user-set cap. The existing
+    // `policy.limits.cost_limit_usd` path still applies independently.
+    budget: saved.budget,
   };
 
   if (!config.baseUrl) {

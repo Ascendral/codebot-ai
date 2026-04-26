@@ -3,6 +3,35 @@ import * as path from 'path';
 import * as readline from 'readline';
 import { PROVIDER_DEFAULTS, MODEL_REGISTRY, detectProvider, getModelInfo } from './providers/registry';
 import type { RouterConfig } from './router';
+
+/**
+ * PR 6 — Budget controls (§6 of personal-agent-infrastructure.md).
+ *
+ * Top-level user-config path for per-session cost caps. Stays
+ * router-independent: budget applies to all model calls regardless
+ * of whether routing is enabled.
+ *
+ * Combined with `policy.limits.cost_limit_usd` from policy.yaml: when
+ * both are set, the stricter (smaller, non-zero) value wins.
+ *
+ * Honest scope note: PR 6 prevents *additional* model calls once the
+ * session has *already reached* the effective cap. Pre-call cost
+ * estimation (predicting whether the *next* call would exceed) is
+ * deferred — needs tokenizer integration and per-model output ceilings
+ * we don't currently expose.
+ */
+export interface BudgetConfig {
+  /**
+   * Hard cap in USD for the current session. 0 or absent → no cap.
+   */
+  perSessionCapUsd: number;
+  /**
+   * Optional thresholds (as fractions of the cap) at which to emit a
+   * `budget_warning` audit entry. Default: `[0.5, 0.75, 0.95]`. Each
+   * threshold fires at most once per session.
+   */
+  warnThresholds?: number[];
+}
 import { codebotHome, codebotPath } from './paths';
 
 
@@ -61,6 +90,13 @@ export interface SavedConfig {
    * entry. Cross-provider routing is deferred to a later PR.
    */
   router?: RouterConfig;
+  /**
+   * Optional budget config (PR 6 of personal-agent-infrastructure.md).
+   * Absent or `perSessionCapUsd: 0` → no user-set cap. The agent still
+   * honors `policy.limits.cost_limit_usd` if that's non-zero.
+   * When both are set, the stricter (smaller) value wins.
+   */
+  budget?: BudgetConfig;
 }
 
 /** Return true if the user has explicitly banned this provider. */

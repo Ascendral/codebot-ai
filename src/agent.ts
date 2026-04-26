@@ -28,6 +28,7 @@ import { TaskStateStore } from './task-state';
 import { escalatePermissionFromCapabilityLabels } from './capability-gating';
 import { classifyComplexity, selectModel, RouterConfig } from './router';
 import { detectProvider } from './providers/registry';
+import type { BudgetConfig } from './setup';
 import { log } from './logger';
 
 /** Permission callback type — risk and sandbox info are optional for backwards compat */
@@ -71,6 +72,14 @@ export class Agent {
   private providerFamily: string;
   /** Optional model-router config (PR 5). Absent → routing OFF (byte-identical to pre-PR-5). */
   private routerConfig: RouterConfig | undefined;
+  /** PR 6 — effective per-session cost cap in USD. 0 = no cap. Stricter of policy + user config. */
+  private effectiveBudgetCapUsd: number = 0;
+  /** PR 6 — sources of the effective cap, for audit transparency. */
+  private budgetCapSources: { policyUsd: number; userUsd: number } = { policyUsd: 0, userUsd: 0 };
+  /** PR 6 — fractional thresholds at which to emit `budget_warning`. */
+  private budgetThresholds: number[] = [0.5, 0.75, 0.95];
+  /** PR 6 — thresholds already crossed in this session (each fires once). */
+  private budgetThresholdsCrossed: Set<number> = new Set();
   private cache: ToolCache;
   private rateLimiter: RateLimiter;
   private providerRateLimiter: ProviderRateLimiter;
@@ -116,6 +125,12 @@ export class Agent {
      * for every turn (byte-identical to pre-PR-5 behavior).
      */
     routerConfig?: RouterConfig;
+    /**
+     * Optional budget config (PR 6 of personal-agent-infrastructure.md).
+     * Absent or `perSessionCapUsd: 0` → no user-set cap. Combined with
+     * `policy.limits.cost_limit_usd`: stricter (smaller, non-zero) wins.
+     */
+    budgetConfig?: BudgetConfig;
     /**
      * Vault Mode — when set, the agent behaves as a read-only research
      * assistant over a folder of markdown notes rather than an
@@ -184,8 +199,28 @@ export class Agent {
       log.warn(`[CodeBot] Failed to initialize state engine: ${(e as Error).message}`);
     }
 
-    const costLimit = this.policyEnforcer.getCostLimitUsd();
-    if (costLimit > 0) this.tokenTracker.setCostLimit(costLimit);
+    // PR 6 — Effective budget cap is the stricter (smaller, non-zero)
+    // of policy.limits.cost_limit_usd and SavedConfig.budget.perSessionCapUsd.
+    // Either source alone behaves as before; both set takes the min.
+    const policyLimit = this.policyEnforcer.getCostLimitUsd();
+    const userLimit = opts.budgetConfig?.perSessionCapUsd ?? 0;
+    let effectiveLimit = 0;
+    if (policyLimit > 0 && userLimit > 0) {
+      effectiveLimit = Math.min(policyLimit, userLimit);
+    } else if (policyLimit > 0) {
+      effectiveLimit = policyLimit;
+    } else if (userLimit > 0) {
+      effectiveLimit = userLimit;
+    }
+    this.budgetCapSources = { policyUsd: policyLimit, userUsd: userLimit };
+    this.effectiveBudgetCapUsd = effectiveLimit;
+    if (effectiveLimit > 0) this.tokenTracker.setCostLimit(effectiveLimit);
+    if (opts.budgetConfig?.warnThresholds) {
+      // Validate: drop anything outside (0, 1] to keep audit semantics sane.
+      this.budgetThresholds = opts.budgetConfig.warnThresholds
+        .filter((t) => t > 0 && t <= 1)
+        .sort((a, b) => a - b);
+    }
 
     // Load plugins
     try {
@@ -353,6 +388,38 @@ export class Agent {
   }
 
   /**
+   * PR 6 — emit `budget_warning` audits when session cost first crosses
+   * each configured threshold (default 50/75/95% of effective cap).
+   * Each threshold fires at most once per session.
+   *
+   * No-op when no cap is set, when thresholds are empty, or when all
+   * thresholds have already been crossed.
+   */
+  private checkBudgetThresholds(): void {
+    if (this.effectiveBudgetCapUsd <= 0) return;
+    if (this.budgetThresholds.length === 0) return;
+    const ratio = this.tokenTracker.getTotalCost() / this.effectiveBudgetCapUsd;
+    for (const threshold of this.budgetThresholds) {
+      if (ratio >= threshold && !this.budgetThresholdsCrossed.has(threshold)) {
+        this.budgetThresholdsCrossed.add(threshold);
+        this.auditLogger.log({
+          tool: 'budget',
+          action: 'budget_warning',
+          args: {
+            threshold,
+            ratio,
+            totalCostUsd: this.tokenTracker.getTotalCost(),
+            effectiveCapUsd: this.effectiveBudgetCapUsd,
+            remainingUsd: this.tokenTracker.getRemainingBudget(),
+          },
+          reason: `budget at ${(ratio * 100).toFixed(0)}% of effective cap ($${this.effectiveBudgetCapUsd.toFixed(2)})`,
+          result: 'warn',
+        });
+      }
+    }
+  }
+
+  /**
    * Toggle Vault Mode at runtime (called from the dashboard's
    * /api/command/vault endpoint). Pass a vaultMode object to enable,
    * or null/undefined to return to the standard coding-agent mode.
@@ -432,6 +499,36 @@ export class Agent {
       // When `routerConfig` is absent or `enabled: false`, this block
       // is a complete no-op — `this.model` is never mutated.
       this.maybeRouteModel();
+
+      // Budget guard (PR 6 of personal-agent-infrastructure.md). Pre-call
+      // check: if the session has already reached the effective cap,
+      // refuse to fire another model call. Threshold audits are emitted
+      // here too so the user has visibility before exhaustion.
+      //
+      // Honest scope: this prevents *additional* calls once at/over cap.
+      // It does not estimate the *next* call's cost in advance — that's
+      // deferred (needs tokenizer + per-model output ceilings).
+      this.checkBudgetThresholds();
+      if (this.tokenTracker.isOverBudget()) {
+        const cost = this.tokenTracker.getTotalCost();
+        const cap = this.effectiveBudgetCapUsd;
+        this.auditLogger.log({
+          tool: 'budget',
+          action: 'budget_block',
+          args: {
+            totalCostUsd: cost,
+            effectiveCapUsd: cap,
+            policyCapUsd: this.budgetCapSources.policyUsd,
+            userCapUsd: this.budgetCapSources.userUsd,
+          },
+          reason: `budget exhausted: $${cost.toFixed(4)} ≥ $${cap.toFixed(2)}`,
+          result: 'block',
+        });
+        const errorMessage = `Cost limit exceeded ($${cost.toFixed(4)} / $${cap.toFixed(2)}). Stopping. Raise the cap in ~/.codebot/config.json under \`budget.perSessionCapUsd\` or end the session.`;
+        this.finishRun(false, errorMessage, tracksTask);
+        yield { type: 'error', error: errorMessage };
+        return;
+      }
 
       const supportsTools = getModelInfo(this.model).supportsToolCalling;
       const toolSchemas = supportsTools ? this.tools.getSchemas() : undefined;
@@ -578,9 +675,28 @@ export class Agent {
         return;
       }
 
-      // Cost budget check: stop if over limit
+      // Post-tool-batch budget backstop. The pre-call check above already
+      // catches the common case; this catches tools that themselves cost
+      // (sub-LLM calls, MCP servers) and pushed us over within the
+      // iteration. Same audit shape as the pre-call block.
+      this.checkBudgetThresholds();
       if (this.tokenTracker.isOverBudget()) {
-        const errorMessage = `Cost limit exceeded ($${this.tokenTracker.getTotalCost().toFixed(4)} / $${this.policyEnforcer.getCostLimitUsd().toFixed(2)}). Stopping.`;
+        const cost = this.tokenTracker.getTotalCost();
+        const cap = this.effectiveBudgetCapUsd;
+        this.auditLogger.log({
+          tool: 'budget',
+          action: 'budget_block',
+          args: {
+            totalCostUsd: cost,
+            effectiveCapUsd: cap,
+            policyCapUsd: this.budgetCapSources.policyUsd,
+            userCapUsd: this.budgetCapSources.userUsd,
+            origin: 'post-tool-batch',
+          },
+          reason: `budget exhausted (post-tool-batch): $${cost.toFixed(4)} ≥ $${cap.toFixed(2)}`,
+          result: 'block',
+        });
+        const errorMessage = `Cost limit exceeded ($${cost.toFixed(4)} / $${cap.toFixed(2)}). Stopping. Raise the cap in ~/.codebot/config.json under \`budget.perSessionCapUsd\` or end the session.`;
         this.finishRun(false, errorMessage, tracksTask);
         yield { type: 'error', error: errorMessage };
         return;
@@ -738,6 +854,15 @@ export class Agent {
   /** Get the token tracker for session summary / CLI display */
   getTokenTracker(): TokenTracker {
     return this.tokenTracker;
+  }
+
+  /**
+   * PR 6 — effective budget cap (USD). 0 = no cap. Stricter of policy +
+   * user config, computed at construction. Public so the CLI banner /
+   * dashboard can render it.
+   */
+  getEffectiveBudgetCapUsd(): number {
+    return this.effectiveBudgetCapUsd;
   }
 
   /**

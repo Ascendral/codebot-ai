@@ -292,11 +292,27 @@ export function sessionSummaryBanner(stats: {
   tokensUsed: number;
   cost?: number;
   duration?: number;
+  /**
+   * PR 6 — effective budget cap and remaining USD.
+   * `budgetCapUsd` 0 / undefined or `budgetRemainingUsd` Infinity → "no limit".
+   */
+  budgetCapUsd?: number;
+  budgetRemainingUsd?: number;
 }): string {
   const durationStr = stats.duration !== undefined
     ? `${Math.floor(stats.duration / 60)}m ${Math.round(stats.duration % 60)}s`
     : 'N/A';
   const costStr = stats.cost !== undefined ? `$${stats.cost.toFixed(4)}` : 'N/A';
+
+  // PR 6 — render budget remaining only when there is an effective cap.
+  // `budgetRemainingUsd === Infinity` means "no cap set," which we omit
+  // rather than pretend.
+  const hasCap = (stats.budgetCapUsd ?? 0) > 0
+    && stats.budgetRemainingUsd !== undefined
+    && Number.isFinite(stats.budgetRemainingUsd);
+  const budgetStr = hasCap
+    ? `$${(stats.budgetRemainingUsd as number).toFixed(4)} / $${(stats.budgetCapUsd as number).toFixed(2)}`
+    : 'no cap';
 
   const lines = [
     '',
@@ -307,6 +323,7 @@ export function sessionSummaryBanner(stats: {
     `  ${C.dim}Tool calls:${C.reset}  ${stats.toolCalls}`,
     `  ${C.dim}Tokens:${C.reset}      ${stats.tokensUsed.toLocaleString()}`,
     `  ${C.dim}Cost:${C.reset}        ${costStr}`,
+    `  ${C.dim}Budget:${C.reset}      ${budgetStr}`,
     `  ${C.dim}Duration:${C.reset}    ${durationStr}`,
     `${C.dim}${'─'.repeat(50)}${C.reset}`,
     `  ${C.dim}${randomGreeting('confident')}${C.reset}`,
