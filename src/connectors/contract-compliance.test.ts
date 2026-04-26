@@ -14,7 +14,6 @@ import { GoogleDriveConnector } from './google-drive';
 import { JiraConnector } from './jira';
 import { LinearConnector } from './linear';
 import { NotionConnector } from './notion';
-import { OpenAIImagesConnector } from './openai-images';
 import { ReplicateConnector } from './replicate';
 import { SlackConnector } from './slack';
 import { XTwitterConnector } from './x-twitter';
@@ -23,9 +22,13 @@ import { XTwitterConnector } from './x-twitter';
  * PR 7 — contract compliance report (non-failing).
  *
  * Per §8 + the PR 7 review:
- *   - Existing 11 connectors are MEASURED but the report does NOT fail
+ *   - Existing connectors are MEASURED but the report does NOT fail
  *     the build. They migrate to the contract one PR at a time
- *     (PR 8 = Gmail first).
+ *     (PR 8 = Gmail first; PR 9 = GitHub).
+ *   - 2026-04-26: openai-images removed from the registered set —
+ *     paid OpenAI image generation is no longer a default-registered
+ *     production connector. Compliance denominator dropped from 50
+ *     to 47.
  *   - New / migrated connector PRs MUST pass `assertContractClean`
  *     (which is hard-fail). That assertion lives in each connector's
  *     own test file once that connector is migrated.
@@ -47,15 +50,14 @@ describe('Connector contract compliance — production connectors (non-failing r
     new JiraConnector(),
     new LinearConnector(),
     new NotionConnector(),
-    new OpenAIImagesConnector(),
     new ReplicateConnector(),
     new SlackConnector(),
     new XTwitterConnector(),
   ];
 
-  it('all 11 production connectors instantiate without throwing', () => {
+  it('all 10 production connectors instantiate without throwing', () => {
     const all = makeAll();
-    assert.strictEqual(all.length, 11);
+    assert.strictEqual(all.length, 10);
     for (const c of all) {
       assert.ok(typeof c.name === 'string' && c.name.length > 0,
         `connector missing name: ${JSON.stringify(c)}`);
@@ -80,7 +82,7 @@ describe('Connector contract compliance — production connectors (non-failing r
     // the basic shape so the report keeps generating; do NOT pin the
     // numbers — those should drive upward in PR 8+ without breaking
     // this test.
-    assert.ok(scores.length === 11);
+    assert.ok(scores.length === 10);
     assert.ok(totalActions > 0);
     assert.ok(compliantActions >= 0);
     assert.ok(compliantActions <= totalActions);

@@ -39,7 +39,6 @@ import { GitHubConnector } from '../connectors/github';
 import { SlackConnector } from '../connectors/slack';
 import { JiraConnector } from '../connectors/jira';
 import { LinearConnector } from '../connectors/linear';
-import { OpenAIImagesConnector } from '../connectors/openai-images';
 import { ReplicateConnector } from '../connectors/replicate';
 import { GmailConnector } from '../connectors/gmail';
 import { GoogleCalendarConnector } from '../connectors/google-calendar';
@@ -188,7 +187,6 @@ export class ToolRegistry {
         { name: 'Slack', create: () => new SlackConnector() },
         { name: 'Jira', create: () => new JiraConnector() },
         { name: 'Linear', create: () => new LinearConnector() },
-        { name: 'OpenAIImages', create: () => new OpenAIImagesConnector() },
         { name: 'Replicate', create: () => new ReplicateConnector() },
         { name: 'Gmail', create: () => new GmailConnector() },
         { name: 'GoogleCalendar', create: () => new GoogleCalendarConnector() },
