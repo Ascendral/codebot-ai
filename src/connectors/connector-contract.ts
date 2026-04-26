@@ -118,20 +118,37 @@ function visitAction(connector: string, action: ConnectorAction, out: ContractVi
 
   // Rule 4 — idempotency. We don't *require* a key (some services don't
   // support it). But we DO require an explicit declaration on every
-  // mutating verb: either `idempotencyKeyArg` set, OR
-  // `idempotencyUnsupportedReason` documenting why no key exists.
-  // Setting NEITHER is the violation — that's the implicit-gap pattern
-  // we're trying to prevent. Read-only verbs are exempt entirely.
-  const hasIdempotencyKey = typeof action.idempotencyKeyArg === 'string' && action.idempotencyKeyArg.length > 0;
-  const hasUnsupportedReason = typeof action.idempotencyUnsupportedReason === 'string' && action.idempotencyUnsupportedReason.length > 0;
-  if (mutating.length > 0 && !hasIdempotencyKey && !hasUnsupportedReason) {
+  // mutating verb via the `idempotency` discriminated union:
+  //   - `{ kind: 'arg', arg: '<non-empty>' }` — service supports dedup
+  //   - `{ kind: 'unsupported', reason: '<non-empty>' }` — documented gap
+  // Read-only verbs are exempt. Empty `arg` / `reason` strings are
+  // rejected — they would defeat the contract too easily.
+  if (mutating.length > 0 && !isValidIdempotencyDeclaration(action.idempotency)) {
     out.push({
       connector,
       action: action.name,
       rule: 'missing-idempotency-declaration',
-      hint: `Action "${action.name}" is mutating and must declare either \`idempotencyKeyArg\` (name of the args field carrying a user-supplied dedup key) OR \`idempotencyUnsupportedReason\` (documented gap when the service has no dedup mechanism). Setting neither is the implicit-gap pattern §8 prohibits.`,
+      hint: `Action "${action.name}" is mutating and must declare \`idempotency\`: either \`{ kind: 'arg', arg: '<args field name>' }\` (when the service supports a dedup key) or \`{ kind: 'unsupported', reason: '<why this service has no dedup>' }\`. Setting neither is the implicit-gap pattern §8 prohibits.`,
     });
   }
+}
+
+/**
+ * Returns true iff `decl` is a structurally valid idempotency
+ * declaration with a non-empty payload. Empty `arg` / `reason` are
+ * rejected — those would let a connector "technically declare" the
+ * field while actually leaving the gap implicit.
+ */
+function isValidIdempotencyDeclaration(decl: unknown): boolean {
+  if (typeof decl !== 'object' || decl === null) return false;
+  const d = decl as { kind?: unknown; arg?: unknown; reason?: unknown };
+  if (d.kind === 'arg') {
+    return typeof d.arg === 'string' && d.arg.length > 0;
+  }
+  if (d.kind === 'unsupported') {
+    return typeof d.reason === 'string' && d.reason.length > 0;
+  }
+  return false;
 }
 
 /**

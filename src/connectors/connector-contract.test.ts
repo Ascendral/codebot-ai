@@ -101,7 +101,7 @@ describe('validateConnectorContract — rule coverage', () => {
       parameters: { type: 'object', properties: {} },
       capabilities: ['delete-data'],
       preview: async () => ({ summary: 'would delete' }),
-      idempotencyKeyArg: 'rid',
+      idempotency: { kind: 'arg', arg: 'rid' },
       // no redactArgsForAudit
       execute: async () => 'ok',
     };
@@ -113,7 +113,7 @@ describe('validateConnectorContract — rule coverage', () => {
     assert.deepStrictEqual(rules, ['missing-redact-for-mutating-verb']);
   });
 
-  it('flags mutating verb missing both idempotencyKeyArg AND idempotencyUnsupportedReason', () => {
+  it('flags mutating verb missing the idempotency declaration entirely', () => {
     const action: ConnectorAction = {
       name: 'send_thing',
       description: '',
@@ -121,7 +121,7 @@ describe('validateConnectorContract — rule coverage', () => {
       capabilities: ['send-on-behalf'],
       preview: async () => ({ summary: 'would send' }),
       redactArgsForAudit: (a) => ({ ...a }),
-      // neither idempotencyKeyArg nor idempotencyUnsupportedReason
+      // no idempotency at all
       execute: async () => 'ok',
     };
     const c: Connector = {
@@ -132,7 +132,25 @@ describe('validateConnectorContract — rule coverage', () => {
     assert.deepStrictEqual(rules, ['missing-idempotency-declaration']);
   });
 
-  it('idempotencyUnsupportedReason satisfies the rule (escape hatch for services without dedup)', () => {
+  it('idempotency.kind === "arg" with non-empty arg passes', () => {
+    const action: ConnectorAction = {
+      name: 'send_thing',
+      description: '',
+      parameters: { type: 'object', properties: {} },
+      capabilities: ['send-on-behalf'],
+      preview: async () => ({ summary: 'would send' }),
+      redactArgsForAudit: (a) => ({ ...a }),
+      idempotency: { kind: 'arg', arg: 'request_id' },
+      execute: async () => 'ok',
+    };
+    const c: Connector = {
+      name: 'fixture-arg', displayName: '', description: '',
+      authType: 'api_key', actions: [action], validate: async () => true,
+    };
+    assert.deepStrictEqual(validateConnectorContract(c), []);
+  });
+
+  it('idempotency.kind === "unsupported" with non-empty reason passes (escape hatch)', () => {
     // Concrete real-world case: Slack chat.postMessage has no client-side
     // dedup key. The contract MUST allow honest "we know, here's why"
     // declaration — anything else forces dishonest fake idempotency args.
@@ -143,22 +161,21 @@ describe('validateConnectorContract — rule coverage', () => {
       capabilities: ['send-on-behalf'],
       preview: async () => ({ summary: 'would post' }),
       redactArgsForAudit: (a) => ({ ...a }),
-      idempotencyUnsupportedReason: 'Slack chat.postMessage has no client-side dedup key.',
-      // no idempotencyKeyArg — explicitly documented as unsupported
+      idempotency: {
+        kind: 'unsupported',
+        reason: 'Slack chat.postMessage has no client-side dedup key.',
+      },
       execute: async () => 'ok',
     };
     const c: Connector = {
-      name: 'fixture-no-dedup-supported', displayName: '', description: '',
+      name: 'fixture-unsupported', displayName: '', description: '',
       authType: 'api_key', actions: [action], validate: async () => true,
     };
     assert.deepStrictEqual(validateConnectorContract(c), [],
-      'unsupportedReason must be accepted as an honest declaration');
+      'unsupported declaration must be accepted as an honest gap doc');
   });
 
-  it('both idempotencyKeyArg AND idempotencyUnsupportedReason allowed (partial dedup with documented gap)', () => {
-    // A connector might support dedup for some args paths but not
-    // others, or want to record a known limitation alongside the key.
-    // The contract should not force exclusivity.
+  it('idempotency.kind === "arg" with empty arg fails the rule', () => {
     const action: ConnectorAction = {
       name: 'send_thing',
       description: '',
@@ -166,19 +183,19 @@ describe('validateConnectorContract — rule coverage', () => {
       capabilities: ['send-on-behalf'],
       preview: async () => ({ summary: 'would send' }),
       redactArgsForAudit: (a) => ({ ...a }),
-      idempotencyKeyArg: 'request_id',
-      idempotencyUnsupportedReason: 'Server only dedupes within a 5-minute window.',
+      idempotency: { kind: 'arg', arg: '' },
       execute: async () => 'ok',
     };
     const c: Connector = {
-      name: 'fixture-both', displayName: '', description: '',
+      name: 'fixture-empty-arg', displayName: '', description: '',
       authType: 'api_key', actions: [action], validate: async () => true,
     };
-    assert.deepStrictEqual(validateConnectorContract(c), [],
-      'declaring both should be allowed — the gap note is documentation, not exclusion');
+    const rules = validateConnectorContract(c).map((v) => v.rule);
+    assert.deepStrictEqual(rules, ['missing-idempotency-declaration'],
+      'empty arg string is not an honest declaration');
   });
 
-  it('empty-string idempotencyUnsupportedReason does NOT satisfy the rule', () => {
+  it('idempotency.kind === "unsupported" with empty reason fails the rule', () => {
     // Empty string would be too easy a way to defeat the contract
     // ("technically declared"). Validator requires non-empty reason.
     const action: ConnectorAction = {
@@ -188,7 +205,7 @@ describe('validateConnectorContract — rule coverage', () => {
       capabilities: ['send-on-behalf'],
       preview: async () => ({ summary: 'would send' }),
       redactArgsForAudit: (a) => ({ ...a }),
-      idempotencyUnsupportedReason: '',
+      idempotency: { kind: 'unsupported', reason: '' },
       execute: async () => 'ok',
     };
     const c: Connector = {
@@ -198,6 +215,29 @@ describe('validateConnectorContract — rule coverage', () => {
     const rules = validateConnectorContract(c).map((v) => v.rule);
     assert.deepStrictEqual(rules, ['missing-idempotency-declaration'],
       'empty reason string is not an honest declaration');
+  });
+
+  it('idempotency with unknown kind fails the rule (no silent acceptance)', () => {
+    // A future contributor passing { kind: 'something-else' } should
+    // not silently satisfy the contract. Validator only honors the
+    // discriminated union's two declared arms.
+    const action: ConnectorAction = {
+      name: 'send_thing',
+      description: '',
+      parameters: { type: 'object', properties: {} },
+      capabilities: ['send-on-behalf'],
+      preview: async () => ({ summary: 'would send' }),
+      redactArgsForAudit: (a) => ({ ...a }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      idempotency: { kind: 'made-up' as any, reason: 'whatever' } as any,
+      execute: async () => 'ok',
+    };
+    const c: Connector = {
+      name: 'fixture-bad-kind', displayName: '', description: '',
+      authType: 'api_key', actions: [action], validate: async () => true,
+    };
+    const rules = validateConnectorContract(c).map((v) => v.rule);
+    assert.deepStrictEqual(rules, ['missing-idempotency-declaration']);
   });
 
   it('does NOT require preview / idempotency / redact for read-only verbs', () => {

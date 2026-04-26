@@ -29,6 +29,31 @@ export interface ConnectorPreview {
   details?: Record<string, unknown>;
 }
 
+/**
+ * Idempotency declaration for a mutating connector verb (§8 connector
+ * contract). One of:
+ *   - `{ kind: 'arg', arg: '<args field name>' }` — service supports
+ *     dedup; the connector reads the user-supplied key from this field
+ *     in `args` and passes it through. Example: Gmail send →
+ *     `{ kind: 'arg', arg: 'request_id' }`.
+ *   - `{ kind: 'unsupported', reason: '<short technical sentence>' }`
+ *     — service has no dedup mechanism; the gap is documented
+ *     explicitly. Example: Slack chat.postMessage →
+ *     `{ kind: 'unsupported', reason: 'Slack chat.postMessage has no
+ *     client-side dedup key.' }`.
+ *
+ * The validator (`connector-contract.ts`) requires non-empty `arg` or
+ * non-empty `reason`. Empty strings are rejected — they would defeat
+ * the contract too easily ("technically declared").
+ *
+ * This discriminated union replaces the earlier two-field design
+ * (`idempotencyKeyArg` + `idempotencyUnsupportedReason`) so connector
+ * authors face one declaration site, not two competing ones.
+ */
+export type IdempotencyDeclaration =
+  | { kind: 'arg'; arg: string }
+  | { kind: 'unsupported'; reason: string };
+
 export interface ConnectorAction {
   // ── Existing fields ──
   name: string;
@@ -58,30 +83,17 @@ export interface ConnectorAction {
   preview?(args: Record<string, unknown>, credential: string): Promise<ConnectorPreview>;
 
   /**
-   * Name of the args field that carries the user-supplied idempotency
-   * key (e.g. `'message_id'` for Gmail send). Set when the underlying
-   * service supports duplicate-submit protection.
+   * Idempotency declaration for mutating verbs (§8 connector contract).
+   * Discriminated union — either declare an args field carrying a
+   * user-supplied dedup key, OR explicitly document that the
+   * underlying service has no dedup mechanism. See
+   * `IdempotencyDeclaration` for the precise shape.
    *
-   * If the service does NOT support idempotency, leave this undefined
-   * and set `idempotencyUnsupportedReason` instead — that's the
-   * explicit "documented gap" the §8 contract requires. Setting
-   * neither on a mutating verb fails `assertContractClean`.
+   * The validator requires this on every action whose `capabilities`
+   * include `send-on-behalf`, `delete-data`, or `spend-money`.
+   * Read-only verbs are exempt.
    */
-  idempotencyKeyArg?: string;
-
-  /**
-   * Documented reason that this verb does NOT support idempotency
-   * (the underlying service has no message-id / request-id / dedup
-   * mechanism). Set this instead of `idempotencyKeyArg` to honestly
-   * declare the gap. Reason should be a short technical sentence —
-   * e.g. `'Slack chat.postMessage has no client-side dedup key.'`.
-   *
-   * The contract validator accepts either `idempotencyKeyArg` OR
-   * `idempotencyUnsupportedReason` for mutating verbs. Setting both
-   * is allowed (a connector might support a partial dedup signal but
-   * also document a known gap). Setting neither is a violation.
-   */
-  idempotencyUnsupportedReason?: string;
+  idempotency?: IdempotencyDeclaration;
 
   /**
    * Returns a sanitized version of args for audit logging. Default
