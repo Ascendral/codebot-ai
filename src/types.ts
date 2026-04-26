@@ -163,6 +163,15 @@ export interface ConfigRouterShape {
   reasoningModel?: string;
 }
 
+/**
+ * PR 6 — Inline shape of `BudgetConfig` from `./setup`. Same dep-arrow
+ * reasoning as `ConfigRouterShape` above.
+ */
+export interface ConfigBudgetShape {
+  perSessionCapUsd: number;
+  warnThresholds?: number[];
+}
+
 export interface Config {
   provider: string;
   model: string;
@@ -174,4 +183,6 @@ export interface Config {
   projectRoot?: string;
   /** Optional router config (PR 5). Absent or `enabled:false` → routing off. */
   router?: ConfigRouterShape;
+  /** Optional budget config (PR 6). Absent or `perSessionCapUsd:0` → no user cap. */
+  budget?: ConfigBudgetShape;
 }
