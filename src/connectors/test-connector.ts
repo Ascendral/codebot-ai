@@ -34,7 +34,7 @@ const readThing: ConnectorAction = {
     required: ['id'],
   },
   capabilities: ['read-only', 'account-access', 'net-fetch'],
-  // No preview, no idempotencyKeyArg, no redactArgsForAudit — read-only
+  // No preview, no idempotency, no redactArgsForAudit — read-only
   // verbs are exempt from those requirements per the contract.
   execute: async (args, _credential) => {
     return `read: ${args.id as string}`;
@@ -54,7 +54,7 @@ const sendThing: ConnectorAction = {
     required: ['to', 'body'],
   },
   capabilities: ['account-access', 'net-fetch', 'send-on-behalf'],
-  idempotencyKeyArg: 'request_id',
+  idempotency: { kind: 'arg', arg: 'request_id' },
   // Preview shows what would happen without firing the send.
   preview: async (args, _credential): Promise<ConnectorPreview> => {
     const to = String(args.to ?? '');
@@ -92,7 +92,7 @@ const deleteThing: ConnectorAction = {
     required: ['id'],
   },
   capabilities: ['account-access', 'net-fetch', 'delete-data'],
-  idempotencyKeyArg: 'request_id',
+  idempotency: { kind: 'arg', arg: 'request_id' },
   preview: async (args, _credential): Promise<ConnectorPreview> => ({
     summary: `Would delete thing id="${args.id as string}"`,
     details: { id: args.id },
@@ -103,6 +103,42 @@ const deleteThing: ConnectorAction = {
   redactArgsForAudit: (args) => ({ ...args }),
   execute: async (args, _credential) => {
     return `deleted ${args.id as string}`;
+  },
+};
+
+const postNoDedup: ConnectorAction = {
+  name: 'post_no_dedup',
+  description: 'Post — exercises the `unsupported` arm of idempotency for services with no client-side dedup key (modeled on Slack chat.postMessage).',
+  parameters: {
+    type: 'object',
+    properties: {
+      channel: { type: 'string' },
+      text: { type: 'string' },
+    },
+    required: ['channel', 'text'],
+  },
+  capabilities: ['account-access', 'net-fetch', 'send-on-behalf'],
+  // Honest gap declaration: this service has no client-side dedup
+  // mechanism. The contract REQUIRES this be explicit rather than
+  // implicit (no dedup arg) so reviewers can see the deliberate call.
+  idempotency: {
+    kind: 'unsupported',
+    reason: 'Test fixture: modeled on Slack chat.postMessage, which has no client-side dedup key.',
+  },
+  preview: async (args, _credential): Promise<ConnectorPreview> => ({
+    summary: `Would post to ${String(args.channel ?? '')} (text: ${String(args.text ?? '').length} chars)`,
+    details: { channel: args.channel },
+  }),
+  redactArgsForAudit: (args) => {
+    const out: Record<string, unknown> = { ...args };
+    if (typeof args.text === 'string') {
+      const d = hashAndLength(args.text);
+      out.text = `<redacted sha256:${d.hash} len:${d.length}>`;
+    }
+    return out;
+  },
+  execute: async (args, _credential) => {
+    return `posted to ${args.channel as string}`;
   },
 };
 
@@ -123,7 +159,7 @@ export class TestConnector implements Connector {
   authType: Connector['authType'] = 'api_key';
   envKey = 'TEST_CONNECTOR_TOKEN';
   vaultKeyName = 'test-connector';
-  actions: ConnectorAction[] = [readThing, sendThing, deleteThing, reauthTrip];
+  actions: ConnectorAction[] = [readThing, sendThing, deleteThing, postNoDedup, reauthTrip];
   async validate(_credential: string): Promise<boolean> {
     return true;
   }
