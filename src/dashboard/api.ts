@@ -18,7 +18,7 @@ import { UserProfile } from '../user-profile';
 import { MemoryManager } from '../memory';
 import { loadConfig, saveConfig as saveSetupConfig, isFirstRun, detectLocalServers, SavedConfig, isProviderDisabled, pickProviderKey } from '../setup';
 import { codebotPath } from '../paths';
-import { RiskScorer } from '../risk';
+import { AuditLogger, AuditEntry } from '../audit';
 
 // Previously: detectAvailableProviders() — superseded by the inline
 // availability loop at /api/models/registry, which is the only caller
@@ -427,45 +427,89 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
   // NOTE: /api/audit/verify must be registered before /api/audit/:sessionId
   server.route('GET', '/api/audit/verify', (_req, res) => {
     const auditDir = codebotPath('audit');
-    const entries = loadAuditEntries(auditDir, 0);
+    const entries = loadAuditEntries(auditDir, 0) as AuditEntry[];
 
-    let valid = 0;
-    let invalid = 0;
-    for (let i = 1; i < entries.length; i++) {
-      if (entries[i].prevHash && entries[i].prevHash !== entries[i - 1].hash) {
-        invalid++;
+    // Group by sessionId and verify each session independently. The hash
+    // chain only links entries within a session — comparing across
+    // sessions (as the old impl did) is meaningless and was reporting
+    // ~33% "broken" on healthy logs. Mirror the CLI --verify-audit path
+    // (src/cli.ts:230-298) which is the authoritative shape.
+    const sessions = new Map<string, AuditEntry[]>();
+    for (const e of entries) {
+      const sid = e.sessionId || 'unknown';
+      if (!sessions.has(sid)) sessions.set(sid, []);
+      sessions.get(sid)!.push(e);
+    }
+
+    let sessionsVerified = 0;
+    let sessionsLegacy = 0;
+    let legacyEntries = 0;
+    let sessionsInvalid = 0;
+    const invalidDetail: Array<{ sessionId: string; firstInvalidAt?: number; reason?: string }> = [];
+
+    for (const [sid, sessionEntries] of sessions) {
+      let result;
+      try {
+        result = AuditLogger.verify(sessionEntries);
+      } catch (err) {
+        sessionsInvalid++;
+        invalidDetail.push({
+          sessionId: sid,
+          reason: `verifier threw: ${err instanceof Error ? err.message : String(err)}`,
+        });
+        continue;
+      }
+      if (result.valid) {
+        sessionsVerified++;
+      } else if (result.legacy) {
+        sessionsLegacy++;
+        legacyEntries += sessionEntries.length;
       } else {
-        valid++;
+        sessionsInvalid++;
+        invalidDetail.push({
+          sessionId: sid,
+          firstInvalidAt: result.firstInvalidAt,
+          reason: result.reason,
+        });
       }
     }
 
     DashboardServer.json(res, {
+      totalSessions: sessions.size,
       totalEntries: entries.length,
-      valid: valid + (entries.length > 0 ? 1 : 0), // First entry is always valid
-      invalid,
-      chainIntegrity: invalid === 0 ? 'verified' : 'broken',
+      sessionsVerified,
+      sessionsLegacy,
+      legacyEntries,
+      sessionsInvalid,
+      invalidDetail: invalidDetail.slice(0, 50),
+      chainIntegrity: sessionsInvalid === 0 ? 'verified' : 'broken',
     });
   });
 
   server.route('GET', '/api/audit/:sessionId', (_req, res, params) => {
     const auditDir = codebotPath('audit');
-    const entries = loadAuditEntries(auditDir, 0).filter(
-      (e: any) => e.sessionId === params.sessionId
+    const entries = (loadAuditEntries(auditDir, 0) as AuditEntry[]).filter(
+      (e) => e.sessionId === params.sessionId
     );
 
-    // Verify chain integrity
-    let chainValid = true;
-    for (let i = 1; i < entries.length; i++) {
-      if (entries[i].prevHash && entries[i].prevHash !== entries[i - 1].hash) {
-        chainValid = false;
-        break;
-      }
+    let result;
+    try {
+      result = AuditLogger.verify(entries);
+    } catch (err) {
+      result = {
+        valid: false,
+        entriesChecked: 0,
+        reason: `verifier threw: ${err instanceof Error ? err.message : String(err)}`,
+      };
     }
 
     DashboardServer.json(res, {
       sessionId: params.sessionId,
       entries,
-      chainValid,
+      chainValid: result.valid,
+      legacy: (result as { legacy?: boolean }).legacy === true,
+      firstInvalidAt: (result as { firstInvalidAt?: number }).firstInvalidAt,
+      reason: result.reason,
       entryCount: entries.length,
     });
   });
@@ -533,30 +577,77 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
 
 
   // ── Risk ──
-  server.route('GET', '/api/risk/summary', (_req, res) => {
-    const scorer = (server as unknown as Record<string, unknown>)._riskScorer as RiskScorer | undefined;
-    if (!scorer) {
-      DashboardServer.json(res, {
-        total: 0, green: 0, yellow: 0, orange: 0, red: 0, average: 0, peak: 0,
-        message: 'No risk data yet. Risk scoring activates when the agent runs.',
-      });
-      return;
+  // PR 13 — these endpoints used to read `server._riskScorer`, a field
+  // that nothing in the codebase ever assigned (`grep -rn _riskScorer
+  // src/` returned only the two reads below). The handlers always fell
+  // through to the "no scorer" branch and returned zeros + a misleading
+  // "No risk data yet" message even after the agent had fired tools.
+  //
+  // Stateless rewrite: aggregate from the audit log directly. Audit is
+  // the source of truth (§12), and it survives server / Electron-app
+  // restarts in a way an in-memory scorer never could.
+  //
+  // **Honest scope of this metric.** `agent.ts:1052` only writes a
+  // `result: "risk:N"` audit row when the assessed score is **> 50**
+  // (yellow / orange / red levels). Green-level calls (≤ 50) do NOT
+  // emit a risk row, so this summary is the **high-risk slice** of
+  // activity, not "all tool calls." The response includes that note
+  // verbatim so the dashboard UI can show it next to the number.
+  //
+  // If we ever want every-call-counted, it's a separate change to the
+  // agent's audit emit — not something to fake here.
+  function loadRiskFromAudit(days: number): Array<{ score: number; level: string; ts: string; tool: string }> {
+    const auditDir = codebotPath('audit');
+    const cutoff = days > 0 ? Date.now() - days * 86400 * 1000 : 0;
+    const entries = loadAuditEntries(auditDir, cutoff) as AuditEntry[];
+    const out: Array<{ score: number; level: string; ts: string; tool: string }> = [];
+    for (const e of entries) {
+      if (typeof e.result !== 'string') continue;
+      const m = /^risk:(\d+)$/.exec(e.result);
+      if (!m) continue;
+      const score = parseInt(m[1], 10);
+      if (!Number.isFinite(score)) continue;
+      // Mirror RiskScorer.classifyLevel thresholds — keep this in sync
+      // with src/risk.ts if those bands change.
+      const level = score >= 75 ? 'red' : score >= 50 ? 'orange' : score >= 25 ? 'yellow' : 'green';
+      out.push({ score, level, ts: e.timestamp, tool: e.tool });
     }
-    DashboardServer.json(res, scorer.getRiskSummary());
+    return out;
+  }
+
+  server.route('GET', '/api/risk/summary', (_req, res) => {
+    const samples = loadRiskFromAudit(0); // all-time
+    const total = samples.length;
+    const counts = { green: 0, yellow: 0, orange: 0, red: 0 };
+    let sum = 0;
+    let peak = 0;
+    for (const s of samples) {
+      counts[s.level as keyof typeof counts] = (counts[s.level as keyof typeof counts] || 0) + 1;
+      sum += s.score;
+      if (s.score > peak) peak = s.score;
+    }
+    DashboardServer.json(res, {
+      total,
+      ...counts,
+      average: total > 0 ? Math.round((sum / total) * 100) / 100 : 0,
+      peak,
+      // Prevent the UI from showing this as "all tool calls" — it is
+      // not. The agent only emits a risk audit row when score > 50, so
+      // green calls are invisible to this aggregator.
+      coverage: 'high-risk slice only (audit emits risk rows when score > 50; see src/agent.ts:1052)',
+      source: 'audit-log',
+    });
   });
 
   server.route('GET', '/api/risk/history', (req, res) => {
     const query = DashboardServer.parseQuery(req.url || '');
     const limit = Math.min(500, Math.max(1, parseInt(query.limit || '100', 10)));
-    const scorer = (server as unknown as Record<string, unknown>)._riskScorer as RiskScorer | undefined;
-    if (!scorer) {
-      DashboardServer.json(res, { history: [], total: 0 });
-      return;
-    }
-    const history = scorer.getHistory();
+    const samples = loadRiskFromAudit(0);
     DashboardServer.json(res, {
-      history: history.slice(-limit).map(a => ({ score: a.score, level: a.level, factors: a.factors.length })),
-      total: history.length,
+      history: samples.slice(-limit),
+      total: samples.length,
+      coverage: 'high-risk slice only (audit emits risk rows when score > 50)',
+      source: 'audit-log',
     });
   });
 
