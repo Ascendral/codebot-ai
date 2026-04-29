@@ -348,6 +348,57 @@ describe('AuditLogger', () => {
     }
   });
 
+  it('treats pre-hash-chain entries as legacy without throwing (regression: --verify-audit crash on real data)', () => {
+    // Regression: ~/.codebot/audit/audit-2026-02-28.jsonl contains 40
+    // entries written before v1.7.0 added the hash chain. Those entries
+    // lack hash, prevHash, and sequence. Before this fix,
+    // AuditLogger.verify did `entry.hash.substring(0,16)` and threw,
+    // killing the whole --verify-audit loop on real user data.
+    const sid = 'legacy-session-abc';
+    const legacyEntries = [
+      { timestamp: '2026-02-28T10:00:00Z', sessionId: sid, tool: 'read_file', action: 'execute', args: { path: '/a' }, result: 'ok' },
+      { timestamp: '2026-02-28T10:00:01Z', sessionId: sid, tool: 'write_file', action: 'execute', args: { path: '/b' }, result: 'ok' },
+    ] as unknown as Parameters<typeof AuditLogger.verify>[0];
+
+    let result!: ReturnType<typeof AuditLogger.verify>;
+    assert.doesNotThrow(() => {
+      result = AuditLogger.verify(legacyEntries);
+    }, 'verifier must not crash on entries lacking hash/prevHash/sequence');
+
+    assert.strictEqual(result.valid, false);
+    assert.strictEqual(result.legacy, true, 'should flag entries as legacy');
+    assert.ok(result.reason && result.reason.includes('legacy unhashed'),
+      `reason should mention legacy unhashed entries, got: ${result.reason}`);
+    assert.ok(result.reason && result.reason.includes(sid),
+      `reason should include sessionId, got: ${result.reason}`);
+  });
+
+  it('flags mixed chains (some hashed, some not) as corruption, not legacy', () => {
+    const dir = makeTempDir();
+    try {
+      const logger = new AuditLogger(dir);
+      logger.log({ tool: 'read_file', action: 'execute', args: { path: '/a' } });
+      logger.log({ tool: 'write_file', action: 'execute', args: { path: '/b' } });
+      const hashed = logger.query();
+
+      const legacyOrphan = {
+        timestamp: '2026-02-28T10:00:00Z',
+        sessionId: hashed[0].sessionId,
+        tool: 'read_file',
+        action: 'execute',
+        args: {},
+      } as unknown as typeof hashed[0];
+
+      const result = AuditLogger.verify([...hashed, legacyOrphan]);
+      assert.strictEqual(result.valid, false);
+      assert.notStrictEqual(result.legacy, true, 'mixed chain must NOT be silently skipped as legacy');
+      assert.ok(result.reason && result.reason.includes('mixed chain'),
+        `reason should mention mixed chain, got: ${result.reason}`);
+    } finally {
+      cleanup(dir);
+    }
+  });
+
   it('verifies a 100-entry chain end-to-end (bulk regression)', () => {
     // §12 commits to "audit-chain integrity verified on every test
     // session" — exercise it at scale. If the verifier ever has an
@@ -369,6 +420,35 @@ describe('AuditLogger', () => {
       const result = logger.verifySession();
       assert.strictEqual(result.valid, true, `100-entry chain rejected: ${result.reason}`);
       assert.strictEqual(result.entriesChecked, 100);
+    } finally {
+      cleanup(dir);
+    }
+  });
+
+  it('redacts known secret shapes in args before writing JSONL', () => {
+    const dir = makeTempDir();
+    try {
+      const tokens = {
+        github_pat: 'github_pat_AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIIIJJJJKKKKLLLLMMMMNNNNOOOOPPPPQQQQRRRRSSSSTTTT',
+        anthropic:  'sk-ant-api03-' + 'A'.repeat(95),
+        openai_proj:'sk-proj-' + 'B'.repeat(60),
+        google:     'AIza' + 'C'.repeat(35),
+        groq:       'gsk_' + 'D'.repeat(48),
+        ghp:        'ghp_' + 'E'.repeat(40),
+      };
+      const logger = new AuditLogger(dir);
+      logger.log({ tool: 'sensitive_tool', action: 'execute', args: tokens });
+
+      const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'));
+      const content = fs.readFileSync(path.join(dir, files[0]), 'utf-8');
+
+      for (const [name, tok] of Object.entries(tokens)) {
+        assert.ok(
+          !content.includes(tok),
+          `Audit JSONL leaked full ${name} token: ${tok.substring(0, 12)}…`
+        );
+      }
+      assert.ok(content.includes('****'), 'Expected masked marker in audit content');
     } finally {
       cleanup(dir);
     }

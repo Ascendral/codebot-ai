@@ -79,6 +79,14 @@ export interface VerifyResult {
   entriesChecked: number;
   firstInvalidAt?: number;
   reason?: string;
+  /**
+   * True when the session consists entirely of pre-hash-chain entries
+   * (no `hash`, `prevHash`, or `sequence` fields). These predate the
+   * v1.7.0 hash-chain feature and cannot be cryptographically verified.
+   * Callers should typically skip these with a warning rather than
+   * treating them as tampering.
+   */
+  legacy?: boolean;
 }
 
 const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10MB before rotation
@@ -175,6 +183,34 @@ export class AuditLogger {
   static verify(entries: AuditEntry[]): VerifyResult {
     if (entries.length === 0) {
       return { valid: true, entriesChecked: 0 };
+    }
+
+    // Detect pre-hash-chain (legacy) entries. These were written before
+    // v1.7.0 added hash/prevHash/sequence and cannot be cryptographically
+    // verified. Reading entry.hash.substring(...) on these would crash —
+    // surface them as a structured result instead.
+    const isLegacy = (e: AuditEntry): boolean =>
+      typeof e.hash !== 'string' || typeof e.prevHash !== 'string' || typeof e.sequence !== 'number';
+
+    const legacyCount = entries.filter(isLegacy).length;
+    if (legacyCount === entries.length) {
+      const sid = entries[0]?.sessionId ?? 'unknown';
+      return {
+        valid: false,
+        entriesChecked: 0,
+        legacy: true,
+        reason: `legacy unhashed entries (${legacyCount}) for sessionId=${sid} — predate v1.7.0 hash chain`,
+      };
+    }
+    if (legacyCount > 0) {
+      // Mixed: some entries hashed, some not. Treat as chain corruption.
+      const firstLegacy = entries.find(isLegacy)!;
+      return {
+        valid: false,
+        entriesChecked: legacyCount,
+        firstInvalidAt: typeof firstLegacy.sequence === 'number' ? firstLegacy.sequence : undefined,
+        reason: `mixed chain: ${legacyCount}/${entries.length} entries lack hash fields for sessionId=${firstLegacy.sessionId ?? 'unknown'} — possible corruption`,
+      };
     }
 
     // Sort by sequence

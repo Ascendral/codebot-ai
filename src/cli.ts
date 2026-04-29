@@ -255,21 +255,46 @@ export async function main() {
         sessions.get(e.sessionId)!.push(e);
       }
       let allValid = true;
+      let legacySessions = 0;
+      let legacyEntries = 0;
+      let crashed = 0;
       for (const [sid, sessionEntries] of sessions) {
-        const result = AuditLogger.verify(sessionEntries);
         const shortId = sid.substring(0, 12);
+        let result;
+        try {
+          result = AuditLogger.verify(sessionEntries);
+        } catch (err) {
+          crashed++;
+          allValid = false;
+          const msg = err instanceof Error ? err.message : String(err);
+          console.log(c(`  ${shortId}  ERROR: verifier threw: ${msg}`, 'red'));
+          continue;
+        }
         if (result.valid) {
           console.log(c(`  ${shortId}  ${result.entriesChecked} entries  valid`, 'green'));
+        } else if (result.legacy) {
+          legacySessions++;
+          legacyEntries += sessionEntries.length;
+          console.log(c(`  ${shortId}  ${sessionEntries.length} entries  skipped (legacy unhashed)`, 'yellow'));
         } else {
           console.log(c(`  ${shortId}  INVALID at seq ${result.firstInvalidAt}: ${result.reason}`, 'red'));
           allValid = false;
         }
       }
-      console.log(
+      const verifiable = sessions.size - legacySessions;
+      const lines: string[] = [];
+      if (legacySessions > 0) {
+        lines.push(c(`Skipped ${legacySessions} legacy sessions (${legacyEntries} entries) predating v1.7.0 hash chain.`, 'yellow'));
+      }
+      if (crashed > 0) {
+        lines.push(c(`${crashed} sessions failed to verify due to verifier errors.`, 'red'));
+      }
+      lines.push(
         allValid
-          ? c(`\nAll ${sessions.size} session chains verified.`, 'green')
-          : c(`\nSome chains are invalid — possible tampering detected.`, 'red'),
+          ? c(`All ${verifiable} hashed session chains verified.`, 'green')
+          : c(`Some chains are invalid — possible tampering detected.`, 'red'),
       );
+      console.log('\n' + lines.join('\n'));
     }
     return;
   }

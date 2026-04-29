@@ -24,6 +24,41 @@ describe('scanForSecrets', () => {
     assert.strictEqual(matches[0].type, 'github_token');
   });
 
+  it('detects GitHub fine-grained PATs (github_pat_)', () => {
+    const content = 'GITHUB_TOKEN=github_pat_AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIIIJJJJ';
+    const matches = scanForSecrets(content);
+    assert.ok(matches.length > 0, 'Should detect fine-grained PAT');
+    assert.strictEqual(matches[0].type, 'github_finegrained');
+  });
+
+  it('detects Anthropic API keys (sk-ant-api03-)', () => {
+    const content = 'ANTHROPIC_API_KEY=sk-ant-api03-' + 'A'.repeat(95);
+    const matches = scanForSecrets(content);
+    assert.ok(matches.length > 0, 'Should detect Anthropic key');
+    assert.strictEqual(matches[0].type, 'anthropic_key');
+  });
+
+  it('detects OpenAI project keys (sk-proj-)', () => {
+    const content = 'OPENAI_API_KEY=sk-proj-' + 'B'.repeat(60);
+    const matches = scanForSecrets(content);
+    assert.ok(matches.length > 0, 'Should detect OpenAI project key');
+    assert.strictEqual(matches[0].type, 'openai_project_key');
+  });
+
+  it('detects Google API keys (AIza prefix)', () => {
+    const content = 'GEMINI_API_KEY=AIza' + 'C'.repeat(35);
+    const matches = scanForSecrets(content);
+    assert.ok(matches.length > 0, 'Should detect Google API key');
+    assert.strictEqual(matches[0].type, 'google_api_key');
+  });
+
+  it('detects Groq keys (gsk_)', () => {
+    const content = 'GROQ_API_KEY=gsk_' + 'D'.repeat(48);
+    const matches = scanForSecrets(content);
+    assert.ok(matches.length > 0, 'Should detect Groq key');
+    assert.strictEqual(matches[0].type, 'groq_key');
+  });
+
   it('detects JWTs', () => {
     const content = 'token = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123signature';
     const matches = scanForSecrets(content);
