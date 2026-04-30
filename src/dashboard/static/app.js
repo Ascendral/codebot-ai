@@ -627,6 +627,90 @@ const App = {
     return div;
   },
 
+  // PR 21 — render an inline Approve/Deny card for a permission
+  // request. Backend is blocked on POST /api/command/permission/respond
+  // until the user clicks. The §8-shape preview (if present) is shown
+  // verbatim above the buttons so the human reads exactly what the
+  // tool would do before approving.
+  appendPermissionCard(container, req) {
+    const div = document.createElement('div');
+    div.className = 'chat-msg permission-card';
+    div.dataset.requestId = req.requestId;
+
+    // Render args as key/value lines, matching the tool-call card.
+    let argsStr = '';
+    if (req.args && typeof req.args === 'object') {
+      argsStr = Object.entries(req.args)
+        .map(function (pair) {
+          return App.escapeHtml(pair[0]) + ': ' + App.escapeHtml(App.truncate(String(pair[1]), 200));
+        })
+        .join('\n');
+    }
+
+    const riskLevel = (req.risk && req.risk.level) || 'green';
+    const riskScore = (req.risk && req.risk.score) || 0;
+
+    // Preview block — only present when an §8 connector action's
+    // preview() returned a summary. The actual tweet text / page body
+    // / event payload lands here so the human can read it before
+    // clicking Approve.
+    let previewBlock = '';
+    if (req.preview && req.preview.summary) {
+      previewBlock =
+        '<div class="permission-preview">' +
+        '<div class="permission-preview-label">What this would do:</div>' +
+        '<pre class="permission-preview-body">' +
+        App.escapeHtml(req.preview.summary) +
+        '</pre>' +
+        '</div>';
+    }
+
+    div.innerHTML =
+      '<div class="permission-card-header">' +
+      '<span class="permission-card-icon">⚠</span>' +
+      '<span class="permission-card-title">Permission required</span>' +
+      '<span class="permission-card-risk risk-' + App.escapeHtml(riskLevel) + '">' +
+      App.escapeHtml(riskLevel) + ' · ' + riskScore + '/100</span>' +
+      '</div>' +
+      '<div class="permission-card-body">' +
+      '<div class="permission-card-tool">' +
+      '<strong>Tool:</strong> ' + App.escapeHtml(req.tool) +
+      '</div>' +
+      previewBlock +
+      '<details class="permission-card-args"><summary>Raw args</summary>' +
+      '<pre>' + argsStr + '</pre></details>' +
+      '</div>' +
+      '<div class="permission-card-actions">' +
+      '<button class="permission-deny" data-rid="' + App.escapeHtml(req.requestId) + '">Deny</button>' +
+      '<button class="permission-approve" data-rid="' + App.escapeHtml(req.requestId) + '">Approve</button>' +
+      '</div>' +
+      '<div class="permission-card-status"></div>';
+
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+
+    // Wire button handlers. Both POST to /api/command/permission/respond,
+    // disable both buttons while in flight, then update the status line
+    // when the server resolves. The server resolves the agent gate, so
+    // the chat stream will resume with the next agent event after this.
+    const respond = function (approved) {
+      const buttons = div.querySelectorAll('button');
+      buttons.forEach(function (b) { b.disabled = true; });
+      const statusEl = div.querySelector('.permission-card-status');
+      if (statusEl) statusEl.textContent = approved ? 'Approved — running…' : 'Denied.';
+      apiFetch('/api/command/permission/respond', {
+        method: 'POST',
+        body: JSON.stringify({ requestId: req.requestId, approved: approved }),
+      }).catch(function (err) {
+        if (statusEl) statusEl.textContent = 'Error: ' + (err && err.message ? err.message : String(err));
+      });
+    };
+    div.querySelector('.permission-approve').addEventListener('click', function () { respond(true); });
+    div.querySelector('.permission-deny').addEventListener('click', function () { respond(false); });
+
+    return div;
+  },
+
   getToolIcon(name) {
     var icons = {
       read_file:
@@ -747,6 +831,12 @@ const App = {
             } else if (ev.type === 'tool_result' && this._lastToolDiv) {
               this.updateToolCallResult(this._lastToolDiv, ev.text || ev.result, !ev.error);
               this._lastToolDiv = null;
+            } else if (ev.type === 'permission_request' && ev.permissionRequest) {
+              // PR 21 — render an inline Approve/Deny card. The
+              // backend is blocked on POST /api/command/permission/respond
+              // until the user clicks one of the buttons (or the
+              // 5-minute hard timeout fires server-side).
+              App.appendPermissionCard(container, ev.permissionRequest);
             } else if (ev.type === 'usage' && ev.usage) {
               totalTokens += ev.usage.outputTokens || 0;
             } else if (ev.type === 'error') {

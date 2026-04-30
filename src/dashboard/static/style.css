@@ -2953,3 +2953,108 @@ body.is-electron *::after {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+/* PR 21 — Permission Approve/Deny card.
+   Keep visual weight HIGH so the user can't miss it: orange/amber
+   border + clear Approve/Deny buttons. The card sits inline in the
+   chat stream right where the tool call would have rendered. */
+.permission-card {
+  border: 2px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+  font-family: inherit;
+}
+.permission-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.permission-card-icon { font-size: 18px; }
+.permission-card-title { flex: 1; }
+.permission-card-risk {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.1);
+}
+.permission-card-risk.risk-red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.permission-card-risk.risk-orange { background: rgba(249, 115, 22, 0.15); color: #f97316; }
+.permission-card-risk.risk-yellow { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.permission-card-risk.risk-green { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.permission-card-body { margin: 8px 0; font-size: 13px; }
+.permission-card-tool { margin-bottom: 8px; }
+.permission-preview { margin: 8px 0; }
+.permission-preview-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+  margin-bottom: 4px;
+}
+.permission-preview-body {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 8px;
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+}
+.permission-card-args { margin: 8px 0; font-size: 12px; }
+.permission-card-args pre {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 8px;
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  margin: 4px 0 0 0;
+}
+.permission-card-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+.permission-card-actions button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+.permission-card-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.permission-deny {
+  border-color: #6b7280;
+  background: transparent;
+  color: #6b7280;
+}
+.permission-deny:hover:not(:disabled) {
+  background: rgba(107, 114, 128, 0.1);
+}
+.permission-approve {
+  border-color: #f59e0b;
+  background: #f59e0b;
+  color: white;
+}
+.permission-approve:hover:not(:disabled) {
+  background: #d97706;
+  border-color: #d97706;
+}
+.permission-card-status {
+  margin-top: 8px;
+  font-size: 12px;
+  font-style: italic;
+  opacity: 0.8;
+}

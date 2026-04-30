@@ -6,6 +6,7 @@
  */
 
 import * as http from 'http';
+import * as crypto from 'crypto';
 import { spawn } from 'child_process';
 import { DashboardServer } from './server';
 import { Agent } from '../agent';
@@ -110,6 +111,132 @@ export function registerCommandRoutes(
   let agentBusy = false;
   const messageQueue: Array<{ message: string; mode?: 'simple' | 'detailed'; resolve: (v: unknown) => void }> = [];
   const statusClients: Set<http.ServerResponse> = new Set();
+
+  // PR 21 — visible always-ask permission prompts in the dashboard.
+  //
+  // The 2026-04-30T01:12:52 audit row showed `browser navigate
+  // https://x.com/compose/tweet` get DENY-without-visible-prompt: the
+  // CLI's stdin-based askPermission ran on the dashboard subprocess's
+  // non-TTY stdin, hit the 30s timeout, and emitted "User denied
+  // permission" while the user never saw a card to approve.
+  //
+  // The fix: when the agent is registered with the dashboard, we
+  // override its askPermission with one that:
+  //   1. Mints a uuid `requestId` for this prompt.
+  //   2. Stores a Promise resolver in `pendingPermissionRequests`.
+  //   3. Pushes the prompt onto `pendingPermissionEvents` so the next
+  //      SSE event in the live chat stream carries it (the chat
+  //      handler drains this queue between agent.run() yields).
+  //   4. Returns the Promise — resolves on POST /api/command/permission/respond
+  //      or after a 5-minute hard timeout.
+  //
+  // The 5-minute timeout is deliberately long. A user who walked
+  // away should come back to a still-open card, not a silent deny.
+  const pendingPermissionRequests = new Map<string, {
+    resolve: (approved: boolean) => void;
+    createdAt: number;
+    timer: NodeJS.Timeout;
+  }>();
+  // PR 21 fix — `activeChatRes` is the currently-streaming SSE response.
+  // The chat handler sets it on entry, clears on exit. askPermission
+  // writes the `permission_request` event directly to this stream
+  // (instead of queuing for the for-await loop to drain) because the
+  // agent is BLOCKED on the askPermission Promise — the for-await
+  // doesn't yield again until permission resolves, so a queued event
+  // would never get emitted. Direct write breaks the deadlock.
+  let activeChatRes: http.ServerResponse | null = null;
+  const PERMISSION_TIMEOUT_MS = 5 * 60 * 1000;
+
+  if (agent) {
+    agent.setAskPermission(async (tool, args, risk, sandbox) => {
+      const requestId = crypto.randomUUID();
+
+      // If this is an `app` tool dispatching to a connector action with
+      // a `preview()` declared per §8, call it (purely — no network)
+      // and include the rendered preview summary in the prompt event.
+      // This is the difference between "approve some inscrutable tool
+      // call" and "approve THIS specific tweet."
+      let preview: { summary: string; details?: Record<string, unknown> } | undefined;
+      if (tool === 'app' && typeof args.action === 'string' && args.action.includes('.')) {
+        try {
+          const reg = agent.getToolRegistry();
+          const appTool = reg.get('app') as unknown as {
+            registry?: { get?: (n: string) => { actions?: Array<{ name: string; preview?: (a: Record<string, unknown>, c: string) => Promise<unknown> }> } };
+          } | undefined;
+          // Reach into the AppConnectorTool via the registry to find
+          // the connector action's preview. If anything in this chain
+          // is missing or throws, the prompt still fires — just
+          // without the inline preview.
+          const dotIdx = String(args.action).indexOf('.');
+          const appName = String(args.action).substring(0, dotIdx);
+          const actionName = String(args.action).substring(dotIdx + 1);
+          const innerRegistry = (appTool as unknown as { registry?: unknown })?.registry as {
+            get?: (n: string) => { actions?: Array<{ name: string; preview?: (a: Record<string, unknown>, c: string) => Promise<unknown> }> } | undefined;
+          } | undefined;
+          const connector = innerRegistry?.get?.(appName);
+          const connectorAction = connector?.actions?.find(a => a.name === actionName);
+          if (connectorAction?.preview) {
+            const p = await connectorAction.preview(args, '');
+            preview = p as { summary: string; details?: Record<string, unknown> };
+          }
+        } catch {
+          // Preview is best-effort. Failing to render it must not
+          // block the actual permission gate.
+        }
+      }
+
+      return new Promise<boolean>((resolve) => {
+        const timer = setTimeout(() => {
+          if (pendingPermissionRequests.has(requestId)) {
+            pendingPermissionRequests.delete(requestId);
+            // Broadcast a timeout event so the renderer can clear the
+            // card (rather than leave a stale one floating).
+            broadcastStatus('working', { permissionTimedOut: requestId });
+            resolve(false);
+          }
+        }, PERMISSION_TIMEOUT_MS);
+
+        pendingPermissionRequests.set(requestId, {
+          resolve: (approved: boolean) => {
+            clearTimeout(timer);
+            resolve(approved);
+          },
+          createdAt: Date.now(),
+          timer,
+        });
+
+        // PR 21 fix — emit the SSE event directly on the live chat
+        // response. We CANNOT queue and wait for the for-await loop
+        // to drain because the agent is blocked on this Promise; the
+        // for-await won't iterate again until we resolve, but the
+        // resolve depends on the user clicking Approve in the UI,
+        // which depends on this event reaching them. Deadlock unless
+        // we write the event directly to the SSE stream NOW.
+        const permEvent = {
+          type: 'permission_request',
+          permissionRequest: {
+            requestId,
+            tool,
+            args,
+            risk: risk || { score: 0, level: 'green' },
+            sandbox: sandbox || { sandbox: false, network: false },
+            preview: preview || null,
+            timeoutMs: PERMISSION_TIMEOUT_MS,
+          },
+        };
+        if (activeChatRes && !activeChatRes.writableEnded && !activeChatRes.destroyed) {
+          DashboardServer.sseSend(activeChatRes, permEvent);
+        } else {
+          // No active chat — must be the dashboard tool-runner or
+          // some other caller. Resolve as denied immediately so we
+          // don't leave a forever-pending request.
+          clearTimeout(timer);
+          pendingPermissionRequests.delete(requestId);
+          resolve(false);
+        }
+      });
+    });
+  }
 
   /** Broadcast agent status to all SSE clients */
   function broadcastStatus(status: 'idle' | 'working' | 'done' | 'queued', extra?: Record<string, unknown>) {
@@ -283,6 +410,47 @@ export function registerCommandRoutes(
   // (e.g. OpenAI chat-completions) even after the user selects gpt-5.4,
   // which lives on the Responses API. The old code only cleared conversation
   // history — the wrong provider was still firing.
+  // PR 21 — POST /api/command/permission/respond
+  // Renderer calls this when the user clicks Approve or Deny on the
+  // permission card surfaced via the `permission_request` SSE event.
+  // Body: { requestId: string, approved: boolean }
+  // Resolves the pending askPermission Promise; the agent gate
+  // continues from there. Idempotent: a second response for the same
+  // requestId is a no-op (the first wins).
+  server.route('POST', '/api/command/permission/respond', async (req, res) => {
+    let body: { requestId?: string; approved?: boolean };
+    try {
+      body = (await DashboardServer.parseBody(req)) as typeof body;
+    } catch (err: any) {
+      DashboardServer.error(res, 400, err.message || 'Invalid JSON body');
+      return;
+    }
+    if (!body || typeof body.requestId !== 'string' || typeof body.approved !== 'boolean') {
+      DashboardServer.error(res, 400, 'Body requires { requestId: string, approved: boolean }');
+      return;
+    }
+    const pending = pendingPermissionRequests.get(body.requestId);
+    if (!pending) {
+      DashboardServer.json(res, { ok: false, error: 'unknown_or_expired_request' });
+      return;
+    }
+    pendingPermissionRequests.delete(body.requestId);
+    pending.resolve(body.approved);
+    DashboardServer.json(res, { ok: true, requestId: body.requestId, approved: body.approved });
+  });
+
+  // PR 21 — GET /api/command/permission/pending
+  // Diagnostic: lists currently-open permission requests. Useful for
+  // debugging "why is the chat hanging?" without reading source.
+  server.route('GET', '/api/command/permission/pending', (_req, res) => {
+    const now = Date.now();
+    const items = Array.from(pendingPermissionRequests.entries()).map(([id, p]) => ({
+      requestId: id,
+      ageMs: now - p.createdAt,
+    }));
+    DashboardServer.json(res, { count: items.length, items });
+  });
+
   server.route('POST', '/api/command/chat/reset', async (_req, res) => {
     if (!agent) {
       DashboardServer.error(res, 503, 'Agent not available');
@@ -461,6 +629,10 @@ export function registerCommandRoutes(
         data: img.data,
         mediaType: img.mediaType as 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
       }));
+      // PR 21 — install this response as the active SSE target so the
+      // askPermission override can write directly to it (see
+      // setAskPermission setup above for why we can't queue).
+      activeChatRes = res;
       for await (const event of agent.run(userMessage, chatImages)) {
         if (closed || res.writableEnded || res.destroyed) break;
         DashboardServer.sseSend(res, event);
@@ -477,6 +649,10 @@ export function registerCommandRoutes(
       clearInterval(heartbeat);
       closed = true;
       agentBusy = false;
+      // PR 21 — clear the active SSE target so subsequent permission
+      // requests outside a chat (tool runner, queued messages with
+      // their own res) don't accidentally write onto a closed stream.
+      if (activeChatRes === res) activeChatRes = null;
       broadcastStatus(messageQueue.length > 0 ? 'queued' : 'idle');
       // PR 16 — restore the agent's autoApprove to its pre-request
       // value. Per-request opt-in must not leak into the next chat or
