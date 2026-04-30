@@ -614,7 +614,20 @@ export async function main() {
 
   // ── Dashboard ──
   if (args.dashboard) {
-    agent.setAutoApprove(true);
+    // PR 25 — do NOT force agent.setAutoApprove(true) here. Pre-PR-21
+    // the dashboard had no UI to surface permission prompts, so the
+    // CLI's startup unconditionally set autoApprove=true to avoid a
+    // hung readline prompt. PR 21 wired a visible Approve/Deny card
+    // for the chat path; PR 25 wired it for the tool-runner path.
+    // With both surfaces honoring per-request approval, the
+    // unconditional auto-approve at startup is now actively
+    // harmful: the agent's PR-11 unattended-block path
+    // (`blockedByUnallowedCapability`) fires for any send-on-behalf
+    // tool, denying with the PR-11 reason wording instead of letting
+    // askPermission surface a card. Chats that want auto-approve
+    // can still opt in per-request via `body.autoApprove: true`
+    // (PR 16); tool-runner gets approval through the new
+    // /api/command/permission/respond endpoint (PR 25).
     try {
       // Resolve static dir: prefer src/ (canonical) over dist/ (stale copies)
       const srcStatic = require('path').resolve(__dirname, '..', 'src', 'dashboard', 'static');

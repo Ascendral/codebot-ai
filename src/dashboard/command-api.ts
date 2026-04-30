@@ -7,6 +7,7 @@
 
 import * as http from 'http';
 import * as crypto from 'crypto';
+import { AsyncLocalStorage } from 'async_hooks';
 import { spawn } from 'child_process';
 import { DashboardServer } from './server';
 import { Agent } from '../agent';
@@ -147,6 +148,70 @@ export function registerCommandRoutes(
   let activeChatRes: http.ServerResponse | null = null;
   const PERMISSION_TIMEOUT_MS = 5 * 60 * 1000;
 
+  // PR 25 — tool-runner jobs + request context.
+  //
+  // Pre-PR-25 the tool-runner endpoint passed `interactivePrompt: false`
+  // to runSingleTool, which made the agent gate skip askPermission
+  // entirely and emit a "Non-interactive caller" deny — silent
+  // auto-deny for any always-ask tool. Connector contracts that go
+  // out of their way to require approval (send-on-behalf,
+  // delete-data, spend-money) failed silently when invoked through
+  // the tool-runner.
+  //
+  // The fix is async two-phase:
+  //   1. POST /api/command/tool/run spawns a job (UUID), runs
+  //      runSingleTool with `interactivePrompt: true` in the
+  //      background, returns 202 with the job id and current status
+  //      after a short grace period.
+  //   2. askPermission runs as it does for chat — mints a request id,
+  //      stores the resolver — but instead of writing to a chat SSE
+  //      stream, it updates the tool-runner job's `permissionRequest`
+  //      slot.
+  //   3. UI polls GET /api/command/tool/run/result/:jobId. Sees
+  //      status: 'approval_required' with the same `requestId` shape
+  //      the chat path uses, surfaces a permission card, calls the
+  //      existing POST /api/command/permission/respond.
+  //   4. Approval resolves the askPermission Promise, the background
+  //      runSingleTool continues, the job's status flips to
+  //      'completed' or 'failed', the next poll returns it.
+  //
+  // Context routing uses AsyncLocalStorage so concurrent chat +
+  // tool-runner requests on the same Agent instance don't collide
+  // — the askPermission override reads the store to decide WHERE
+  // the permission_request goes.
+  type RequestContext =
+    | { kind: 'chat' }
+    | { kind: 'tool-runner'; jobId: string };
+  const requestContext = new AsyncLocalStorage<RequestContext>();
+
+  type ToolRunnerJob = {
+    status: 'running' | 'approval_required' | 'completed' | 'failed';
+    tool: string;
+    args: Record<string, unknown>;
+    permissionRequest?: {
+      requestId: string;
+      preview: { summary: string; details?: Record<string, unknown> } | null;
+      risk: { score: number; level: string };
+      args: Record<string, unknown>;
+    };
+    result?: { result: string; is_error?: boolean; blocked?: boolean; reason?: string };
+    error?: string;
+    startedAt: number;
+    completedAt?: number;
+  };
+  const toolRunnerJobs = new Map<string, ToolRunnerJob>();
+  // Reap finished jobs after 10 minutes so the map doesn't grow
+  // unboundedly. Approval-required jobs follow the existing 5-min
+  // PERMISSION_TIMEOUT_MS path; once they timeout the askPermission
+  // resolver moves them to status='completed' (denied).
+  const JOB_TTL_MS = 10 * 60 * 1000;
+  setInterval(() => {
+    const cutoff = Date.now() - JOB_TTL_MS;
+    for (const [id, job] of toolRunnerJobs) {
+      if ((job.completedAt ?? job.startedAt) < cutoff) toolRunnerJobs.delete(id);
+    }
+  }, 60_000).unref();
+
   if (agent) {
     agent.setAskPermission(async (tool, args, risk, sandbox) => {
       const requestId = crypto.randomUUID();
@@ -195,6 +260,10 @@ export function registerCommandRoutes(
             resolve(false);
           }
         }, PERMISSION_TIMEOUT_MS);
+        // Don't keep the event loop alive solely for this timer —
+        // production servers run forever anyway, and tests need
+        // graceful teardown without waiting 5 minutes.
+        if (typeof timer.unref === 'function') timer.unref();
 
         pendingPermissionRequests.set(requestId, {
           resolve: (approved: boolean) => {
@@ -205,13 +274,9 @@ export function registerCommandRoutes(
           timer,
         });
 
-        // PR 21 fix — emit the SSE event directly on the live chat
-        // response. We CANNOT queue and wait for the for-await loop
-        // to drain because the agent is blocked on this Promise; the
-        // for-await won't iterate again until we resolve, but the
-        // resolve depends on the user clicking Approve in the UI,
-        // which depends on this event reaching them. Deadlock unless
-        // we write the event directly to the SSE stream NOW.
+        // PR 21+25 — dispatch the permission_request to the right
+        // surface based on the AsyncLocalStorage context.
+        const ctx = requestContext.getStore();
         const permEvent = {
           type: 'permission_request',
           permissionRequest: {
@@ -224,16 +289,45 @@ export function registerCommandRoutes(
             timeoutMs: PERMISSION_TIMEOUT_MS,
           },
         };
-        if (activeChatRes && !activeChatRes.writableEnded && !activeChatRes.destroyed) {
-          DashboardServer.sseSend(activeChatRes, permEvent);
-        } else {
-          // No active chat — must be the dashboard tool-runner or
-          // some other caller. Resolve as denied immediately so we
-          // don't leave a forever-pending request.
-          clearTimeout(timer);
-          pendingPermissionRequests.delete(requestId);
-          resolve(false);
+
+        if (ctx?.kind === 'tool-runner') {
+          // PR 25 — write to the job's permissionRequest slot. The
+          // /api/command/tool/run/result/:jobId poller picks this
+          // up and surfaces a structured "approval_required"
+          // response, not an auto-deny.
+          const job = toolRunnerJobs.get(ctx.jobId);
+          if (job) {
+            job.status = 'approval_required';
+            job.permissionRequest = {
+              requestId,
+              preview: preview || null,
+              risk: risk || { score: 0, level: 'green' },
+              args,
+            };
+          } else {
+            // Job vanished before askPermission fired — bail out.
+            clearTimeout(timer);
+            pendingPermissionRequests.delete(requestId);
+            resolve(false);
+          }
+          return;
         }
+
+        if (activeChatRes && !activeChatRes.writableEnded && !activeChatRes.destroyed) {
+          // PR 21 — chat-stream path. Write the event directly to
+          // the SSE response (cannot queue: agent is blocked on this
+          // Promise; the for-await won't yield again until resolve).
+          DashboardServer.sseSend(activeChatRes, permEvent);
+          return;
+        }
+
+        // No active context — neither chat nor tool-runner. This
+        // shouldn't happen in practice (every askPermission origin
+        // we wire goes through one of the two branches) but resolving
+        // false is safer than hanging forever.
+        clearTimeout(timer);
+        pendingPermissionRequests.delete(requestId);
+        resolve(false);
       });
     });
   }
@@ -375,16 +469,184 @@ export function registerCommandRoutes(
       return;
     }
 
-    const startMs = Date.now();
-    const outcome = await agent.runSingleTool(body.tool, body.args || {}, {
-      interactivePrompt: false,
+    // PR 25 — async tool-runner with structured approval-required path.
+    //
+    // Old behavior (silent auto-deny):
+    //   runSingleTool({ interactivePrompt: false })
+    //   → "Non-interactive caller; tool requires permission prompt"
+    //   → caller saw `blocked:true` with no way to approve.
+    //
+    // New behavior (structured approval channel):
+    //   1. Mint a jobId, register a ToolRunnerJob in toolRunnerJobs.
+    //   2. Spawn the runSingleTool call inside a tool-runner-kind
+    //      AsyncLocalStorage context. askPermission detects the ctx
+    //      and updates the job's `permissionRequest` slot instead
+    //      of writing to a chat SSE stream.
+    //   3. Race: wait up to 250 ms for the agent to either complete
+    //      (fast tools) OR transition to status='approval_required'.
+    //      If neither, return status='running' and let the caller
+    //      poll. (Long-running tools without permission needs are
+    //      uncommon today — read connectors are sub-second — but
+    //      the path covers them for free.)
+    //   4. When the caller approves via /api/command/permission/respond,
+    //      the askPermission Promise resolves, runSingleTool continues,
+    //      job.status flips to 'completed' / 'failed'.
+    //   5. Caller polls GET /api/command/tool/run/result/:jobId.
+    //
+    // The CALLER decides whether to wait or poll. Sync-style consumers
+    // (curl, simple scripts) get a single 202 + poll loop. The
+    // dashboard UI subscribes to SSE for the chat path, polls for
+    // the tool-runner path — different surfaces, same approval
+    // contract.
+    const jobId = crypto.randomUUID();
+    const job: ToolRunnerJob = {
+      status: 'running',
+      tool: body.tool,
+      args: body.args || {},
+      startedAt: Date.now(),
+    };
+    toolRunnerJobs.set(jobId, job);
+
+    // Kick off the actual execution. Errors here are caught and
+    // recorded on the job so the result endpoint can surface them.
+    const execPromise = requestContext.run({ kind: 'tool-runner', jobId }, async () => {
+      try {
+        const outcome = await agent.runSingleTool(body.tool!, body.args || {}, {
+          interactivePrompt: true,
+        });
+        const j = toolRunnerJobs.get(jobId);
+        if (j) {
+          j.status = 'completed';
+          j.result = {
+            result: outcome.result,
+            is_error: outcome.is_error,
+            blocked: outcome.blocked,
+            reason: outcome.reason,
+          };
+          j.completedAt = Date.now();
+        }
+      } catch (err: unknown) {
+        const j = toolRunnerJobs.get(jobId);
+        if (j) {
+          j.status = 'failed';
+          j.error = err instanceof Error ? err.message : String(err);
+          j.completedAt = Date.now();
+        }
+      }
     });
+
+    // Race the execution against a 250 ms grace period. If the tool
+    // is fast (most reads), we return the result inline. If it's
+    // slow OR needs approval, we return 202 with the job state and
+    // the caller polls.
+    const grace = new Promise(resolve => setTimeout(resolve, 250));
+    await Promise.race([execPromise, grace]);
+
+    const after = toolRunnerJobs.get(jobId)!;
+    const elapsed = Date.now() - job.startedAt;
+
+    if (after.status === 'completed' && after.result) {
+      DashboardServer.json(res, {
+        jobId,
+        status: 'completed',
+        result: after.result.result,
+        is_error: after.result.is_error,
+        blocked: after.result.blocked,
+        reason: after.result.reason,
+        duration_ms: elapsed,
+      });
+      return;
+    }
+    if (after.status === 'failed') {
+      DashboardServer.json(res, {
+        jobId,
+        status: 'failed',
+        error: after.error,
+        duration_ms: elapsed,
+      });
+      return;
+    }
+    if (after.status === 'approval_required' && after.permissionRequest) {
+      // 202 Accepted — caller must approve via
+      // POST /api/command/permission/respond, then poll
+      // GET /api/command/tool/run/result/:jobId.
+      res.writeHead(202, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        jobId,
+        status: 'approval_required',
+        permissionRequest: {
+          requestId: after.permissionRequest.requestId,
+          tool: body.tool,
+          args: after.permissionRequest.args,
+          risk: after.permissionRequest.risk,
+          preview: after.permissionRequest.preview,
+          timeoutMs: PERMISSION_TIMEOUT_MS,
+        },
+        hint: 'POST /api/command/permission/respond with {requestId, approved} to approve, then GET /api/command/tool/run/result/' + jobId + ' to retrieve the result.',
+      }));
+      return;
+    }
+    // Still running after the grace period — return 202 with
+    // poll URL.
+    res.writeHead(202, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      jobId,
+      status: 'running',
+      pollUrl: '/api/command/tool/run/result/' + jobId,
+      hint: 'Poll the result endpoint until status is completed/failed/approval_required.',
+    }));
+  });
+
+  // PR 25 — GET /api/command/tool/run/result/:jobId
+  // Companion endpoint for the async tool-runner. Returns the
+  // current state of a job. UI / curl polls this until status
+  // moves out of running/approval_required into completed/failed.
+  server.route('GET', '/api/command/tool/run/result/:jobId', (_req, res, params) => {
+    const job = toolRunnerJobs.get(params.jobId);
+    if (!job) {
+      DashboardServer.error(res, 404, 'Unknown or expired jobId');
+      return;
+    }
+    if (job.status === 'completed' && job.result) {
+      DashboardServer.json(res, {
+        jobId: params.jobId,
+        status: 'completed',
+        result: job.result.result,
+        is_error: job.result.is_error,
+        blocked: job.result.blocked,
+        reason: job.result.reason,
+        duration_ms: (job.completedAt ?? Date.now()) - job.startedAt,
+      });
+      return;
+    }
+    if (job.status === 'failed') {
+      DashboardServer.json(res, {
+        jobId: params.jobId,
+        status: 'failed',
+        error: job.error,
+        duration_ms: (job.completedAt ?? Date.now()) - job.startedAt,
+      });
+      return;
+    }
+    if (job.status === 'approval_required' && job.permissionRequest) {
+      DashboardServer.json(res, {
+        jobId: params.jobId,
+        status: 'approval_required',
+        permissionRequest: {
+          requestId: job.permissionRequest.requestId,
+          tool: job.tool,
+          args: job.permissionRequest.args,
+          risk: job.permissionRequest.risk,
+          preview: job.permissionRequest.preview,
+          timeoutMs: PERMISSION_TIMEOUT_MS,
+        },
+      });
+      return;
+    }
     DashboardServer.json(res, {
-      result: outcome.result,
-      is_error: outcome.is_error,
-      blocked: outcome.blocked,
-      reason: outcome.reason,
-      duration_ms: Date.now() - startMs,
+      jobId: params.jobId,
+      status: 'running',
+      duration_ms: Date.now() - job.startedAt,
     });
   });
 
@@ -632,12 +894,16 @@ export function registerCommandRoutes(
       // PR 21 — install this response as the active SSE target so the
       // askPermission override can write directly to it (see
       // setAskPermission setup above for why we can't queue).
+      // PR 25 — wrap in a chat-kind AsyncLocalStorage context so
+      // askPermission can distinguish chat from tool-runner.
       activeChatRes = res;
-      for await (const event of agent.run(userMessage, chatImages)) {
-        if (closed || res.writableEnded || res.destroyed) break;
-        DashboardServer.sseSend(res, event);
-        if (event.type === 'done' || event.type === 'error') break;
-      }
+      await requestContext.run({ kind: 'chat' }, async () => {
+        for await (const event of agent.run(userMessage, chatImages)) {
+          if (closed || res.writableEnded || res.destroyed) break;
+          DashboardServer.sseSend(res, event);
+          if (event.type === 'done' || event.type === 'error') break;
+        }
+      });
     } catch (err: unknown) {
       if (!closed && !res.writableEnded && !res.destroyed) {
         DashboardServer.sseSend(res, {
