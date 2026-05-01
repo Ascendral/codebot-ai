@@ -65,8 +65,15 @@ function findTestFiles(dir) {
 
 const testFiles = findTestFiles('dist');
 
+// PR 28.5: also pick up plain-JS tests under electron/ (no build step).
+// These live alongside the Electron main process source (api-key-resolver,
+// etc.) and are pure node:test — no transpile required.
+if (existsSync('electron')) {
+  testFiles.push(...findTestFiles('electron').filter(f => !f.includes('node_modules') && !f.includes('staging')));
+}
+
 if (testFiles.length === 0) {
-  console.error('No test files found in dist/');
+  console.error('No test files found in dist/ or electron/');
   process.exit(1);
 }
 

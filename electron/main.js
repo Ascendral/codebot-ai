@@ -3,6 +3,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
+const { resolveAll: resolveAllApiKeys } = require('./api-key-resolver');
 
 // ── Config ──
 const DEFAULT_DASHBOARD_PORT = 3120;
@@ -198,64 +199,45 @@ async function startServer() {
   const extraPath = ['/usr/local/bin', '/opt/homebrew/bin', '/usr/bin'].join(':');
   const fullPath = process.env.PATH ? `${extraPath}:${process.env.PATH}` : extraPath;
 
-  // Resolve API key: embedded .env > user config > env vars
-  let apiKey = process.env.ANTHROPIC_API_KEY || '';
-  if (!apiKey) {
-    // Check for .env file next to the app (for demo/investor builds)
-    const envLocations = [
-      path.join(paths.root, '.env'),
-      path.join(app.getPath('userData'), '.env'),
-      path.join(process.env.HOME || '', '.codebot', '.env'),
-    ];
-    for (const envPath of envLocations) {
-      try {
-        const envContent = fs.readFileSync(envPath, 'utf-8');
-        const match = envContent.match(/ANTHROPIC_API_KEY=(.+)/);
-        if (match) {
-          apiKey = match[1].trim();
-          break;
-        }
-      } catch {
-        /* not found, try next */
-      }
-    }
+  // Resolve API keys per provider. PR 28.5: provider-aware resolution to
+  // stop the "config.apiKey holds an OpenAI key while provider=anthropic →
+  // 401 banner" bug. See electron/api-key-resolver.js for the rules.
+  let config = {};
+  try {
+    const configPath = path.join(process.env.HOME || '', '.codebot', 'config.json');
+    config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  } catch {
+    /* no config — keep config = {} */
   }
-  let openaiKey = process.env.OPENAI_API_KEY || '';
-  let geminiKey = process.env.GEMINI_API_KEY || '';
-  if (!apiKey) {
-    // Check user's codebot config
+
+  const envFileLocations = [
+    path.join(paths.root, '.env'),
+    path.join(app.getPath('userData'), '.env'),
+    path.join(process.env.HOME || '', '.codebot', '.env'),
+  ];
+  const envFiles = {};
+  for (const envPath of envFileLocations) {
     try {
-      const configPath = path.join(process.env.HOME || '', '.codebot', 'config.json');
-      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      if (config.apiKey) apiKey = config.apiKey;
-      if (config.openaiApiKey) openaiKey = config.openaiApiKey;
-      if (config.geminiApiKey) geminiKey = config.geminiApiKey;
-    } catch {
-      /* no config */
-    }
-  }
-  // Also check .env files for additional keys
-  if (!openaiKey || !geminiKey) {
-    const envLocations = [
-      path.join(process.env.HOME || '', '.codebot', '.env'),
-      path.join(app.getPath('userData'), '.env'),
-    ];
-    for (const envPath of envLocations) {
-      try {
-        const envContent = fs.readFileSync(envPath, 'utf-8');
-        if (!openaiKey) {
-          const m = envContent.match(/OPENAI_API_KEY=(.+)/);
-          if (m) openaiKey = m[1].trim();
+      const envContent = fs.readFileSync(envPath, 'utf-8');
+      for (const line of envContent.split('\n')) {
+        const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.+)$/);
+        if (m && envFiles[m[1]] === undefined) {
+          envFiles[m[1]] = m[2].trim();
         }
-        if (!geminiKey) {
-          const m = envContent.match(/GEMINI_API_KEY=(.+)/);
-          if (m) geminiKey = m[1].trim();
-        }
-      } catch {
-        /* not found */
       }
+    } catch {
+      /* not found, try next */
     }
   }
+
+  const resolved = resolveAllApiKeys({ env: process.env, config, envFiles });
+  let apiKey = resolved.anthropic.key || '';
+  let openaiKey = resolved.openai.key || '';
+  let geminiKey = resolved.gemini.key || '';
+  console.log('  API key sources:',
+    'anthropic=' + (resolved.anthropic.source || 'none') + ',',
+    'openai=' + (resolved.openai.source || 'none') + ',',
+    'gemini=' + (resolved.gemini.source || 'none'));
 
   // Prompt user for API key if none found
   if (!apiKey) {
@@ -299,7 +281,10 @@ async function startServer() {
         try {
           config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
         } catch {}
-        config.apiKey = apiKey;
+        // PR 28.5: save into the provider-specific slot, not the legacy
+        // `apiKey` field. The resolver now prefers `anthropicApiKey`, so
+        // writing here keeps a clean round-trip on next launch.
+        config.anthropicApiKey = apiKey;
         config.provider = 'anthropic';
         config.model = 'claude-sonnet-4-6';
         fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
