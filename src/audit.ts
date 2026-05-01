@@ -65,7 +65,20 @@ export interface AuditEntry {
     // model, so no swap happened. Closes the silence gap that made
     // pre-PR-11 sessions look as if the router never fired.
     | 'capability_allow'
-    | 'no_op';
+    | 'no_op'
+    // PR 27 — CodingAgentProvider boundary.
+    // `task_start` records spec submission to a coding-agent provider.
+    // `task_event` records a discrete event from the provider's stream
+    // (status, log, file_change, command, etc.). `task_approval_request`
+    // records a permission prompt the provider raised mid-run.
+    // `task_complete` records terminal status (succeeded | failed). The
+    // CLI / dashboard will read these rows to render the Tasks tab and
+    // to chain back to the connector audit rows for issue→PR workflows.
+    | 'task_start'
+    | 'task_event'
+    | 'task_approval_request'
+    | 'task_complete'
+    | 'task_cancelled';
   args: Record<string, unknown>;
   result?: string;
   reason?: string;
