@@ -366,34 +366,50 @@ async function startServer() {
   // Stash for IPC handlers + menu access without re-deriving.
   global.__codebotWorkspaceDir = workspaceDir;
 
-  // PR 26 — pass `--allow-capability account-access,net-fetch` so
-  // routine read-class connector actions (gmail.list_threads,
-  // github.list_prs, calendar.list_events, etc.) don't prompt for
-  // approval on every single call. Per §7:
-  //   account-access → prompt   (account auth IS the gate)
-  //   net-fetch      → prompt   (egress IS the gate)
-  // For read-only verbs the strictest combine of [read-only,
-  // account-access, net-fetch] is `prompt`, which then forces
-  // an Approve click for every list/search/get call. That's right
-  // for the CLI default but wrong for an interactive dashboard
-  // where the user already approved the connection at vault-set
-  // time. Allowlisting these two labels at the dashboard subprocess
-  // level brings reads back to inline-success.
+  // PR 28.6 — dashboard "max-trust" capability allowlist.
   //
-  // What this does NOT bypass: write/delete/paid actions remain
-  // gated. Their NEVER_ALLOWABLE labels (send-on-behalf,
-  // delete-data, spend-money, move-money) cannot be allowlisted —
-  // parseAllowCapabilityFlag rejects them at startup. So a
-  // read-only connector call goes inline; a write connector call
-  // STILL surfaces the Approve/Deny card from PR 21+25.
+  // The dashboard runs with the full set of CURRENTLY_ALLOWABLE
+  // capability labels passed via --allow-capability so the agent
+  // doesn't prompt for routine actions. This matches a desktop
+  // power-user workflow where the user has already chosen to launch
+  // the local app and granted vault credentials.
   //
-  // The flag may already be in the user's argv via
-  // env.CODEBOT_DASHBOARD_EXTRA_ARGS or similar in the future; for
-  // now this is the hard-coded sane default for the dashboard.
-  serverProcess = spawn(nodeBin, [
-    binPath, '--dashboard', '--host', '127.0.0.1', '--no-open',
-    '--allow-capability', 'account-access,net-fetch',
-  ], {
+  // Inline (NO prompt):
+  //   read-only       — list/search/get
+  //   browser-read    — page reads, screenshots
+  //   write-fs        — file writes inside the workspace
+  //   run-cmd         — shell commands (sandbox + project safelist still apply)
+  //   net-fetch       — outbound HTTP
+  //   account-access  — connector reads against your saved vault credentials
+  //   browser-write   — clicks/fills/navigation
+  //
+  // STILL prompts (deliberately, can't be bypassed by any flag —
+  // parseAllowCapabilityFlag throws if you try to allowlist these):
+  //   send-on-behalf  — emails, X posts, Slack messages "from you"
+  //   delete-data     — destructive deletes
+  //   spend-money     — paid API calls (image gen, paid endpoints)
+  //   move-money      — flat-out PROHIBITED at registration layer
+  //
+  // Override via env var `CODEBOT_DASHBOARD_ALLOW_CAPABILITY`
+  // (comma-separated). Empty string = pass no flag = CLI defaults
+  // (everything prompts). Set to a tighter subset to lock things
+  // down without recompiling.
+  const DASHBOARD_DEFAULT_ALLOW_CAPS = [
+    'read-only',
+    'browser-read',
+    'write-fs',
+    'run-cmd',
+    'net-fetch',
+    'account-access',
+    'browser-write',
+  ].join(',');
+  const allowCaps = process.env.CODEBOT_DASHBOARD_ALLOW_CAPABILITY ?? DASHBOARD_DEFAULT_ALLOW_CAPS;
+  const dashboardArgs = [binPath, '--dashboard', '--host', '127.0.0.1', '--no-open'];
+  if (allowCaps && allowCaps.trim().length > 0) {
+    dashboardArgs.push('--allow-capability', allowCaps);
+  }
+  console.log('  Dashboard allow-capability:', allowCaps || '(none)');
+  serverProcess = spawn(nodeBin, dashboardArgs, {
     cwd: workspaceDir,
     env: serverEnv,
     stdio: ['pipe', 'pipe', 'pipe'],
