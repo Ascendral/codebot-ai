@@ -17,7 +17,6 @@ import { Scheduler } from './scheduler';
 import { AuditLogger } from './audit';
 import { generateDefaultPolicyFile } from './policy';
 import { getSandboxInfo } from './sandbox';
-import { ReplayProvider, loadSessionForReplay, compareOutputs } from './replay';
 import { exportSarif, sarifToString } from './sarif';
 import { permissionCard, guidedPrompts } from './ui';
 import { runDoctor, formatDoctorReport } from './doctor';
@@ -30,7 +29,6 @@ import { registerModelRoutes } from './dashboard/models-api';
 import { VERSION } from './index';
 import { SolveCommand } from './solve';
 import { runTask } from './task-runner';
-import { Daemon } from './daemon';
 import {
   ensureHeartbeatConfig,
   setHeartbeatEnabled,
@@ -41,9 +39,15 @@ import {
 // Decomposed modules
 import { parseArgs, showHelp } from './cli/args';
 import { resolveConfig, createProvider } from './cli/config';
-import { renderEvent, renderSolveEvent, setVerbose, truncate } from './cli/render';
+import { renderEvent, renderSolveEvent, setVerbose } from './cli/render';
 import { handleSlashCommand } from './cli/commands';
 import { resolveDashboardPort } from './cli/dashboard-config';
+import {
+  handleVaultSubcommand,
+  handleVerifyAudit,
+  handleReplay,
+  handleDaemon,
+} from './cli/subcommands';
 
 const C = {
   reset: '\x1b[0m',
@@ -100,71 +104,8 @@ export async function main() {
     }
   });
 
-  // ── `codebot vault …` subcommand ──
-  // Intercept at process.argv level so it short-circuits before the
-  // main agent flow. The vault subcommand never starts the agent /
-  // banner / network. Real CLI for credential management — addresses
-  // the gap that previously left users with no honest way to write
-  // secrets to ~/.codebot/vault.json.
-  if (process.argv[2] === 'vault') {
-    const { VaultManager } = require('./vault');
-    const sub = process.argv[3];
-    const vault = new VaultManager();
-    if (sub === 'list') {
-      const names = vault.list();
-      if (names.length === 0) {
-        console.log('vault: empty');
-      } else {
-        console.log(`vault: ${names.length} credential(s)`);
-        for (const n of names) console.log(`  - ${n}`);
-      }
-      return;
-    }
-    if (sub === 'status') {
-      const s = vault.status();
-      console.log(`vault path:      ${s.vaultPath}`);
-      console.log(`vault exists:    ${s.vaultExists}`);
-      console.log(`key source:      ${s.keySource}`);
-      console.log(`credential count: ${s.credentialCount}`);
-      return;
-    }
-    if (sub === 'delete' || sub === 'rm') {
-      const name = process.argv[4];
-      if (!name) { console.error('Usage: codebot vault delete <name>'); process.exit(1); }
-      const ok = vault.delete(name);
-      console.log(ok ? `deleted: ${name}` : `not found: ${name}`);
-      return;
-    }
-    if (sub === 'set') {
-      // Usage: codebot vault set <name> KEY=VALUE
-      // Stores the VALUE as the credential string. Connector code reads
-      // it via registry.getCredential(name) which returns cred.value
-      // directly — single-string contract verified at registry.ts:56.
-      const name = process.argv[4];
-      const kv = process.argv[5];
-      if (!name || !kv || !kv.includes('=')) {
-        console.error('Usage: codebot vault set <name> KEY=VALUE');
-        console.error('Example: codebot vault set github GITHUB_TOKEN=ghp_xxxxx');
-        process.exit(1);
-      }
-      const eq = kv.indexOf('=');
-      const value = kv.slice(eq + 1);
-      if (!value) { console.error('Empty value rejected.'); process.exit(1); }
-      vault.set(name, {
-        type: 'oauth_token',
-        value,
-        metadata: { provider: name, created: new Date().toISOString() },
-      });
-      console.log(`stored: ${name} (${value.length} chars, value not echoed)`);
-      return;
-    }
-    console.error('Usage:');
-    console.error('  codebot vault list');
-    console.error('  codebot vault status');
-    console.error('  codebot vault set <name> KEY=VALUE');
-    console.error('  codebot vault delete <name>');
-    process.exit(1);
-  }
+  // `codebot vault …` subcommand short-circuits before the main agent flow.
+  if (handleVaultSubcommand()) return;
 
   const args = parseArgs(process.argv.slice(2));
 
@@ -227,77 +168,7 @@ export async function main() {
     return;
   }
 
-  if (args['verify-audit']) {
-    const logger = new AuditLogger();
-    const sessionId = typeof args['verify-audit'] === 'string' ? (args['verify-audit'] as string) : undefined;
-    if (sessionId) {
-      const entries = logger.query({ sessionId });
-      if (entries.length === 0) {
-        console.log(c(`No audit entries found for session ${sessionId}`, 'yellow'));
-        return;
-      }
-      const result = AuditLogger.verify(entries);
-      if (result.valid) {
-        console.log(c(`Audit chain valid (${result.entriesChecked} entries checked)`, 'green'));
-      } else {
-        console.log(c(`Audit chain INVALID at sequence ${result.firstInvalidAt}`, 'red'));
-        console.log(c(`Reason: ${result.reason}`, 'red'));
-      }
-    } else {
-      const entries = logger.query();
-      if (entries.length === 0) {
-        console.log(c('No audit entries found.', 'yellow'));
-        return;
-      }
-      const sessions = new Map<string, typeof entries>();
-      for (const e of entries) {
-        if (!sessions.has(e.sessionId)) sessions.set(e.sessionId, []);
-        sessions.get(e.sessionId)!.push(e);
-      }
-      let allValid = true;
-      let legacySessions = 0;
-      let legacyEntries = 0;
-      let crashed = 0;
-      for (const [sid, sessionEntries] of sessions) {
-        const shortId = sid.substring(0, 12);
-        let result;
-        try {
-          result = AuditLogger.verify(sessionEntries);
-        } catch (err) {
-          crashed++;
-          allValid = false;
-          const msg = err instanceof Error ? err.message : String(err);
-          console.log(c(`  ${shortId}  ERROR: verifier threw: ${msg}`, 'red'));
-          continue;
-        }
-        if (result.valid) {
-          console.log(c(`  ${shortId}  ${result.entriesChecked} entries  valid`, 'green'));
-        } else if (result.legacy) {
-          legacySessions++;
-          legacyEntries += sessionEntries.length;
-          console.log(c(`  ${shortId}  ${sessionEntries.length} entries  skipped (legacy unhashed)`, 'yellow'));
-        } else {
-          console.log(c(`  ${shortId}  INVALID at seq ${result.firstInvalidAt}: ${result.reason}`, 'red'));
-          allValid = false;
-        }
-      }
-      const verifiable = sessions.size - legacySessions;
-      const lines: string[] = [];
-      if (legacySessions > 0) {
-        lines.push(c(`Skipped ${legacySessions} legacy sessions (${legacyEntries} entries) predating v1.7.0 hash chain.`, 'yellow'));
-      }
-      if (crashed > 0) {
-        lines.push(c(`${crashed} sessions failed to verify due to verifier errors.`, 'red'));
-      }
-      lines.push(
-        allValid
-          ? c(`All ${verifiable} hashed session chains verified.`, 'green')
-          : c(`Some chains are invalid — possible tampering detected.`, 'red'),
-      );
-      console.log('\n' + lines.join('\n'));
-    }
-    return;
-  }
+  if (args['verify-audit']) { handleVerifyAudit(args); return; }
 
   if (args['sandbox-info']) {
     const info = getSandboxInfo();
@@ -310,50 +181,7 @@ export async function main() {
     return;
   }
 
-  if (args.replay) {
-    const replayId = typeof args.replay === 'string' ? (args.replay as string) : SessionManager.latest();
-    if (!replayId) {
-      console.log(c('No session to replay.', 'yellow'));
-      return;
-    }
-    const data = loadSessionForReplay(replayId);
-    if (!data) {
-      console.log(c(`Session ${replayId} not found.`, 'red'));
-      return;
-    }
-    console.log(c(`\nReplaying session ${replayId.substring(0, 12)}...`, 'cyan'));
-    console.log(c(`  ${data.messages.length} messages`, 'dim'));
-    const replayProvider = new ReplayProvider(data.assistantMessages);
-    const config = await resolveConfig(args);
-    const agent = new Agent({
-      provider: replayProvider,
-      model: config.model,
-      providerName: 'replay',
-      autoApprove: true,
-    });
-    const recordedResults = Array.from(data.toolResults.values());
-    let resultIndex = 0;
-    let divergences = 0;
-    for (const userMsg of data.userMessages) {
-      console.log(c(`\n> ${truncate(userMsg.content, 100)}`, 'cyan'));
-      for await (const event of agent.run(userMsg.content)) {
-        if (event.type === 'tool_result' && event.toolResult && !event.toolResult.is_error) {
-          const recorded = recordedResults[resultIndex++];
-          if (recorded !== undefined) {
-            const diff = compareOutputs(recorded, event.toolResult.result);
-            if (diff) {
-              divergences++;
-              console.log(c(`  \u26a0 Divergence in ${event.toolResult.name || 'tool'}:`, 'yellow'));
-            } else {
-              console.log(c(`  \u2713 ${event.toolResult.name || 'tool'} — output matches`, 'green'));
-            }
-          }
-        }
-      }
-    }
-    console.log(c(`\n\nReplay complete. ${divergences} divergence(s).`, 'bold'));
-    return;
-  }
+  if (args.replay) { await handleReplay(args); return; }
 
   if (args['export-audit'] === 'sarif' || args['export-audit'] === true) {
     const logger = new AuditLogger();
@@ -427,34 +255,7 @@ export async function main() {
     process.exit(result.status === 'completed' ? 0 : 1);
   }
 
-  // ── Daemon mode ──
-  if (args.daemon) {
-    const config = await resolveConfig(args);
-    const provider = createProvider(config);
-    const agent = new Agent({
-      provider,
-      model: config.model,
-      providerName: config.provider,
-      maxIterations: config.maxIterations,
-      autoApprove: true,
-      routerConfig: config.router,
-      budgetConfig: config.budget,
-      allowedCapabilities: config.allowedCapabilities,
-      constitutional: { enabled: !config.disableConstitutional },
-    });
-    const daemon = new Daemon();
-    daemon.onExecuteJob = async (job) => {
-      let output = '';
-      for await (const event of agent.run(job.description)) {
-        if (event.type === 'text' && event.text) output += event.text;
-      }
-      return output || `Completed: ${job.description}`;
-    };
-    console.log(c('  CodeBot Daemon starting...', 'cyan'));
-    console.log(c('  Press Ctrl+C to stop.', 'dim'));
-    await daemon.start();
-    return;
-  }
+  if (args.daemon) { await handleDaemon(args); return; }
 
   // ── Zero-friction first run ──
   let showGuidedPrompts = false;
