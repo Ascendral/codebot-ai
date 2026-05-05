@@ -130,8 +130,16 @@ const PRUNE_AGE_DAYS = 30;
 export class ExperientialMemory {
   private db: any;
   private _active = false;
+  // IDs of lessons surfaced into the prompt during the current task. Cleared
+  // by recordTaskOutcome at task end. Single-task assumption: one Agent owns
+  // one ExperientialMemory; concurrent tasks against the same instance would
+  // cross-pollute outcomes.
+  private retrievedThisTask: Set<string> = new Set();
 
   get isActive(): boolean { return this._active; }
+
+  /** For tests: read the current retrieved-this-task set. */
+  _retrievedThisTaskForTest(): string[] { return [...this.retrievedThisTask]; }
 
   constructor(dbPath?: string) {
     if (!Database) return;
@@ -312,6 +320,11 @@ export class ExperientialMemory {
 
       if (failures.length === 0 && successes.length === 0) return '';
 
+      // Track which lessons were surfaced this task so recordTaskOutcome can
+      // reinforce/weaken them based on the eventual outcome.
+      for (const f of failures) this.retrievedThisTask.add(f.id);
+      for (const s of successes) this.retrievedThisTask.add(s.id);
+
       const parts: string[] = ['--- Lessons from Experience ---'];
 
       if (failures.length > 0) {
@@ -374,6 +387,26 @@ export class ExperientialMemory {
         UPDATE lessons SET confidence = MAX(0.0, confidence - 0.1) WHERE id = ?
       `).run(id);
     } catch {}
+  }
+
+  /**
+   * Reinforce or weaken every lesson that was surfaced into the prompt during
+   * the just-finished task, based on whether the task succeeded. Clears the
+   * retrieved-this-task set. Call once per task from the agent's finishRun.
+   */
+  recordTaskOutcome(success: boolean): { reinforced: number; weakened: number } {
+    if (!this._active) {
+      this.retrievedThisTask.clear();
+      return { reinforced: 0, weakened: 0 };
+    }
+    let reinforced = 0;
+    let weakened = 0;
+    for (const id of this.retrievedThisTask) {
+      if (success) { this.reinforceLesson(id); reinforced++; }
+      else { this.weakenLesson(id); weakened++; }
+    }
+    this.retrievedThisTask.clear();
+    return { reinforced, weakened };
   }
 
   /** Decay scores, merge similar lessons, prune old ones */

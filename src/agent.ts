@@ -1648,6 +1648,9 @@ export class Agent {
       });
       this.crossSession.recordEpisode(episode);
       try {
+        this.experientialMemory.recordTaskOutcome(success);
+      } catch {}
+      try {
         this.experientialMemory.decayAndConsolidate();
       } catch {}
     } catch {

@@ -253,4 +253,72 @@ describe('ExperientialMemory', () => {
     });
     inactive.close();
   });
+
+  it('buildPromptBlock tracks retrieved IDs for outcome reinforcement', () => {
+    const id1 = mem.recordLesson({
+      toolName: 'write_file',
+      outcome: 'failure',
+      lesson: 'Validate path before writing',
+      confidence: 0.6,
+    });
+    const id2 = mem.recordLesson({
+      toolName: 'browser',
+      outcome: 'success',
+      lesson: 'Snapshot before clicking',
+      confidence: 0.6,
+    });
+    assert.deepStrictEqual(mem._retrievedThisTaskForTest(), []);
+
+    const block = mem.buildPromptBlock({ currentTask: 'do something' });
+    assert.ok(block.length > 0);
+    const tracked = new Set(mem._retrievedThisTaskForTest());
+    assert.ok(tracked.has(id1!), 'failure lesson id should be tracked');
+    assert.ok(tracked.has(id2!), 'success lesson id should be tracked');
+  });
+
+  it('recordTaskOutcome(true) reinforces every retrieved lesson and clears the set', () => {
+    const id = mem.recordLesson({
+      toolName: 'edit_file',
+      outcome: 'failure',
+      lesson: 'Read before edit',
+      confidence: 0.6,
+    });
+    mem.buildPromptBlock({ currentTask: 'edit something' });
+    const before = mem.queryLessons({ toolName: 'edit_file' })[0].confidence;
+
+    const result = mem.recordTaskOutcome(true);
+    assert.strictEqual(result.reinforced, 1);
+    assert.strictEqual(result.weakened, 0);
+
+    const after = mem.queryLessons({ toolName: 'edit_file' })[0].confidence;
+    assert.ok(after > before, `confidence should increase, got ${before} -> ${after}`);
+    assert.deepStrictEqual(mem._retrievedThisTaskForTest(), [], 'set must be cleared');
+    void id;
+  });
+
+  it('recordTaskOutcome(false) weakens every retrieved lesson and clears the set', () => {
+    const id = mem.recordLesson({
+      toolName: 'execute',
+      outcome: 'failure',
+      lesson: 'Quote args with spaces',
+      confidence: 0.6,
+    });
+    mem.buildPromptBlock({ currentTask: 'run a command' });
+    const before = mem.queryLessons({ toolName: 'execute' })[0].confidence;
+
+    const result = mem.recordTaskOutcome(false);
+    assert.strictEqual(result.reinforced, 0);
+    assert.strictEqual(result.weakened, 1);
+
+    const after = mem.queryLessons({ toolName: 'execute' })[0].confidence;
+    assert.ok(after < before, `confidence should decrease, got ${before} -> ${after}`);
+    assert.deepStrictEqual(mem._retrievedThisTaskForTest(), [], 'set must be cleared');
+    void id;
+  });
+
+  it('recordTaskOutcome on empty set is a safe no-op', () => {
+    const result = mem.recordTaskOutcome(true);
+    assert.deepStrictEqual(result, { reinforced: 0, weakened: 0 });
+    assert.deepStrictEqual(mem._retrievedThisTaskForTest(), []);
+  });
 });
