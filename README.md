@@ -118,7 +118,7 @@ Eight providers: Ollama / LM Studio / vLLM (fully local, offline-capable) and An
 
 ## Real benchmark
 
-**SWE-bench Verified, 50-task slice, Docker-scored**: 17 tasks resolved unattended (34.0% over attempted, 51.5% over submitted patches). Mid-tier-open-source range, reproducible, harness in `bench/swe/`. [Full report](docs/benchmarks/swe-bench-verified-2026-04-16-50tasks.md).
+**SWE-bench Verified, 50-task slice, Docker-scored**: 24 tasks resolved unattended (48.0% over attempted, 61.5% over submitted patches). Reproducible, official harness, in `bench/swe/`. [Full report](docs/benchmarks/swe-bench-verified-2026-04-17-50tasks-v2.md).
 
 This is a ceiling number, not a growth number — what it proves is that the agent loop genuinely works end-to-end, not just in demos.
 
@@ -158,7 +158,7 @@ Custom tools via `.codebot/plugins/` · MCP servers via `.codebot/mcp.json` · [
 ## The honest limits
 
 - **Not a Cursor replacement.** No tab-completion, no inline suggestions, no in-editor UX.
-- **Autonomous ≠ perfect.** SWE-bench Verified pass rate is 34% unattended. Humans still need to review PRs.
+- **Autonomous ≠ perfect.** SWE-bench Verified pass rate is 48% unattended. Humans still need to review PRs.
 - **Local LLM quality is LLM-dependent.** A 7B model won't solve what gpt-5.4 solves. You pick the tradeoff.
 - **Policy enforcement is safety, not a guarantee.** CORD + risk scoring reduce the blast radius of agent mistakes; they don't eliminate them. Use git, use branches, use CI.
 
