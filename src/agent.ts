@@ -22,6 +22,7 @@ import { PreparedCall, ToolExecutorDeps, executeToolBatch, executeSingleTool, TO
 import { buildSystemPrompt } from './agent/prompt-builder';
 import { AskPermissionFn, defaultAskPermission } from './agent/permission';
 import { buildToolExecutionSignature } from './agent/serialization';
+import { BranchManager } from './agent/branch-manager';
 import { ExecutionAuditor } from './execution-auditor';
 import { CrossSessionLearning } from './cross-session';
 import { ExperientialMemory } from './experiential-memory';
@@ -91,7 +92,7 @@ export class Agent {
   private sessionGoal: string = '';
 
   private projectRoot: string;
-  private branchCreated: boolean = false;
+  private branchManager: BranchManager;
   private lastExecutedTools: string[] = [];
   private askPermission: AskPermissionFn;
   private onMessage?: (message: Message) => void;
@@ -160,6 +161,7 @@ export class Agent {
 
     // Load policy FIRST — tools need it for filesystem/git enforcement
     this.policyEnforcer = new PolicyEnforcer(loadPolicy(this.projectRoot), this.projectRoot);
+    this.branchManager = new BranchManager(this.policyEnforcer);
 
     this.tools = new ToolRegistry(this.projectRoot, this.policyEnforcer, { vaultMode: this.vaultMode });
     this.context = new ContextManager(opts.model, opts.provider);
@@ -822,7 +824,7 @@ export class Agent {
         tokenTracker: this.tokenTracker,
         stateEngine: this.stateEngine,
         lastExecutedTools: this.lastExecutedTools,
-        ensureBranch: () => this.ensureBranch(),
+        ensureBranch: () => this.branchManager.ensureBranch(this.messages, this.projectRoot),
         checkToolCapabilities: (t, a) => this.checkToolCapabilities(t, a),
         experientialMemory: this.experientialMemory,
         currentTask: this.sessionGoal,
@@ -1293,7 +1295,7 @@ export class Agent {
       tokenTracker: this.tokenTracker,
       stateEngine: this.stateEngine,
       lastExecutedTools: this.lastExecutedTools,
-      ensureBranch: () => this.ensureBranch(),
+      ensureBranch: () => this.branchManager.ensureBranch(this.messages, this.projectRoot),
       checkToolCapabilities: (t, a) => this.checkToolCapabilities(t, a),
       experientialMemory: this.experientialMemory,
       currentTask: this.sessionGoal,
@@ -1454,61 +1456,6 @@ export class Agent {
   /** Get the constitutional layer for security metrics */
   getConstitutional(): ConstitutionalLayer | null {
     return this.constitutional;
-  }
-
-  /**
-   * Auto-create a feature branch when always_branch is enabled and on main/master.
-   * Called before the first write/edit operation. Fail-open: if branching fails, continue.
-   */
-  private async ensureBranch(): Promise<string | null> {
-    if (this.branchCreated) return null;
-    if (!this.policyEnforcer.shouldAlwaysBranch()) return null;
-
-    try {
-      const { execSync } = require('child_process');
-      const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', {
-        cwd: this.projectRoot,
-        encoding: 'utf-8',
-        timeout: 5000,
-      }).trim();
-
-      if (currentBranch !== 'main' && currentBranch !== 'master') {
-        this.branchCreated = true;
-        return null; // Already on a feature branch
-      }
-
-      // Generate branch name from first user message
-      const firstUserMsg = this.messages.find((m) => m.role === 'user');
-      const prefix = this.policyEnforcer.getBranchPrefix();
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
-      const slug = this.sanitizeSlug(firstUserMsg?.content || 'task');
-      const branchName = `${prefix}${timestamp}-${slug}`;
-
-      execSync(`git checkout -b "${branchName}"`, {
-        cwd: this.projectRoot,
-        encoding: 'utf-8',
-        timeout: 10000,
-      });
-
-      this.branchCreated = true;
-      return branchName;
-    } catch {
-      // Don't block the operation if branching fails (not in a git repo, etc.)
-      this.branchCreated = true; // Don't retry
-      return null;
-    }
-  }
-
-  /** Sanitize user message into a branch-safe slug. */
-  private sanitizeSlug(message: string): string {
-    return (
-      message
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .substring(0, 30)
-        .replace(/-+$/, '') || 'task'
-    );
   }
 
   /** Check capability-based restrictions before tool execution. Returns reason string or null. */
