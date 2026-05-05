@@ -14,12 +14,7 @@ import {
   animateBootSequence,
 } from './banner';
 import { Scheduler } from './scheduler';
-import { AuditLogger } from './audit';
-import { generateDefaultPolicyFile } from './policy';
-import { getSandboxInfo } from './sandbox';
-import { exportSarif, sarifToString } from './sarif';
 import { permissionCard, guidedPrompts } from './ui';
-import { runDoctor, formatDoctorReport } from './doctor';
 import { loadTheme, setTheme } from './theme';
 import { autoDetect, runQuickSetup, saveConfig as saveSetupConfig } from './setup';
 import { DashboardServer } from './dashboard/server';
@@ -27,19 +22,15 @@ import { registerApiRoutes } from './dashboard/api';
 import { registerCommandRoutes } from './dashboard/command-api';
 import { registerModelRoutes } from './dashboard/models-api';
 import { VERSION } from './index';
-import { SolveCommand } from './solve';
-import { runTask } from './task-runner';
 import {
   ensureHeartbeatConfig,
-  setHeartbeatEnabled,
-  heartbeatStatus,
   maybePing as heartbeatMaybePing,
 } from './heartbeat';
 
 // Decomposed modules
 import { parseArgs, showHelp } from './cli/args';
 import { resolveConfig, createProvider } from './cli/config';
-import { renderEvent, renderSolveEvent, setVerbose } from './cli/render';
+import { renderEvent, setVerbose } from './cli/render';
 import { handleSlashCommand } from './cli/commands';
 import { resolveDashboardPort } from './cli/dashboard-config';
 import {
@@ -47,6 +38,13 @@ import {
   handleVerifyAudit,
   handleReplay,
   handleDaemon,
+  handleHeartbeat,
+  handleInitPolicy,
+  handleSandboxInfo,
+  handleExportAudit,
+  handleDoctor,
+  handleSolve,
+  handleTask,
 } from './cli/subcommands';
 
 const C = {
@@ -127,27 +125,8 @@ export async function main() {
     await runSetup();
   }
 
-  // ── Heartbeat (anonymous opt-in install ping) ──
-  // Handle the explicit subcommand first so it short-circuits before main flow.
-  if (args.heartbeat !== undefined) {
-    const v = String(args.heartbeat).toLowerCase();
-    if (v === 'on' || v === 'enable' || v === 'true') {
-      const cfg = setHeartbeatEnabled(true);
-      console.log(`heartbeat: enabled  (install age: ${cfg.firstSeenDate || 'just now'})`);
-      return;
-    }
-    if (v === 'off' || v === 'disable' || v === 'false') {
-      setHeartbeatEnabled(false);
-      console.log('heartbeat: disabled');
-      return;
-    }
-    if (v === 'status' || v === 'true') {
-      console.log(heartbeatStatus());
-      return;
-    }
-    console.log(`heartbeat: unknown value "${args.heartbeat}". Use on / off / status.`);
-    return;
-  }
+  // Heartbeat subcommand short-circuits before the main agent flow.
+  if (handleHeartbeat(args)) return;
 
   // First-run prompt + daily ping. Both are silent on failure and never block.
   // The ping fires-and-forgets — we don't await it before the main flow.
@@ -155,105 +134,15 @@ export async function main() {
   void heartbeatMaybePing(VERSION);
 
   // ── Standalone commands ──
-  if (args['init-policy']) {
-    const policyPath = path.join(process.cwd(), '.codebot', 'policy.json');
-    const policyDir = path.dirname(policyPath);
-    if (!fs.existsSync(policyDir)) fs.mkdirSync(policyDir, { recursive: true });
-    if (fs.existsSync(policyPath)) {
-      console.log(c(`Policy file already exists at ${policyPath}`, 'yellow'));
-    } else {
-      fs.writeFileSync(policyPath, generateDefaultPolicyFile(), 'utf-8');
-      console.log(c(`Created default policy at ${policyPath}`, 'green'));
-    }
-    return;
-  }
-
+  if (args['init-policy']) { handleInitPolicy(); return; }
   if (args['verify-audit']) { handleVerifyAudit(args); return; }
-
-  if (args['sandbox-info']) {
-    const info = getSandboxInfo();
-    console.log(c('Sandbox Status:', 'bold'));
-    console.log(`  Docker: ${info.available ? c('available', 'green') : c('not available', 'yellow')}`);
-    console.log(`  Image:  ${info.image}`);
-    console.log(`  CPU:    ${info.defaults.cpus} cores max`);
-    console.log(`  Memory: ${info.defaults.memoryMb}MB max`);
-    console.log(`  Network: ${info.defaults.network ? 'enabled' : 'disabled'} by default`);
-    return;
-  }
-
+  if (args['sandbox-info']) { handleSandboxInfo(); return; }
   if (args.replay) { await handleReplay(args); return; }
+  if (args['export-audit'] === 'sarif' || args['export-audit'] === true) { handleExportAudit(args, VERSION); return; }
+  if (args.doctor) { await handleDoctor(); }
+  if (args.solve) { await handleSolve(args); return; }
 
-  if (args['export-audit'] === 'sarif' || args['export-audit'] === true) {
-    const logger = new AuditLogger();
-    const sessionId = typeof args['session'] === 'string' ? (args['session'] as string) : undefined;
-    const entries = sessionId ? logger.query({ sessionId }) : logger.query();
-    if (entries.length === 0) {
-      console.error(c('No audit entries found.', 'yellow'));
-      process.exit(1);
-    }
-    const sarif = exportSarif(entries, { version: VERSION, sessionId });
-    process.stdout.write(sarifToString(sarif) + '\n');
-    return;
-  }
-
-  if (args.doctor) {
-    const report = await runDoctor();
-    console.log(formatDoctorReport(report));
-    process.exit(report.failed > 0 ? 1 : 0);
-  }
-
-  if (args.solve) {
-    const solveUrl = typeof args.solve === 'string' ? (args.solve as string) : (args.message as string);
-    if (!solveUrl) {
-      console.error(c('Error: provide a GitHub issue URL.', 'red'));
-      process.exit(1);
-    }
-    const config = await resolveConfig(args);
-    const provider = createProvider(config);
-    const solver = new SolveCommand({
-      model: config.model,
-      provider,
-      providerName: config.provider,
-      autoApprove: !!config.autoApprove,
-      maxIterations: config.maxIterations,
-      dryRun: args['dry-run'] !== false && !args['open-pr'],
-      openPr: !!args['open-pr'],
-      safe: !!args.safe,
-      maxFiles: parseInt((args['max-files'] as string) || '10', 10) || 10,
-      timeoutMin: parseInt((args['timeout-min'] as string) || '20', 10) || 20,
-      workspace: typeof args.workspace === 'string' ? (args.workspace as string) : undefined,
-      json: !!args.json,
-      verbose: !!args.verbose,
-    });
-    console.log(c('\n  CodeBot AI — Issue Solver\n', 'bold'));
-    for await (const event of solver.run(solveUrl)) {
-      renderSolveEvent(event, !!args.json);
-    }
-    return;
-  }
-
-  // ── Task mode (headless) ──
-  if (args.task) {
-    const taskDesc = typeof args.task === 'string' ? (args.task as string) : (args.message as string);
-    if (!taskDesc) {
-      console.error(c('Error: provide a task description.', 'red'));
-      process.exit(1);
-    }
-    const config = await resolveConfig(args);
-    const provider = createProvider(config);
-    const result = await runTask({
-      task: taskDesc,
-      provider,
-      model: config.model,
-      providerName: config.provider,
-      projectRoot: process.cwd(),
-      auditLogPath: typeof args['audit-log'] === 'string' ? (args['audit-log'] as string) : undefined,
-      outputFormat: (typeof args.output === 'string' ? args.output : 'text') as 'json' | 'text' | 'sarif',
-      maxCost: args['max-cost'] ? parseFloat(args['max-cost'] as string) : undefined,
-      preset: typeof args.preset === 'string' ? (args.preset as string) : undefined,
-    });
-    process.exit(result.status === 'completed' ? 0 : 1);
-  }
+  if (args.task) { await handleTask(args); }
 
   if (args.daemon) { await handleDaemon(args); return; }
 

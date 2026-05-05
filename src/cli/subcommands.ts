@@ -243,6 +243,141 @@ export async function handleReplay(args: ParsedArgs): Promise<void> {
 }
 
 /**
+ * `--heartbeat <on|off|status>` — toggles the anonymous opt-in install ping.
+ * Returns true if the flag was present (caller returns).
+ */
+export function handleHeartbeat(args: ParsedArgs): boolean {
+  if (args.heartbeat === undefined) return false;
+  // Lazy require to avoid pulling heartbeat into modules that don't need it.
+  const { setHeartbeatEnabled, heartbeatStatus } = require('../heartbeat');
+  const v = String(args.heartbeat).toLowerCase();
+  if (v === 'on' || v === 'enable' || v === 'true') {
+    const cfg = setHeartbeatEnabled(true);
+    console.log(`heartbeat: enabled  (install age: ${cfg.firstSeenDate || 'just now'})`);
+    return true;
+  }
+  if (v === 'off' || v === 'disable' || v === 'false') {
+    setHeartbeatEnabled(false);
+    console.log('heartbeat: disabled');
+    return true;
+  }
+  if (v === 'status' || v === 'true') {
+    console.log(heartbeatStatus());
+    return true;
+  }
+  console.log(`heartbeat: unknown value "${args.heartbeat}". Use on / off / status.`);
+  return true;
+}
+
+/**
+ * `--init-policy` — write a default `.codebot/policy.json` in the cwd if missing.
+ */
+export function handleInitPolicy(): void {
+  const path = require('path');
+  const fs = require('fs');
+  const { generateDefaultPolicyFile } = require('../policy');
+  const policyPath = path.join(process.cwd(), '.codebot', 'policy.json');
+  const policyDir = path.dirname(policyPath);
+  if (!fs.existsSync(policyDir)) fs.mkdirSync(policyDir, { recursive: true });
+  if (fs.existsSync(policyPath)) {
+    console.log(c(`Policy file already exists at ${policyPath}`, 'yellow'));
+  } else {
+    fs.writeFileSync(policyPath, generateDefaultPolicyFile(), 'utf-8');
+    console.log(c(`Created default policy at ${policyPath}`, 'green'));
+  }
+}
+
+/** `--sandbox-info` — print Docker sandbox availability + defaults. */
+export function handleSandboxInfo(): void {
+  const { getSandboxInfo } = require('../sandbox');
+  const info = getSandboxInfo();
+  console.log(c('Sandbox Status:', 'bold'));
+  console.log(`  Docker: ${info.available ? c('available', 'green') : c('not available', 'yellow')}`);
+  console.log(`  Image:  ${info.image}`);
+  console.log(`  CPU:    ${info.defaults.cpus} cores max`);
+  console.log(`  Memory: ${info.defaults.memoryMb}MB max`);
+  console.log(`  Network: ${info.defaults.network ? 'enabled' : 'disabled'} by default`);
+}
+
+/** `--export-audit sarif [--session id]` — emit SARIF 2.1.0 to stdout. */
+export function handleExportAudit(args: ParsedArgs, version: string): void {
+  const logger = new AuditLogger();
+  const sessionId = typeof args['session'] === 'string' ? (args['session'] as string) : undefined;
+  const entries = sessionId ? logger.query({ sessionId }) : logger.query();
+  if (entries.length === 0) {
+    console.error(c('No audit entries found.', 'yellow'));
+    process.exit(1);
+  }
+  const { exportSarif, sarifToString } = require('../sarif');
+  const sarif = exportSarif(entries, { version, sessionId });
+  process.stdout.write(sarifToString(sarif) + '\n');
+}
+
+/** `--doctor` — run the diagnostics suite. Calls process.exit. */
+export async function handleDoctor(): Promise<never> {
+  const { runDoctor, formatDoctorReport } = require('../doctor');
+  const report = await runDoctor();
+  console.log(formatDoctorReport(report));
+  process.exit(report.failed > 0 ? 1 : 0);
+}
+
+/** `--solve <issue-url>` — autonomous issue→PR pipeline. */
+export async function handleSolve(args: ParsedArgs): Promise<void> {
+  const solveUrl = typeof args.solve === 'string' ? (args.solve as string) : (args.message as string);
+  if (!solveUrl) {
+    console.error(c('Error: provide a GitHub issue URL.', 'red'));
+    process.exit(1);
+  }
+  const config = await resolveConfig(args);
+  const provider = createProvider(config);
+  const { SolveCommand } = await import('../solve');
+  const { renderSolveEvent } = await import('./render');
+  const solver = new SolveCommand({
+    model: config.model,
+    provider,
+    providerName: config.provider,
+    autoApprove: !!config.autoApprove,
+    maxIterations: config.maxIterations,
+    dryRun: args['dry-run'] !== false && !args['open-pr'],
+    openPr: !!args['open-pr'],
+    safe: !!args.safe,
+    maxFiles: parseInt((args['max-files'] as string) || '10', 10) || 10,
+    timeoutMin: parseInt((args['timeout-min'] as string) || '20', 10) || 20,
+    workspace: typeof args.workspace === 'string' ? (args.workspace as string) : undefined,
+    json: !!args.json,
+    verbose: !!args.verbose,
+  });
+  console.log(c('\n  CodeBot AI — Issue Solver\n', 'bold'));
+  for await (const event of solver.run(solveUrl)) {
+    renderSolveEvent(event, !!args.json);
+  }
+}
+
+/** `--task <description>` — headless single-task mode. Calls process.exit. */
+export async function handleTask(args: ParsedArgs): Promise<never> {
+  const taskDesc = typeof args.task === 'string' ? (args.task as string) : (args.message as string);
+  if (!taskDesc) {
+    console.error(c('Error: provide a task description.', 'red'));
+    process.exit(1);
+  }
+  const config = await resolveConfig(args);
+  const provider = createProvider(config);
+  const { runTask } = await import('../task-runner');
+  const result = await runTask({
+    task: taskDesc,
+    provider,
+    model: config.model,
+    providerName: config.provider,
+    projectRoot: process.cwd(),
+    auditLogPath: typeof args['audit-log'] === 'string' ? (args['audit-log'] as string) : undefined,
+    outputFormat: (typeof args.output === 'string' ? args.output : 'text') as 'json' | 'text' | 'sarif',
+    maxCost: args['max-cost'] ? parseFloat(args['max-cost'] as string) : undefined,
+    preset: typeof args.preset === 'string' ? (args.preset as string) : undefined,
+  });
+  process.exit(result.status === 'completed' ? 0 : 1);
+}
+
+/**
  * `--daemon` — start the long-running daemon worker. Constructs an Agent
  * from resolved config and a Daemon, wires the execute-job handler,
  * blocks on daemon.start().
