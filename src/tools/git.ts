@@ -7,6 +7,8 @@ const ALLOWED_ACTIONS = [
   'stash', 'push', 'pull', 'merge', 'blame', 'tag', 'add', 'reset', 'clone',
 ];
 
+const STASH_SAFE_SUBS = ['list', 'show', 'apply', 'pop', 'drop', 'branch'];
+
 /** Check for shell injection characters in arguments */
 function containsInjection(str: string): boolean {
   return /[;&|`$(){}]/.test(str) || /\beval\b|\bexec\b/.test(str);
@@ -32,6 +34,60 @@ function splitArgs(argsStr: string): string[] {
   return result;
 }
 
+/** Validate clone URL is from an allowed host. */
+function validateClone(extra: string): string | null {
+  const cloneArgs = splitArgs(extra);
+  const url = cloneArgs[0] || '';
+  if (!url.startsWith('https://github.com/') && !url.startsWith('git@github.com:') && !url.startsWith('https://gitlab.com/')) {
+    return 'Error: clone is restricted to github.com and gitlab.com URLs for safety.';
+  }
+  return null;
+}
+
+/** Validate stash subcommand is safe. */
+function validateStash(extra: string): string | null {
+  const stashArgs = splitArgs(extra);
+  const sub = stashArgs[0] || '';
+  if (!sub || sub === 'push' || sub === 'save') {
+    return 'Error: bare `git stash` (push/save form) is blocked for safety — it silently captures the working tree. Use `git stash list/show/apply/pop/drop` instead.';
+  }
+  if (!STASH_SAFE_SUBS.includes(sub)) {
+    return `Error: git stash subcommand "${sub}" is not allowed. Use list/show/apply/pop/drop/branch.`;
+  }
+  return null;
+}
+
+/** Validate no destructive force / clean / reset --hard ops. */
+function validateDestructive(action: string, extra: string, fullCmd: string): string | null {
+  if (/--force\s+.*(main|master)/i.test(fullCmd) || (/--force/.test(fullCmd) && /(main|master)/.test(fullCmd))) {
+    return 'Error: force push to main/master is blocked for safety.';
+  }
+  if (/clean\s+-[a-z]*f/i.test(fullCmd)) {
+    return 'Error: git clean -f is blocked for safety.';
+  }
+  if (action === 'reset' && extra.includes('--hard')) {
+    return 'Error: git reset --hard is blocked for safety.';
+  }
+  return null;
+}
+
+/** Validate policy-enforcer rules (never_push_main, always_branch). */
+function validatePolicy(action: string, cwd: string, pe: PolicyEnforcer | undefined, getBranch: (cwd: string) => string): string | null {
+  if (action === 'push' && pe?.isMainPushBlocked()) {
+    const branch = getBranch(cwd);
+    if (branch === 'main' || branch === 'master') {
+      return 'Error: Pushing to main/master is blocked by policy (git.never_push_main=true). Create a feature branch first.';
+    }
+  }
+  if (action === 'commit' && pe?.shouldAlwaysBranch()) {
+    const branch = getBranch(cwd);
+    if (branch === 'main' || branch === 'master') {
+      return 'Error: Committing to main/master is blocked by policy (git.always_branch=true). Create a feature branch first.';
+    }
+  }
+  return null;
+}
+
 export class GitTool implements Tool {
   name = 'git';
   description = 'Run git operations. Actions: status, diff, log, commit, branch, checkout, stash, push, pull, merge, blame, tag, add, reset, clone.';
@@ -55,7 +111,6 @@ export class GitTool implements Tool {
   async execute(args: Record<string, unknown>): Promise<string> {
     const action = args.action as string;
     if (!action) return 'Error: action is required';
-
     if (!ALLOWED_ACTIONS.includes(action)) {
       return `Error: unknown action "${action}". Allowed: ${ALLOWED_ACTIONS.join(', ')}`;
     }
@@ -63,65 +118,28 @@ export class GitTool implements Tool {
     const extra = (args.args as string) || '';
     const cwd = (args.cwd as string) || process.cwd();
 
-    // Injection detection — block shell metacharacters
     if (extra && containsInjection(extra)) {
       return 'Error: arguments contain disallowed characters (possible injection attempt).';
     }
 
-    // Restrict clone to well-known hosts only
     if (action === 'clone') {
-      const cloneArgs = splitArgs(extra);
-      const url = cloneArgs[0] || '';
-      if (!url.startsWith('https://github.com/') && !url.startsWith('git@github.com:') && !url.startsWith('https://gitlab.com/')) {
-        return 'Error: clone is restricted to github.com and gitlab.com URLs for safety.';
-      }
+      const err = validateClone(extra);
+      if (err) return err;
     }
 
-    // Build argument array (no shell interpolation)
     const gitArgs = [action, ...splitArgs(extra)];
     const fullCmd = gitArgs.join(' ');
 
-    // Block destructive force operations
-    if (/--force\s+.*(main|master)/i.test(fullCmd) || (/--force/.test(fullCmd) && /(main|master)/.test(fullCmd))) {
-      return 'Error: force push to main/master is blocked for safety.';
-    }
-    if (/clean\s+-[a-z]*f/i.test(fullCmd)) {
-      return 'Error: git clean -f is blocked for safety.';
-    }
-    // Block reset --hard (destructive)
-    if (action === 'reset' && extra.includes('--hard')) {
-      return 'Error: git reset --hard is blocked for safety.';
-    }
-    // Block destructive bare `git stash` (push form) — silently sweeps working tree.
-    // See incident: src/tools/git.test.ts running `tool.execute({action:'stash'})`
-    // accumulated 257 stashes of unrelated WIP because the test cwd was the repo itself.
+    const destructiveErr = validateDestructive(action, extra, fullCmd);
+    if (destructiveErr) return destructiveErr;
+
     if (action === 'stash') {
-      const stashArgs = splitArgs(extra);
-      const sub = stashArgs[0] || '';
-      const safeSubs = ['list', 'show', 'apply', 'pop', 'drop', 'branch'];
-      if (!sub || sub === 'push' || sub === 'save') {
-        return 'Error: bare `git stash` (push/save form) is blocked for safety — it silently captures the working tree. Use `git stash list/show/apply/pop/drop` instead.';
-      }
-      if (!safeSubs.includes(sub)) {
-        return `Error: git stash subcommand "${sub}" is not allowed. Use list/show/apply/pop/drop/branch.`;
-      }
+      const stashErr = validateStash(extra);
+      if (stashErr) return stashErr;
     }
 
-    // Policy: block push to main/master when never_push_main=true
-    if (action === 'push' && this.policyEnforcer?.isMainPushBlocked()) {
-      const currentBranch = this.getCurrentBranch(cwd);
-      if (currentBranch === 'main' || currentBranch === 'master') {
-        return 'Error: Pushing to main/master is blocked by policy (git.never_push_main=true). Create a feature branch first.';
-      }
-    }
-
-    // Policy: block commit on main/master when always_branch=true
-    if (action === 'commit' && this.policyEnforcer?.shouldAlwaysBranch()) {
-      const currentBranch = this.getCurrentBranch(cwd);
-      if (currentBranch === 'main' || currentBranch === 'master') {
-        return 'Error: Committing to main/master is blocked by policy (git.always_branch=true). Create a feature branch first.';
-      }
-    }
+    const policyErr = validatePolicy(action, cwd, this.policyEnforcer, this.getCurrentBranch.bind(this));
+    if (policyErr) return policyErr;
 
     try {
       // Use execFileSync (array-based) — bypasses shell, prevents injection

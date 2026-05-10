@@ -33,15 +33,9 @@ export interface TaskResult {
   errors: string[];
 }
 
-export async function runTask(opts: TaskOptions): Promise<TaskResult> {
-  const startedAt = new Date().toISOString();
-  const toolCalls: Array<{ tool: string; success: boolean }> = [];
-  const filesModified: string[] = [];
-  const errors: string[] = [];
-  let summary = '';
-  let lastAssistantText = '';
+// ── Agent setup ───────────────────────────────────────────────────────────────
 
-  // Create agent with auto-approve for headless execution
+function createTaskAgent(opts: TaskOptions): Agent {
   const agent = new Agent({
     provider: opts.provider,
     model: opts.model,
@@ -51,81 +45,134 @@ export async function runTask(opts: TaskOptions): Promise<TaskResult> {
     projectRoot: opts.projectRoot,
   });
 
-  // Apply preset if specified
   if (opts.preset) {
     try {
       const pe = agent.getPolicyEnforcer();
       if (pe && pe.applyPreset) pe.applyPreset(opts.preset);
-    } catch {
-      /* preset unavailable */
-    }
+    } catch { /* preset unavailable */ }
   }
 
-  // Apply max cost override
   if (opts.maxCost) {
     try {
       const tt = agent.getTokenTracker();
       if (tt && tt.setCostLimit) tt.setCostLimit(opts.maxCost);
-    } catch {
-      /* token tracker unavailable */
-    }
+    } catch { /* token tracker unavailable */ }
   }
 
-  process.stderr.write(`\n  CodeBot Task Runner\n  Task: ${opts.task}\n  Model: ${opts.model}\n\n`);
+  return agent;
+}
 
-  let status: TaskResult['status'] = 'completed';
+// ── Event processing ──────────────────────────────────────────────────────────
+
+interface RunState {
+  toolCalls: Array<{ tool: string; success: boolean }>;
+  filesModified: string[];
+  errors: string[];
+  lastAssistantText: string;
+  status: TaskResult['status'];
+}
+
+function processEvent(ev: AgentEvent & { toolResult?: any; text?: string; error?: string }, state: RunState): void {
+  switch (ev.type) {
+    case 'text':
+      state.lastAssistantText = ev.text || '';
+      break;
+    case 'tool_result':
+      if (ev.toolResult) {
+        const tc = { tool: ev.toolResult.name || 'unknown', success: !ev.toolResult.is_error };
+        state.toolCalls.push(tc);
+        process.stderr.write(`  [${tc.success ? '✓' : '✗'}] ${tc.tool}\n`);
+        if (['write_file', 'edit_file', 'batch_edit'].includes(tc.tool) && tc.success) {
+          state.filesModified.push(tc.tool);
+        }
+      }
+      break;
+    case 'error':
+      state.errors.push(ev.error || 'Unknown error');
+      if (ev.error?.includes('Cost limit')) state.status = 'cost_exceeded';
+      else if (ev.error?.includes('Max iterations')) state.status = 'max_iterations';
+      else state.status = 'failed';
+      break;
+    case 'done':
+      state.status = 'completed';
+      break;
+  }
+}
+
+// ── Result output ─────────────────────────────────────────────────────────────
+
+function writeOutput(content: string, auditLogPath: string | undefined, label: string): void {
+  if (auditLogPath) {
+    fs.mkdirSync(path.dirname(path.resolve(auditLogPath)), { recursive: true });
+    fs.writeFileSync(auditLogPath, content + '\n');
+    if (label) process.stderr.write(`\n  ${label}: ${auditLogPath}\n`);
+  } else {
+    process.stdout.write(content + '\n');
+  }
+}
+
+function emitResult(result: TaskResult, opts: TaskOptions): void {
+  const format = opts.outputFormat || 'text';
+
+  if (format === 'json') {
+    writeOutput(JSON.stringify(result, null, 2), opts.auditLogPath, 'Audit log written to');
+    return;
+  }
+
+  if (format === 'sarif') {
+    writeOutput(JSON.stringify(toSarif(result), null, 2), opts.auditLogPath, '');
+    return;
+  }
+
+  // Text summary to stderr
+  const dur = ((new Date(result.completedAt).getTime() - new Date(result.startedAt).getTime()) / 1000).toFixed(1);
+  process.stderr.write(`\n  ── Task Result ──\n`);
+  process.stderr.write(`  Status: ${result.status}\n`);
+  process.stderr.write(`  Tools: ${result.toolCalls.length} calls (${result.toolCalls.filter(t => t.success).length} succeeded)\n`);
+  process.stderr.write(`  Cost: $${result.cost.estimated_usd.toFixed(4)}\n`);
+  if (result.errors.length > 0) process.stderr.write(`  Errors: ${result.errors.join('; ')}\n`);
+  process.stderr.write(`  Duration: ${dur}s\n\n`);
+}
+
+// ── Main entry ────────────────────────────────────────────────────────────────
+
+export async function runTask(opts: TaskOptions): Promise<TaskResult> {
+  const startedAt = new Date().toISOString();
+  const state: RunState = {
+    toolCalls: [],
+    filesModified: [],
+    errors: [],
+    lastAssistantText: '',
+    status: 'completed',
+  };
+
+  const agent = createTaskAgent(opts);
+  process.stderr.write(`\n  CodeBot Task Runner\n  Task: ${opts.task}\n  Model: ${opts.model}\n\n`);
 
   try {
     for await (const event of agent.run(opts.task)) {
-      const ev = event as AgentEvent & { toolResult?: any; text?: string; error?: string };
-      switch (ev.type) {
-        case 'text':
-          lastAssistantText = ev.text || '';
-          break;
-        case 'tool_result':
-          if (ev.toolResult) {
-            const tc = { tool: ev.toolResult.name || 'unknown', success: !ev.toolResult.is_error };
-            toolCalls.push(tc);
-            process.stderr.write(`  [${tc.success ? '✓' : '✗'}] ${tc.tool}\n`);
-            // Track file modifications
-            if (['write_file', 'edit_file', 'batch_edit'].includes(tc.tool) && tc.success) {
-              filesModified.push(tc.tool);
-            }
-          }
-          break;
-        case 'error':
-          errors.push(ev.error || 'Unknown error');
-          if (ev.error?.includes('Cost limit')) status = 'cost_exceeded';
-          else if (ev.error?.includes('Max iterations')) status = 'max_iterations';
-          else status = 'failed';
-          break;
-        case 'done':
-          status = 'completed';
-          break;
-      }
+      processEvent(event as AgentEvent & { toolResult?: any; text?: string; error?: string }, state);
     }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    errors.push(msg);
-    status = 'failed';
+    state.errors.push(err instanceof Error ? err.message : String(err));
+    state.status = 'failed';
   }
 
-  summary = lastAssistantText || (status === 'completed' ? 'Task completed successfully.' : `Task ${status}.`);
   const completedAt = new Date().toISOString();
+  const summary = state.lastAssistantText || (state.status === 'completed' ? 'Task completed successfully.' : `Task ${state.status}.`);
 
   const result: TaskResult = {
     task: opts.task,
-    status,
+    status: state.status,
     startedAt,
     completedAt,
-    toolCalls,
-    filesModified: [...new Set(filesModified)],
+    toolCalls: state.toolCalls,
+    filesModified: [...new Set(state.filesModified)],
     summary: summary.substring(0, 2000),
     cost: { input_tokens: 0, output_tokens: 0, estimated_usd: 0 },
-    errors,
+    errors: state.errors,
   };
 
-  // Try to get token usage
   try {
     const tt = agent.getTokenTracker();
     if (tt) {
@@ -136,44 +183,9 @@ export async function runTask(opts: TaskOptions): Promise<TaskResult> {
         estimated_usd: tt.getTotalCost() || 0,
       };
     }
-  } catch {
-    /* token tracker unavailable */
-  }
+  } catch { /* token tracker unavailable */ }
 
-  // Output results
-  const format = opts.outputFormat || 'text';
-  if (format === 'json') {
-    const output = JSON.stringify(result, null, 2);
-    if (opts.auditLogPath) {
-      fs.mkdirSync(path.dirname(path.resolve(opts.auditLogPath)), { recursive: true });
-      fs.writeFileSync(opts.auditLogPath, output + '\n');
-      process.stderr.write(`\n  Audit log written to: ${opts.auditLogPath}\n`);
-    } else {
-      process.stdout.write(output + '\n');
-    }
-  } else if (format === 'sarif') {
-    const sarif = toSarif(result);
-    const output = JSON.stringify(sarif, null, 2);
-    if (opts.auditLogPath) {
-      fs.mkdirSync(path.dirname(path.resolve(opts.auditLogPath)), { recursive: true });
-      fs.writeFileSync(opts.auditLogPath, output + '\n');
-    } else {
-      process.stdout.write(output + '\n');
-    }
-  } else {
-    // Text summary to stderr
-    process.stderr.write(`\n  ── Task Result ──\n`);
-    process.stderr.write(`  Status: ${status}\n`);
-    process.stderr.write(
-      `  Tools: ${toolCalls.length} calls (${toolCalls.filter((t) => t.success).length} succeeded)\n`,
-    );
-    process.stderr.write(`  Cost: $${result.cost.estimated_usd.toFixed(4)}\n`);
-    if (errors.length > 0) process.stderr.write(`  Errors: ${errors.join('; ')}\n`);
-    process.stderr.write(
-      `  Duration: ${((new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 1000).toFixed(1)}s\n\n`,
-    );
-  }
-
+  emitResult(result, opts);
   return result;
 }
 
