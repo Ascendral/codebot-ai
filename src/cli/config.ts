@@ -77,7 +77,7 @@ export async function resolveConfig(args: Record<string, string | boolean>): Pro
     baseUrl: (args['base-url'] as string) || process.env.CODEBOT_BASE_URL || '',
     apiKey: (args['api-key'] as string) || '',
     maxIterations: Math.max(1, Math.min(parseInt((args['max-iterations'] as string) || String(saved.maxIterations || 50), 10) || 50, 500)),
-    autoApprove: !!args['auto-approve'] || !!args.autonomous || !!args.auto || !!saved.autoApprove,
+    autoApprove: !!args['auto-approve'] || !!args.autonomous || !!args.auto || !!saved.autoApprove || !!process.env.CODEBOT_AUTO_APPROVE,
     // Router config from saved settings only (PR 5: no CLI flag yet).
     // Absent or `enabled: false` → routing OFF, identical to pre-PR-5.
     router: saved.router,

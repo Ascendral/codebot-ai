@@ -291,6 +291,7 @@ ${c('Options:', 'bold')}
   --theme <name>       Theme: dark, light, mono (default: auto)
   --autonomous         Skip ALL permission prompts — full auto mode
   --auto-approve       Same as --autonomous
+                       (env: CODEBOT_AUTO_APPROVE=true)
   --allow-capability <list>  Comma-separated capability labels to bypass
                        interactive approval in unattended mode. Required
                        alongside --auto-approve for any tool that carries

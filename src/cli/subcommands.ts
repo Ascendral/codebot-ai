@@ -336,7 +336,9 @@ export async function handleSolve(args: ParsedArgs): Promise<void> {
     model: config.model,
     provider,
     providerName: config.provider,
-    autoApprove: !!config.autoApprove,
+    // --solve is inherently autonomous — the user typed "solve this and walk away".
+    // They can re-enable prompts with --no-auto-approve if needed.
+    autoApprove: args['no-auto-approve'] ? !!config.autoApprove : true,
     maxIterations: config.maxIterations,
     dryRun: args['dry-run'] !== false && !args['open-pr'],
     openPr: !!args['open-pr'],

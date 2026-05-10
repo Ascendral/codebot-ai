@@ -219,7 +219,7 @@ export function permissionCard(
   );
 
   // Action bar
-  const actionLine = `${UI.bold}[y]${UI.reset} Allow  ${UI.bold}[n]${UI.reset} Deny  ${UI.bold}[d]${UI.reset} Details`;
+  const actionLine = `${UI.bold}[y]${UI.reset} Allow  ${UI.bold}[A]${UI.reset} Always  ${UI.bold}[n]${UI.reset} Deny`;
   lines.push(
     `${color}${BOX.v}${UI.reset} ${padEnd(actionLine, width - 2)} ${color}${BOX.v}${UI.reset}`,
   );

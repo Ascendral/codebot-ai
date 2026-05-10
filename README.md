@@ -8,7 +8,7 @@ For work you want to *delegate*, not just *assist* with — and verify after the
 
 [![npm version](https://img.shields.io/npm/v/codebot-ai.svg?style=flat-square&color=6366f1)](https://www.npmjs.com/package/codebot-ai)
 [![license](https://img.shields.io/npm/l/codebot-ai.svg?style=flat-square)](https://github.com/Ascendral/codebot-ai/blob/main/LICENSE)
-![tests](https://img.shields.io/badge/tests-1630%20passing-22c55e?style=flat-square)
+![tests](https://img.shields.io/badge/tests-2218%20passing-22c55e?style=flat-square)
 
 </div>
 
@@ -37,11 +37,27 @@ CodeBot is for the class of work that starts with *"hey agent, go do this while 
 
 ```bash
 npm install -g codebot-ai
-codebot --setup                    # auto-detects local LLMs + cloud keys
-codebot "refactor auth to use JWT" # run a task
-codebot --dashboard                # web UI at localhost:3120
-codebot --solve https://github.com/you/repo/issues/42  # issue → tested PR
+
+# If you have an API key in your environment, just run:
+codebot "explain what this project does"   # reads code, asks before writing
+
+# No API key yet? Run the setup wizard (auto-detects Ollama, LM Studio, cloud keys):
+codebot --setup
+
+# Run a task hands-free — no permission prompts:
+codebot --autonomous "add error handling to src/server.ts"
+
+# Or set it once in your shell profile:
+export CODEBOT_AUTO_APPROVE=true
+
+# Web dashboard:
+codebot --dashboard
+
+# Solve a GitHub issue end-to-end (autonomous by default):
+codebot --solve https://github.com/you/repo/issues/42
 ```
+
+Supported API keys (set whichever you have): `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `XAI_API_KEY`. CodeBot auto-detects which one is set.
 
 ## Hero workflow — `--solve`
 

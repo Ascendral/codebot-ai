@@ -298,11 +298,26 @@ export async function main() {
     constitutional: { enabled: !config.disableConstitutional },
   });
 
+  // Per-session tool approvals. 'A' at the prompt means "always approve
+  // this tool for the rest of the session" — no persistence, resets on exit.
+  const sessionApproved = new Set<string>();
+
   agent.setAskPermission(async (tool, args, risk, sandbox) => {
+    if (sessionApproved.has(tool)) return true;
     process.stdout.write(permissionCard(tool, args, risk || { score: 0, level: 'green' }, sandbox));
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     const userResponse = new Promise<boolean>((resolve) => {
-      rl.question('Allow? [y/N] ', (answer) => { rl.close(); resolve(answer.toLowerCase().startsWith('y')); });
+      rl.question('Allow? [y/A/n] (A=always for session) ', (answer) => {
+        rl.close();
+        const a = answer.trim().toLowerCase();
+        if (a === 'a') {
+          sessionApproved.add(tool);
+          process.stdout.write(c(`  ✓ '${tool}' auto-approved for this session\n`, 'dim'));
+          resolve(true);
+        } else {
+          resolve(a.startsWith('y'));
+        }
+      });
     });
     const timeout = new Promise<boolean>((resolve) => {
       setTimeout(() => {
