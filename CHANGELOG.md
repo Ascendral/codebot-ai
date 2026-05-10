@@ -1,5 +1,53 @@
 # Changelog
 
+## [2.10.1] — 2026-05-09
+
+### Added
+- **Session permission approval** — interactive REPL now supports `[A]` (always) in addition to `[y]/[n]`. One approval auto-approves that tool for the rest of the session, resets on exit. Kills permission fatigue without permanent config changes.
+- **`CODEBOT_AUTO_APPROVE` env var** — set once in your shell profile to run fully headless without `--autonomous` on every invocation. Documented in `--help`.
+- **`--solve` defaults to autonomous** — `codebot --solve <url>` is an explicit opt-in to unattended operation; permission prompts are suppressed by default. Override with `--no-auto-approve` if you want to watch.
+- **Audit trail surfaced at solve completion** — the marquee differentiator (hash-chained audit log) is now printed inline at the end of every `--solve` run: entry count + chain verification status (`✓ verified (N entries, hash chain intact)`). No more hunting for the file.
+- **GitHub Action README** (`actions/codebot/README.md`) — full documentation for the GitHub Action: 3 workflow examples (review, fix, scan), inputs table, provider table, audit trail usage, policy configuration. Required for GitHub Marketplace listing.
+- **Vault Mode** (`--vault <path>`) — research assistant over any folder of markdown notes (Obsidian vaults, plain directories, Evernote exports). Read-only by default, no network calls, full audit log. `--vault-writable` / `--vault-allow-network` opt-ins available.
+- **Webhook listener** (`--listen`) — event-driven listener for GitHub webhooks; closes the real-time gap for CI/CD integration.
+- **Per-session budget cap** — `budget.perSessionCapUsd` in `~/.codebot/config.json` sets a hard USD ceiling. Stricter value wins when both budget and policy limits are set. Progress shown via `budgetBar` inline.
+- **Model router** — optional fast/strong/reasoning tier routing (PR 5). Classifies each turn and may swap to configured tier models. Same-provider only; cross-provider routing deferred.
+- **`--allow-capability <comma-list>`** — session-only opt-in for capability labels (e.g., `account-access,net-fetch`) that would otherwise force interactive approval. Hard-refuses `move-money`, `spend-money`, `send-on-behalf`, `delete-data`.
+- **CORD safelist** — project source files are safelisted against constitutional evaluation false-positives (`--no-constitutional` wires it off).
+- **Connector §8 contract** — all 47 connectors migrated to the discriminated-union validator contract: Gmail, GitHub, Slack, Google Calendar, Google Drive, Notion, X (Twitter), Jira, Linear, Replicate. Each action passed clean at migration.
+- **Dashboard permission card** — approve/deny UI rendered in dashboard chat (two-phase async API); replaces the silent auto-approve that was causing confusion.
+- **Workspace folder-picker** — Electron dashboard lets users pick and persist the working directory; persisted to `~/.codebot/config.json`.
+- **`CursorCliAgentProvider`** — wraps Cursor's open-source headless CLI as a first-class provider.
+- **Provider-aware Electron API key resolver** — Electron app resolves provider-specific keys correctly instead of always falling back to the generic `apiKey` field.
+- **`--solve` terminal demo in README** — real output block showing all 8 phases including the final SOLVE RESULT box with Audit + Chain lines.
+
+### Changed
+- **README Quick Start rewritten** — env-var path shown first (no `--setup` needed if key is already set), all 7 supported API key env vars listed.
+- **README test badge** — 1630 → 2218 passing tests.
+- **cli.ts `main()` complexity** — 67 → 22 (extracted helpers: `resolveVaultModeOpts`, `handleFirstRunSetup`, `displayStartupBanner`, `launchDashboard`, `runInputDispatch`). Under the 30-gate.
+- **ESLint gates** — complexity ≤ 30 per function, max-lines ≤ 500 per file (production); test files use relaxed rules.
+- **`disabledProviders`** — hard block respected in `/api/models/registry` dashboard endpoint as well as CLI.
+- **Reinforcement learning wired** — `reinforceLesson` / `weakenLesson` now called from real task outcomes. ±0.05 / ±0.10 deltas verified on 5/5 lessons in smoke test.
+- **SWE-bench Verified** — updated headline: 17 resolved → 24 resolved (34% → 48%) on 50-task slice. COMPARISON.md updated.
+
+### Fixed
+- **39 production unused-vars warnings** eliminated from TypeScript build.
+- **UTF-16 surrogate stripping** — lone surrogates in provider request bodies scrubbed before JSON serialization (Anthropic + OpenAI both strict-reject them).
+- **API key resolver dead code** — provider-specific keys (`openaiApiKey`, `anthropicApiKey`, etc.) now actually read from saved config.
+- **Base URL auto-correct** — stale baseUrl corrected when provider switches.
+- **Rate-limit 429 differentiation** — `insufficient_quota` vs `rate_limit_exceeded` reported separately.
+- **Audit chain §12 honesty pass** — token redaction modernized, `--verify-audit` legacy handling, every measurement row carries a status tag.
+- **VaultManager test isolation** — test pollution from shared audit log fixed.
+- **`.spark/` database files** no longer included in `--solve` PR commits.
+
+### Security
+- Shell-injection closed in `SshRemoteTool`, `DatabaseTool`, `GraphicsTool`, `TestRunnerTool`.
+- `DockerTool` + `PackageManagerTool` argv-ized (no shell interpolation).
+- `/api/command/exec` routed through agent gate chain (previously bypassed CORD).
+- `/api/command/tool/run` direct-execution bypass closed.
+- `xmldom` advisory patched.
+- 4 of 5 external-audit findings resolved (P1-1, P1-3, P2-1, P2-2).
+
 ## [2.10.0] — 2026-04-15
 
 ### Added

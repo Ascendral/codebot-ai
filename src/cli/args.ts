@@ -20,240 +20,141 @@ function c(text: string, style: keyof typeof C): string {
   return `${C[style]}${text}${C.reset}`;
 }
 
+/** Flags that take no value — set to `true` when present. */
+const BOOLEAN_FLAGS = new Set([
+  '--help', '-h',
+  '--version', '-v',
+  '--continue', '-c',
+  '--setup', '--init',
+  '--init-policy',
+  '--sandbox-info',
+  '--dashboard',
+  '--vault-writable',
+  '--vault-allow-network',
+  '--daemon',
+  '--tui',
+  '--no-stream',
+  '--doctor',
+  '--core-only',
+  '--open-pr',
+  '--safe',
+  '--no-constitutional',
+  '--dry-run', '--estimate',
+  '--deterministic',
+  '--no-auto-approve',
+  '--listen',
+]);
+
+/** Aliases that set multiple keys simultaneously. */
+const ALIAS_FLAGS: Record<string, string[]> = {
+  '--help': ['help'],
+  '-h': ['help'],
+  '--version': ['version'],
+  '-v': ['version'],
+  '--continue': ['continue'],
+  '-c': ['continue'],
+  '--setup': ['setup'],
+  '--init': ['setup'],
+  '--dry-run': ['dry-run'],
+  '--estimate': ['dry-run'],
+  '--auto-approve': ['auto-approve', 'autonomous', 'auto'],
+  '--autonomous': ['auto-approve', 'autonomous', 'auto'],
+  '--auto': ['auto-approve', 'autonomous', 'auto'],
+};
+
+/** Flags whose canonical result key differs from the flag name (strip `--`). */
+const KEY_OVERRIDE: Record<string, string> = {
+  '--no-stream': 'noStream',
+};
+
+/** Flags that accept an optional next argument (string if present, true if absent). */
+const OPTIONAL_VALUE_FLAGS = new Set([
+  '--verify-audit',
+  '--export-audit',
+  '--replay',
+  '--solve',
+  '--theme',
+  '--preset',
+  '--init-preset',
+  '--task',
+]);
+
+/** Flags that require a next argument (error if missing or starts with --). */
+const REQUIRED_VALUE_FLAGS = new Set([
+  '--vault',
+  '--allow-capability',
+  '--host',
+  '--audit-log',
+  '--output',
+  '--max-cost',
+]);
+
+/** Derive the result key for a flag. */
+function flagKey(flag: string): string {
+  if (KEY_OVERRIDE[flag]) return KEY_OVERRIDE[flag];
+  // Strip leading '--' or '-'
+  return flag.replace(/^-+/, '');
+}
+
+function isBoolean(flag: string): boolean {
+  return BOOLEAN_FLAGS.has(flag);
+}
+
+function hasOptionalValue(flag: string): boolean {
+  return OPTIONAL_VALUE_FLAGS.has(flag);
+}
+
+function hasRequiredValue(flag: string): boolean {
+  return REQUIRED_VALUE_FLAGS.has(flag);
+}
+
+function applyAliases(
+  result: Record<string, string | boolean>,
+  flag: string,
+  value: string | boolean,
+): void {
+  const aliases = ALIAS_FLAGS[flag];
+  if (aliases) {
+    for (const k of aliases) result[k] = value;
+  } else {
+    result[flagKey(flag)] = value;
+  }
+}
+
 export function parseArgs(argv: string[]): Record<string, string | boolean> {
   const result: Record<string, string | boolean> = {};
   const positional: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === '--help' || arg === '-h') {
-      result.help = true;
-      continue;
-    }
-    if (arg === '--version' || arg === '-v') {
-      result.version = true;
-      continue;
-    }
-    if (arg === '--auto-approve' || arg === '--autonomous' || arg === '--auto') {
-      result['auto-approve'] = true;
-      result.autonomous = true;
-      result.auto = true;
-      continue;
-    }
-    // PR 11 — `--allow-capability <comma-list>`. Session-only opt-in
-    // for labels that would otherwise force interactive approval. The
-    // raw string is preserved here; parseAllowCapabilityFlag() in
-    // capability-allowlist.ts validates the closed set and the
-    // never-allowable hard excludes (move-money, spend-money,
-    // send-on-behalf, delete-data) at agent startup.
-    if (arg === '--allow-capability') {
-      const next = argv[i + 1];
-      if (!next || next.startsWith('--')) {
-        // Surfaces as a startup-time validation error rather than a
-        // silent ignore — see config.ts for the exact message.
-        result['allow-capability'] = '';
-      } else {
-        result['allow-capability'] = next;
-        i++;
-      }
-      continue;
-    }
-    if (arg === '--continue' || arg === '-c') {
-      result.continue = true;
-      continue;
-    }
-    if (arg === '--setup' || arg === '--init') {
-      result.setup = true;
-      continue;
-    }
-    if (arg === '--init-policy') {
-      result['init-policy'] = true;
-      continue;
-    }
-    if (arg === '--sandbox-info') {
-      result['sandbox-info'] = true;
-      continue;
-    }
-    if (arg === '--verify-audit') {
-      const next = argv[i + 1];
-      if (next && !next.startsWith('--')) {
-        result['verify-audit'] = next;
-        i++;
-      } else {
-        result['verify-audit'] = true;
-      }
-      continue;
-    }
-    if (arg === '--export-audit') {
-      const next = argv[i + 1];
-      if (next && !next.startsWith('--')) {
-        result['export-audit'] = next;
-        i++;
-      } else {
-        result['export-audit'] = true;
-      }
-      continue;
-    }
-    if (arg === '--replay') {
-      const next = argv[i + 1];
-      if (next && !next.startsWith('--')) {
-        result['replay'] = next;
-        i++;
-      } else {
-        result['replay'] = true;
-      }
-      continue;
-    }
-    if (arg === '--dashboard') {
-      result.dashboard = true;
-      continue;
-    }
-    // Vault Mode — turn CodeBot into a read-only research assistant over a
-    // folder of markdown notes (Obsidian vault, plain directory, whatever).
-    //   --vault <path>            : path to the vault
-    //   --vault-writable          : allow edit_file / write_file tools
-    //   --vault-allow-network     : allow web_fetch / http_client tools
-    if (arg === '--vault') {
-      const next = argv[i + 1];
-      if (!next || next.startsWith('--')) {
-        throw new Error('--vault requires a path argument, e.g. --vault ~/Documents/my-notes');
-      }
-      result.vault = next;
-      i++;
-      continue;
-    }
-    if (arg === '--vault-writable') {
-      result['vault-writable'] = true;
-      continue;
-    }
-    if (arg === '--vault-allow-network') {
-      result['vault-allow-network'] = true;
-      continue;
-    }
-    if (arg === '--daemon') {
-      result.daemon = true;
-      continue;
-    }
-    if (arg === '--host') {
-      const next = argv[i + 1];
-      if (next && !next.startsWith('--')) {
-        result.host = next;
-        i++;
-      }
-      continue;
-    }
-    if (arg === '--tui') {
-      result.tui = true;
-      continue;
-    }
-    if (arg === '--no-stream') {
-      result.noStream = true;
-      continue;
-    }
-    if (arg === '--theme') {
-      const next = argv[i + 1];
-      if (next && !next.startsWith('--')) {
-        result.theme = next;
-        i++;
-      } else {
-        result.theme = true;
-      }
-      continue;
-    }
-    if (arg === '--doctor') {
-      result.doctor = true;
-      continue;
-    }
-    if (arg === '--preset') {
-      const next = argv[i + 1];
-      result.preset = next && !next.startsWith('--') ? next : true;
-      if (typeof result.preset === 'string') i++;
-      continue;
-    }
-    if (arg === '--init-preset') {
-      const next = argv[i + 1];
-      result['init-preset'] = next && !next.startsWith('--') ? next : true;
-      if (typeof result['init-preset'] === 'string') i++;
-      continue;
-    }
-    if (arg === '--core-only') {
-      result['core-only'] = true;
-      continue;
-    }
-    if (arg === '--task') {
-      const next = argv[i + 1];
-      result.task = next && !next.startsWith('--') ? next : true;
-      if (typeof result.task === 'string') i++;
-      continue;
-    }
-    if (arg === '--audit-log') {
-      const next = argv[i + 1];
-      result['audit-log'] = next && !next.startsWith('--') ? next : '';
-      i++;
-      continue;
-    }
-    if (arg === '--output') {
-      const next = argv[i + 1];
-      result.output = next || 'text';
-      i++;
-      continue;
-    }
-    if (arg === '--max-cost') {
-      const next = argv[i + 1];
-      result['max-cost'] = next;
-      i++;
+
+    if (!arg.startsWith('-')) {
+      positional.push(arg);
       continue;
     }
 
-    if (arg === '--solve') {
-      const next = argv[i + 1];
-      if (next && !next.startsWith('--')) {
-        result['solve'] = next;
-        i++;
-      } else {
-        result['solve'] = true;
-      }
+    if (isBoolean(arg)) {
+      applyAliases(result, arg, true);
       continue;
     }
-    if (arg === '--open-pr') {
-      result['open-pr'] = true;
+
+    if (hasRequiredValue(arg)) {
+      i = parseRequiredValue(argv, i, arg, result);
       continue;
     }
-    if (arg === '--safe') {
-      result['safe'] = true;
+
+    if (hasOptionalValue(arg)) {
+      i = parseOptionalValue(argv, i, arg, result);
       continue;
     }
-    if (arg === '--no-constitutional') {
-      result['no-constitutional'] = true;
-      continue;
-    }
-    if (arg === '--dry-run' || arg === '--estimate') {
-      result['dry-run'] = true;
-      continue;
-    }
-    if (arg === '--deterministic') {
-      result['deterministic'] = true;
-      continue;
-    }
+
+    // Unknown --flag: generic key=value or boolean
     if (arg.startsWith('--')) {
-      const key = arg.slice(2);
-      const next = argv[i + 1];
-      // Issue #7: don't let an unknown flag swallow the user's task message.
-      //
-      // Legitimate flag values are short identifiers (URLs, model names,
-      // file paths, numbers, integers). Real task messages are long and
-      // typically contain spaces. If `next` looks like a sentence rather
-      // than a flag value, treat the current flag as a boolean and let
-      // `next` fall through to the positional path on the next iteration.
-      const looksLikeMessage = !!next && (next.length > 60 || /\s/.test(next));
-      if (next && !next.startsWith('--') && !looksLikeMessage) {
-        result[key] = next;
-        i++;
-      } else {
-        result[key] = true;
-      }
+      i = parseUnknownFlag(argv, i, arg, result);
       continue;
     }
+
+    // Unrecognised single-dash flag — treat as positional
     positional.push(arg);
   }
 
@@ -262,6 +163,87 @@ export function parseArgs(argv: string[]): Record<string, string | boolean> {
   }
 
   return result;
+}
+
+function parseRequiredValue(
+  argv: string[],
+  i: number,
+  flag: string,
+  result: Record<string, string | boolean>,
+): number {
+  const next = argv[i + 1];
+  if (flag === '--vault') {
+    if (!next || next.startsWith('--')) {
+      throw new Error('--vault requires a path argument, e.g. --vault ~/Documents/my-notes');
+    }
+    result['vault'] = next;
+    return i + 1;
+  }
+  if (flag === '--allow-capability') {
+    // PR 11 — `--allow-capability <comma-list>`. Session-only opt-in
+    // for labels that would otherwise force interactive approval. The
+    // raw string is preserved here; parseAllowCapabilityFlag() in
+    // capability-allowlist.ts validates the closed set and the
+    // never-allowable hard excludes (move-money, spend-money,
+    // send-on-behalf, delete-data) at agent startup.
+    if (!next || next.startsWith('--')) {
+      // Surfaces as a startup-time validation error rather than a
+      // silent ignore — see config.ts for the exact message.
+      result['allow-capability'] = '';
+    } else {
+      result['allow-capability'] = next;
+      return i + 1;
+    }
+    return i;
+  }
+  // Generic required-value flags
+  const key = flagKey(flag);
+  if (next && !next.startsWith('--')) {
+    result[key] = next;
+    return i + 1;
+  }
+  result[key] = '';
+  return i;
+}
+
+function parseOptionalValue(
+  argv: string[],
+  i: number,
+  flag: string,
+  result: Record<string, string | boolean>,
+): number {
+  const next = argv[i + 1];
+  const key = flagKey(flag);
+  if (next && !next.startsWith('--')) {
+    result[key] = next;
+    return i + 1;
+  }
+  result[key] = true;
+  return i;
+}
+
+function parseUnknownFlag(
+  argv: string[],
+  i: number,
+  flag: string,
+  result: Record<string, string | boolean>,
+): number {
+  const key = flag.slice(2);
+  const next = argv[i + 1];
+  // Issue #7: don't let an unknown flag swallow the user's task message.
+  //
+  // Legitimate flag values are short identifiers (URLs, model names,
+  // file paths, numbers, integers). Real task messages are long and
+  // typically contain spaces. If `next` looks like a sentence rather
+  // than a flag value, treat the current flag as a boolean and let
+  // `next` fall through to the positional path on the next iteration.
+  const looksLikeMessage = !!next && (next.length > 60 || /\s/.test(next));
+  if (next && !next.startsWith('--') && !looksLikeMessage) {
+    result[key] = next;
+    return i + 1;
+  }
+  result[key] = true;
+  return i;
 }
 
 export function showHelp() {
