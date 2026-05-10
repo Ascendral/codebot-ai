@@ -80,6 +80,47 @@ An 8-phase pipeline runs autonomously:
 
 Every phase writes to the hash-chained log. If the agent does anything unexpected, you can prove it after the fact.
 
+**What it looks like:**
+
+```
+$ codebot --solve https://github.com/acme/api/issues/142
+
+  CodeBot AI — Issue Solver
+
+  ⠹  parsing      Parsing issue URL...
+  ✓  fetching     "Fix: null pointer in /users/:id endpoint"
+  ✓  cloning      acme/api → /tmp/codebot-solve-a3f2/
+  ✓  analyzing    TypeScript, Jest, 47 files
+  ✓  installing   npm ci (12.4s)
+  ✓  fixing       src/routes/users.ts, src/middleware/auth.ts
+  ✓  testing      Jest: 143 passed, 0 failed
+  ✓  reviewing    Self-review: approve (confidence 94%)
+  ✓  committing   Branch: codebot/fix-users-null-pointer
+
+  ══════════════════════════════════════════════
+  SOLVE RESULT
+  ══════════════════════════════════════════════
+  Session:    1746812034-x7k2p
+  Issue:      #142 "Fix: null pointer in /users/:id endpoint"
+  Branch:     codebot/fix-users-null-pointer
+  Files:      2 changed
+              - src/routes/users.ts
+              - src/middleware/auth.ts
+  Tests:      PASSED
+  Confidence: 94%
+  Duration:   87.3s
+  Cost:       $0.23
+  Audit:      47 actions recorded — ~/.codebot/solve-audits/solve-142-....json
+  Chain:      ✓ verified (52 entries, hash chain intact)
+  ══════════════════════════════════════════════
+```
+
+The audit log is a tamper-evident SHA-256 hash-chained record of every file read, every line written, every command run. Export it as SARIF for your compliance toolchain:
+
+```bash
+codebot --export-audit sarif > codebot-audit.sarif
+```
+
 ## Second workflow — `--vault` (research assistant over your notes)
 
 Point CodeBot at a folder of markdown notes and ask questions:
@@ -102,6 +143,19 @@ codebot --vault ~/Documents/my-notes --vault-allow-network
 ```
 
 Works with any markdown folder — Obsidian vaults, plain `~/notes`, dumped Evernote exports. `.obsidian/`, `.git/`, and `node_modules/` are automatically skipped.
+
+## GitHub Action — CI/CD integration
+
+Run CodeBot in any GitHub workflow. Code review on every PR, auto-fix on demand, security scan on push — all with a tamper-evident audit trail:
+
+```yaml
+- uses: codebot-ai/codebot@v1
+  with:
+    task: review          # or: fix, scan
+    api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+→ [Full GitHub Action documentation](actions/codebot/README.md)
 
 ## How CodeBot differs
 

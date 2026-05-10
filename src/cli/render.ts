@@ -182,6 +182,31 @@ export function renderSolveResult(r: SolveResult): void {
     lines.push(`  PR:         ${sc(r.prUrl, 'cyan')}`);
   }
 
+  // Surface the audit trail \u2014 the marquee feature, not buried in a file.
+  if (r.auditPath) {
+    const { AuditLogger } = require('../audit') as typeof import('../audit');
+    try {
+      const { existsSync, readFileSync } = require('fs') as typeof import('fs');
+      if (existsSync(r.auditPath)) {
+        // Count entries in the solve audit JSON (not the AuditLogger JSONL)
+        const solveAudit = JSON.parse(readFileSync(r.auditPath, 'utf-8'));
+        const entryCount = (solveAudit.entries || []).length;
+        lines.push(`  Audit:      ${sc(`${entryCount} actions recorded`, 'green')} \u2014 ${r.auditPath}`);
+      }
+    } catch { /* best-effort */ }
+
+    // Verify the main AuditLogger chain for this session.
+    try {
+      const logger = new AuditLogger();
+      const verify = logger.verifySession(r.sessionId);
+      if (verify.valid) {
+        lines.push(`  Chain:      ${sc(`\u2713 verified (${verify.entriesChecked} entries, hash chain intact)`, 'green')}`);
+      } else if (!verify.legacy) {
+        lines.push(`  Chain:      ${sc(`\u26a0 ${verify.reason}`, 'dim')}`);
+      }
+    } catch { /* best-effort */ }
+  }
+
   lines.push(sc('  \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550', 'cyan'));
   lines.push('');
 
