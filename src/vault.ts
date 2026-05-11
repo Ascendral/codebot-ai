@@ -111,6 +111,11 @@ export class VaultManager {
     if (this.keySource !== 'machine-derived') return;
     if (VaultManager.machineWarningShown) return;
     if (process.env.CODEBOT_VAULT_SILENT === '1') return;
+    // Only warn if the vault file actually exists — i.e. the user has stored
+    // at least one credential. A user who has never used credential storage
+    // does not need a multi-line lecture about portable encryption keys on
+    // every codebot invocation.
+    if (!fs.existsSync(this.vaultFile())) return;
     VaultManager.machineWarningShown = true;
     warnNonFatal(
       'Vault',

@@ -225,6 +225,9 @@ export class TokenTracker {
   /** Format cost for display */
   formatCost(): string {
     const cost = this.getTotalCost();
+    // No requests yet — say $0.00, not "free (local model)" which lies
+    // when the user is on a cloud provider and just hasn't made a call.
+    if (cost === 0 && this.getRequestCount() === 0) return '$0.0000';
     if (cost === 0) return 'free (local model)';
     if (cost < 0.01) return `< $0.01`;
     return `$${cost.toFixed(4)}`;

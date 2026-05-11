@@ -142,7 +142,16 @@ export class CordAdapter {
       if (cord.vigil) {
         this.vigil = cord.vigil as Record<string, unknown>;
         const start = this.vigil.start as () => void;
-        start.call(this.vigil);
+        // cord-engine's vigil.start() unconditionally console.logs
+        // "VIGIL: Started - Patrol mode active". That's debug noise in
+        // a user-facing CLI. Silence it unless CODEBOT_VIGIL_VERBOSE is set.
+        if (process.env.CODEBOT_VIGIL_VERBOSE === '1') {
+          start.call(this.vigil);
+        } else {
+          const origLog = console.log;
+          console.log = () => { /* suppress vigil boot chatter */ };
+          try { start.call(this.vigil); } finally { console.log = origLog; }
+        }
       }
     } catch {
       // VIGIL not available — continue without it
