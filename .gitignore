@@ -40,3 +40,14 @@ bench/swe/seed-lessons.json
 bench/swe/codebot-ai-2.10.0.tier2-*.json
 bench/swe/predictions-tier*.json
 bench/swe/predictions-tier*.run.json
+
+# All per-task SWE-bench run dumps (large, regenerable, name varies by model/tier)
+bench/swe/codebot-ai-*.json
+bench/swe/run-*.sh
+
+# npm pack artifacts
+*.tgz
+
+# Python bytecode caches (anywhere in repo)
+**/__pycache__/
+*.pyc
