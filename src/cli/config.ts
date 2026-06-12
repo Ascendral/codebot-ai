@@ -7,7 +7,7 @@ import { OpenAIProvider } from '../providers/openai';
 import { OpenAIResponsesProvider, modelRequiresResponsesApi } from '../providers/openai-responses';
 import { AnthropicProvider } from '../providers/anthropic';
 import { detectProvider, PROVIDER_DEFAULTS } from '../providers/registry';
-import { Config, LLMProvider } from '../types';
+import { Config, LLMProvider, CapabilityLabel } from '../types';
 import { loadConfig, pickProviderKey, isProviderDisabled, SavedConfig } from '../setup';
 import { parseAllowCapabilityFlag, CapabilityAllowlistError } from '../capability-allowlist';
 
@@ -66,21 +66,53 @@ export function createProvider(config: Config): LLMProvider {
 
 // ── Config resolution helpers ────────────────────────────────────────────────
 
-/** Resolve --allow-capability: validate and parse the raw string. */
-function resolveCapabilities(
+/**
+ * Resolve the capability allowlist from two sources, merged:
+ *   1. Persistent `allowedCapabilities` in ~/.codebot/config.json
+ *   2. The per-run `--allow-capability` CLI flag
+ *
+ * Both are validated through `parseAllowCapabilityFlag`, so unknown
+ * labels and the four NEVER_ALLOWABLE labels are rejected from either
+ * source. Without the config source, capability gates (immune to
+ * `autoApprove`) re-prompt on every file write / shell command / fetch,
+ * and the only escape was retyping `--allow-capability …` every run.
+ */
+export function resolveCapabilities(
   args: Record<string, string | boolean>,
   config: Config,
+  saved: SavedConfig,
 ): void {
-  if (args['allow-capability'] === undefined) return;
-  const raw = args['allow-capability'] as string;
-  if (!raw || !raw.trim()) {
-    // PR 11 — empty value is a hard error, not silent ignore.
-    throw new CapabilityAllowlistError(
-      '--allow-capability requires a comma-separated list of labels ' +
-      '(e.g., --allow-capability account-access,net-fetch). Got empty value.',
-    );
+  const allowed = new Set<CapabilityLabel>();
+
+  // 1. Persistent config allowlist.
+  if (Array.isArray(saved.allowedCapabilities) && saved.allowedCapabilities.length > 0) {
+    try {
+      for (const label of parseAllowCapabilityFlag(saved.allowedCapabilities.join(','))) {
+        allowed.add(label);
+      }
+    } catch (e) {
+      // Re-attribute the error so the user knows it came from config.json,
+      // not a CLI flag they didn't pass.
+      throw new CapabilityAllowlistError(
+        `config.json "allowedCapabilities": ${(e as Error).message}`,
+      );
+    }
   }
-  config.allowedCapabilities = parseAllowCapabilityFlag(raw);
+
+  // 2. Per-run CLI flag (additive on top of config).
+  if (args['allow-capability'] !== undefined) {
+    const raw = args['allow-capability'] as string;
+    if (!raw || !raw.trim()) {
+      // PR 11 — empty value is a hard error, not silent ignore.
+      throw new CapabilityAllowlistError(
+        '--allow-capability requires a comma-separated list of labels ' +
+          '(e.g., --allow-capability account-access,net-fetch). Got empty value.',
+      );
+    }
+    for (const label of parseAllowCapabilityFlag(raw)) allowed.add(label);
+  }
+
+  if (allowed.size > 0) config.allowedCapabilities = allowed;
 }
 
 /**
@@ -193,7 +225,7 @@ export async function resolveConfig(args: Record<string, string | boolean>): Pro
     disableConstitutional: !!args['no-constitutional'],
   };
 
-  resolveCapabilities(args, config);
+  resolveCapabilities(args, config, saved);
   await resolveBaseUrl(config, saved, explicitProvider);
   resolveApiKey(config, saved, explicitProvider);
   validateResolved(config);

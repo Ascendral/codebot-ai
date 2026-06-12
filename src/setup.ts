@@ -58,6 +58,19 @@ export interface SavedConfig {
   mistralApiKey?: string;
   xaiApiKey?: string;
   autoApprove?: boolean;
+  /**
+   * Persistent capability allowlist. `autoApprove` bypasses ordinary
+   * `prompt`/`always-ask` tool gates, but capability-label gates
+   * (`write-fs`, `run-cmd`, `net-fetch`, …) are immune to autoApprove by
+   * design — without this, every file write / shell command / fetch
+   * re-prompts even with autoApprove on, and the only escape was passing
+   * `--allow-capability …` on the command line every run. Listing labels
+   * here makes that allowlist stick across sessions. Validated through
+   * the same `parseAllowCapabilityFlag` as the CLI flag, so the four
+   * NEVER_ALLOWABLE labels (send-on-behalf, delete-data, spend-money,
+   * move-money) are still rejected and always require per-call approval.
+   */
+  allowedCapabilities?: string[];
   maxIterations?: number;
   firstRunComplete?: boolean;
   /**
