@@ -22,11 +22,18 @@ import { loadWorkflows, getWorkflow, resolveWorkflowPrompt, WORKFLOW_CATEGORIES 
 
 /** Quick-action definitions: AI prompt (agent) + shell command (standalone) */
 const QUICK_ACTIONS: Record<string, { prompt: string; command: string }> = {
-  'git-status':   { prompt: 'Run git status and show me the result briefly.',                      command: 'git status' },
-  'run-tests':    { prompt: 'Run the project test suite and report a brief summary of results.',   command: 'npm test 2>&1 || true' },
-  'health-check': { prompt: 'Check system health: run node --version, git --version, and df -h.',  command: 'echo "=== Node ===" && node --version && echo "=== Git ===" && git --version && echo "=== Disk ===" && df -h .' },
-  'git-log':      { prompt: 'Run git log --oneline -10 and show me the output.',                   command: 'git log --oneline -10' },
-  'git-diff':     { prompt: 'Run git diff --stat and show me the summary.',                        command: 'git diff --stat' },
+  'git-status': { prompt: 'Run git status and show me the result briefly.', command: 'git status' },
+  'run-tests': {
+    prompt: 'Run the project test suite and report a brief summary of results.',
+    command: 'npm test 2>&1 || true',
+  },
+  'health-check': {
+    prompt: 'Check system health: run node --version, git --version, and df -h.',
+    command:
+      'echo "=== Node ===" && node --version && echo "=== Git ===" && git --version && echo "=== Disk ===" && df -h .',
+  },
+  'git-log': { prompt: 'Run git log --oneline -10 and show me the output.', command: 'git log --oneline -10' },
+  'git-diff': { prompt: 'Run git diff --stat and show me the summary.', command: 'git diff --stat' },
 };
 
 /** Build a filtered env for child processes (strip secrets) */
@@ -43,12 +50,7 @@ function filteredEnv(): NodeJS.ProcessEnv {
  * `headersAlreadySent` lets the caller write headers + an init event
  * first, then invoke this without double-writing status/headers.
  */
-function execAndStream(
-  res: http.ServerResponse,
-  command: string,
-  cwd?: string,
-  headersAlreadySent = false,
-): void {
+function execAndStream(res: http.ServerResponse, command: string, cwd?: string, headersAlreadySent = false): void {
   if (!headersAlreadySent) DashboardServer.sseHeaders(res);
 
   let closed = false;
@@ -105,10 +107,7 @@ function execAndStream(
  * Terminal + Quick Actions work in standalone mode (no agent).
  * Chat + Tool Runner require an agent instance.
  */
-export function registerCommandRoutes(
-  server: DashboardServer,
-  agent: Agent | null,
-): void {
+export function registerCommandRoutes(server: DashboardServer, agent: Agent | null): void {
   let agentBusy = false;
   const messageQueue: Array<{ message: string; mode?: 'simple' | 'detailed'; resolve: (v: unknown) => void }> = [];
   const statusClients: Set<http.ServerResponse> = new Set();
@@ -133,11 +132,14 @@ export function registerCommandRoutes(
   //
   // The 5-minute timeout is deliberately long. A user who walked
   // away should come back to a still-open card, not a silent deny.
-  const pendingPermissionRequests = new Map<string, {
-    resolve: (approved: boolean) => void;
-    createdAt: number;
-    timer: NodeJS.Timeout;
-  }>();
+  const pendingPermissionRequests = new Map<
+    string,
+    {
+      resolve: (approved: boolean) => void;
+      createdAt: number;
+      timer: NodeJS.Timeout;
+    }
+  >();
   // PR 21 fix — `activeChatRes` is the currently-streaming SSE response.
   // The chat handler sets it on entry, clears on exit. askPermission
   // writes the `permission_request` event directly to this stream
@@ -179,9 +181,7 @@ export function registerCommandRoutes(
   // tool-runner requests on the same Agent instance don't collide
   // — the askPermission override reads the store to decide WHERE
   // the permission_request goes.
-  type RequestContext =
-    | { kind: 'chat' }
-    | { kind: 'tool-runner'; jobId: string };
+  type RequestContext = { kind: 'chat' } | { kind: 'tool-runner'; jobId: string };
   const requestContext = new AsyncLocalStorage<RequestContext>();
 
   type ToolRunnerJob = {
@@ -225,9 +225,18 @@ export function registerCommandRoutes(
       if (tool === 'app' && typeof args.action === 'string' && args.action.includes('.')) {
         try {
           const reg = agent.getToolRegistry();
-          const appTool = reg.get('app') as unknown as {
-            registry?: { get?: (n: string) => { actions?: Array<{ name: string; preview?: (a: Record<string, unknown>, c: string) => Promise<unknown> }> } };
-          } | undefined;
+          const appTool = reg.get('app') as unknown as
+            | {
+                registry?: {
+                  get?: (n: string) => {
+                    actions?: Array<{
+                      name: string;
+                      preview?: (a: Record<string, unknown>, c: string) => Promise<unknown>;
+                    }>;
+                  };
+                };
+              }
+            | undefined;
           // Reach into the AppConnectorTool via the registry to find
           // the connector action's preview. If anything in this chain
           // is missing or throws, the prompt still fires — just
@@ -235,11 +244,22 @@ export function registerCommandRoutes(
           const dotIdx = String(args.action).indexOf('.');
           const appName = String(args.action).substring(0, dotIdx);
           const actionName = String(args.action).substring(dotIdx + 1);
-          const innerRegistry = (appTool as unknown as { registry?: unknown })?.registry as {
-            get?: (n: string) => { actions?: Array<{ name: string; preview?: (a: Record<string, unknown>, c: string) => Promise<unknown> }> } | undefined;
-          } | undefined;
+          const innerRegistry = (appTool as unknown as { registry?: unknown })?.registry as
+            | {
+                get?: (
+                  n: string,
+                ) =>
+                  | {
+                      actions?: Array<{
+                        name: string;
+                        preview?: (a: Record<string, unknown>, c: string) => Promise<unknown>;
+                      }>;
+                    }
+                  | undefined;
+              }
+            | undefined;
           const connector = innerRegistry?.get?.(appName);
-          const connectorAction = connector?.actions?.find(a => a.name === actionName);
+          const connectorAction = connector?.actions?.find((a) => a.name === actionName);
           if (connectorAction?.preview) {
             const p = await connectorAction.preview(args, '');
             preview = p as { summary: string; details?: Record<string, unknown> };
@@ -336,8 +356,15 @@ export function registerCommandRoutes(
   function broadcastStatus(status: 'idle' | 'working' | 'done' | 'queued', extra?: Record<string, unknown>) {
     const data = { status, queueLength: messageQueue.length, ...extra };
     for (const client of statusClients) {
-      if (client.writableEnded || client.destroyed) { statusClients.delete(client); continue; }
-      try { DashboardServer.sseSend(client, data); } catch { statusClients.delete(client); }
+      if (client.writableEnded || client.destroyed) {
+        statusClients.delete(client);
+        continue;
+      }
+      try {
+        DashboardServer.sseSend(client, data);
+      } catch {
+        statusClients.delete(client);
+      }
     }
   }
 
@@ -353,7 +380,11 @@ export function registerCommandRoutes(
         if (event.type === 'text') result += (event as any).text || '';
         if (event.type === 'tool_call') {
           const tc = (event as any).toolCall;
-          broadcastStatus('working', { tool: tc?.name, action: tc?.args?.action || tc?.args?.command, message: next.message });
+          broadcastStatus('working', {
+            tool: tc?.name,
+            action: tc?.args?.action || tc?.args?.command,
+            message: next.message,
+          });
         }
         if (event.type === 'tool_result') {
           const tr = (event as any).toolResult;
@@ -386,12 +417,15 @@ export function registerCommandRoutes(
       DashboardServer.error(res, 503, 'Agent not available (standalone mode)');
       return;
     }
-    const tools = agent.getToolRegistry().all().map(t => ({
-      name: t.name,
-      description: t.description,
-      parameters: t.parameters,
-      permission: t.permission,
-    }));
+    const tools = agent
+      .getToolRegistry()
+      .all()
+      .map((t) => ({
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters,
+        permission: t.permission,
+      }));
     DashboardServer.json(res, { tools });
   });
 
@@ -539,7 +573,7 @@ export function registerCommandRoutes(
     // is fast (most reads), we return the result inline. If it's
     // slow OR needs approval, we return 202 with the job state and
     // the caller polls.
-    const grace = new Promise(resolve => setTimeout(resolve, 250));
+    const grace = new Promise((resolve) => setTimeout(resolve, 250));
     await Promise.race([execPromise, grace]);
 
     const after = toolRunnerJobs.get(jobId)!;
@@ -571,30 +605,37 @@ export function registerCommandRoutes(
       // POST /api/command/permission/respond, then poll
       // GET /api/command/tool/run/result/:jobId.
       res.writeHead(202, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        jobId,
-        status: 'approval_required',
-        permissionRequest: {
-          requestId: after.permissionRequest.requestId,
-          tool: body.tool,
-          args: after.permissionRequest.args,
-          risk: after.permissionRequest.risk,
-          preview: after.permissionRequest.preview,
-          timeoutMs: PERMISSION_TIMEOUT_MS,
-        },
-        hint: 'POST /api/command/permission/respond with {requestId, approved} to approve, then GET /api/command/tool/run/result/' + jobId + ' to retrieve the result.',
-      }));
+      res.end(
+        JSON.stringify({
+          jobId,
+          status: 'approval_required',
+          permissionRequest: {
+            requestId: after.permissionRequest.requestId,
+            tool: body.tool,
+            args: after.permissionRequest.args,
+            risk: after.permissionRequest.risk,
+            preview: after.permissionRequest.preview,
+            timeoutMs: PERMISSION_TIMEOUT_MS,
+          },
+          hint:
+            'POST /api/command/permission/respond with {requestId, approved} to approve, then GET /api/command/tool/run/result/' +
+            jobId +
+            ' to retrieve the result.',
+        }),
+      );
       return;
     }
     // Still running after the grace period — return 202 with
     // poll URL.
     res.writeHead(202, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      jobId,
-      status: 'running',
-      pollUrl: '/api/command/tool/run/result/' + jobId,
-      hint: 'Poll the result endpoint until status is completed/failed/approval_required.',
-    }));
+    res.end(
+      JSON.stringify({
+        jobId,
+        status: 'running',
+        pollUrl: '/api/command/tool/run/result/' + jobId,
+        hint: 'Poll the result endpoint until status is completed/failed/approval_required.',
+      }),
+    );
   });
 
   // PR 25 — GET /api/command/tool/run/result/:jobId
@@ -657,12 +698,23 @@ export function registerCommandRoutes(
     DashboardServer.sseSend(res, { status: agentBusy ? 'working' : 'idle', queueLength: messageQueue.length });
     // Heartbeat keeps Safari/proxy connections alive
     const hb = setInterval(() => {
-      if (res.writableEnded || res.destroyed) { clearInterval(hb); statusClients.delete(res); return; }
-      try { res.write(': heartbeat\n\n'); } catch { clearInterval(hb); statusClients.delete(res); }
+      if (res.writableEnded || res.destroyed) {
+        clearInterval(hb);
+        statusClients.delete(res);
+        return;
+      }
+      try {
+        res.write(': heartbeat\n\n');
+      } catch {
+        clearInterval(hb);
+        statusClients.delete(res);
+      }
     }, 15_000);
-    res.on('close', () => { clearInterval(hb); statusClients.delete(res); });
+    res.on('close', () => {
+      clearInterval(hb);
+      statusClients.delete(res);
+    });
   });
-
 
   // ── POST /api/command/chat/reset — start a new conversation ──
   //
@@ -844,10 +896,15 @@ export function registerCommandRoutes(
     // the finally block. NEVER_ALLOWABLE capability labels remain
     // hard-rejected via the existing PR-11 path; autoApprove only
     // affects regular permission prompts.
-    const requestedAutoApprove = body.autoApprove === true;
+    // BUG FIX: previously this read `body.autoApprove === true`, which
+    // collapsed `undefined` (UI didn't send the field) into `false` and
+    // FLIPPED the agent's autoApprove from true → false on every request,
+    // ignoring config.json autoApprove: true. Now we only override when
+    // the field is explicitly a boolean — absent means "inherit the
+    // agent's existing setting" (which comes from config.json / env).
     const priorAutoApprove = agent.getAutoApprove();
-    if (requestedAutoApprove !== priorAutoApprove) {
-      agent.setAutoApprove(requestedAutoApprove);
+    if (typeof body.autoApprove === 'boolean' && body.autoApprove !== priorAutoApprove) {
+      agent.setAutoApprove(body.autoApprove);
     }
 
     if (agentBusy) {
@@ -869,7 +926,9 @@ export function registerCommandRoutes(
     // Simple mode: prepend plain-language instruction for non-technical users
     let userMessage = body.message || '';
     if (body.mode === 'simple') {
-      userMessage = '[Respond in plain, simple language suitable for someone who is not a programmer. Be concise and friendly. Focus on results, not technical details.]\n\n' + userMessage;
+      userMessage =
+        '[Respond in plain, simple language suitable for someone who is not a programmer. Be concise and friendly. Focus on results, not technical details.]\n\n' +
+        userMessage;
     }
 
     agentBusy = true;
@@ -877,12 +936,22 @@ export function registerCommandRoutes(
     DashboardServer.sseHeaders(res);
 
     let closed = false;
-    res.on('close', () => { closed = true; });
+    res.on('close', () => {
+      closed = true;
+    });
 
     // Heartbeat keeps connection alive through proxies/Safari
     const heartbeat = setInterval(() => {
-      if (closed || res.writableEnded || res.destroyed) { clearInterval(heartbeat); return; }
-      try { res.write(': heartbeat\n\n'); } catch { clearInterval(heartbeat); closed = true; }
+      if (closed || res.writableEnded || res.destroyed) {
+        clearInterval(heartbeat);
+        return;
+      }
+      try {
+        res.write(': heartbeat\n\n');
+      } catch {
+        clearInterval(heartbeat);
+        closed = true;
+      }
     }, 15_000);
 
     try {
@@ -925,7 +994,7 @@ export function registerCommandRoutes(
       // into the queued message handler, which has its own autoApprove
       // semantics (see processQueue above — currently inherits the
       // agent's then-current value).
-      if (requestedAutoApprove !== priorAutoApprove) {
+      if (typeof body.autoApprove === 'boolean' && body.autoApprove !== priorAutoApprove) {
         agent.setAutoApprove(priorAutoApprove);
       }
       if (!res.writableEnded && !res.destroyed) {
@@ -949,7 +1018,11 @@ export function registerCommandRoutes(
 
     const actionDef = QUICK_ACTIONS[body?.action || ''];
     if (!actionDef) {
-      DashboardServer.error(res, 400, `Unknown action: "${body?.action}". Available: ${Object.keys(QUICK_ACTIONS).join(', ')}`);
+      DashboardServer.error(
+        res,
+        400,
+        `Unknown action: "${body?.action}". Available: ${Object.keys(QUICK_ACTIONS).join(', ')}`,
+      );
       return;
     }
 
@@ -963,12 +1036,22 @@ export function registerCommandRoutes(
       DashboardServer.sseHeaders(res);
 
       let closed = false;
-      res.on('close', () => { closed = true; });
+      res.on('close', () => {
+        closed = true;
+      });
 
       // Heartbeat keeps connection alive through proxies/Safari
       const qaHeartbeat = setInterval(() => {
-        if (closed || res.writableEnded || res.destroyed) { clearInterval(qaHeartbeat); return; }
-        try { res.write(': heartbeat\n\n'); } catch { clearInterval(qaHeartbeat); closed = true; }
+        if (closed || res.writableEnded || res.destroyed) {
+          clearInterval(qaHeartbeat);
+          return;
+        }
+        try {
+          res.write(': heartbeat\n\n');
+        } catch {
+          clearInterval(qaHeartbeat);
+          closed = true;
+        }
       }, 15_000);
 
       try {
@@ -1104,11 +1187,13 @@ export function registerCommandRoutes(
     DashboardServer.sseClose(res);
   });
 
-
   // ── GET /api/notifications ──
   server.route('GET', '/api/notifications', (_req, res) => {
     const engine = getProactiveEngine();
-    if (!engine) { DashboardServer.json(res, { notifications: [], unreadCount: 0 }); return; }
+    if (!engine) {
+      DashboardServer.json(res, { notifications: [], unreadCount: 0 });
+      return;
+    }
     DashboardServer.json(res, {
       notifications: engine.getAll(),
       unreadCount: engine.getUnreadCount(),
@@ -1118,7 +1203,10 @@ export function registerCommandRoutes(
   // ── POST /api/notifications/dismiss-all ──
   server.route('POST', '/api/notifications/dismiss-all', (_req, res) => {
     const engine = getProactiveEngine();
-    if (!engine) { DashboardServer.json(res, { dismissed: 0 }); return; }
+    if (!engine) {
+      DashboardServer.json(res, { dismissed: 0 });
+      return;
+    }
     const count = engine.dismissAll();
     DashboardServer.json(res, { dismissed: count });
   });
@@ -1126,7 +1214,10 @@ export function registerCommandRoutes(
   // ── POST /api/notifications/:id/:action ──
   server.route('POST', '/api/notifications/:id/:action', (_req, res, params) => {
     const engine = getProactiveEngine();
-    if (!engine) { DashboardServer.error(res, 503, 'Notification engine not available'); return; }
+    if (!engine) {
+      DashboardServer.error(res, 503, 'Notification engine not available');
+      return;
+    }
     if (params.action === 'dismiss') {
       const ok = engine.dismiss(params.id);
       DashboardServer.json(res, { dismissed: ok });
@@ -1142,7 +1233,11 @@ export function registerCommandRoutes(
   server.route('GET', '/api/notifications/stream', (_req, res) => {
     DashboardServer.sseHeaders(res);
     const engine = getProactiveEngine();
-    if (!engine) { DashboardServer.sseSend(res, { type: 'init', unreadCount: 0 }); DashboardServer.sseClose(res); return; }
+    if (!engine) {
+      DashboardServer.sseSend(res, { type: 'init', unreadCount: 0 });
+      DashboardServer.sseClose(res);
+      return;
+    }
 
     const listener = (notification: unknown) => {
       if (res.writable) {
@@ -1158,8 +1253,15 @@ export function registerCommandRoutes(
 
     // Heartbeat keeps connections alive
     const nhb = setInterval(() => {
-      if (res.writableEnded || res.destroyed) { clearInterval(nhb); return; }
-      try { res.write(': heartbeat\n\n'); } catch { clearInterval(nhb); }
+      if (res.writableEnded || res.destroyed) {
+        clearInterval(nhb);
+        return;
+      }
+      try {
+        res.write(': heartbeat\n\n');
+      } catch {
+        clearInterval(nhb);
+      }
     }, 30_000);
     res.on('close', () => clearInterval(nhb));
 
@@ -1174,7 +1276,7 @@ export function registerCommandRoutes(
   server.route('GET', '/api/workflows', (_req, res) => {
     const workflows = loadWorkflows();
     DashboardServer.json(res, {
-      workflows: workflows.map(w => ({
+      workflows: workflows.map((w) => ({
         name: w.name,
         description: w.description,
         category: w.category,
@@ -1228,12 +1330,22 @@ export function registerCommandRoutes(
     DashboardServer.sseHeaders(res);
 
     let closed = false;
-    res.on('close', () => { closed = true; });
+    res.on('close', () => {
+      closed = true;
+    });
 
     // Heartbeat keeps connection alive through proxies/Safari
     const wfHeartbeat = setInterval(() => {
-      if (closed || res.writableEnded || res.destroyed) { clearInterval(wfHeartbeat); return; }
-      try { res.write(': heartbeat\n\n'); } catch { clearInterval(wfHeartbeat); closed = true; }
+      if (closed || res.writableEnded || res.destroyed) {
+        clearInterval(wfHeartbeat);
+        return;
+      }
+      try {
+        res.write(': heartbeat\n\n');
+      } catch {
+        clearInterval(wfHeartbeat);
+        closed = true;
+      }
     }, 15_000);
 
     try {
@@ -1308,14 +1420,13 @@ export function registerCommandRoutes(
       DashboardServer.json(res, { messages: [] });
       return;
     }
-    const messages = agent.getMessages()
-      .filter(m => m.role !== 'system')
+    const messages = agent
+      .getMessages()
+      .filter((m) => m.role !== 'system')
       .slice(-100)
-      .map(m => ({
+      .map((m) => ({
         role: m.role,
-        content: typeof m.content === 'string'
-          ? m.content.substring(0, 5000)
-          : String(m.content),
+        content: typeof m.content === 'string' ? m.content.substring(0, 5000) : String(m.content),
       }));
     DashboardServer.json(res, { messages });
   });

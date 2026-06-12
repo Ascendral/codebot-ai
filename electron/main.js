@@ -234,10 +234,12 @@ async function startServer() {
   let apiKey = resolved.anthropic.key || '';
   let openaiKey = resolved.openai.key || '';
   let geminiKey = resolved.gemini.key || '';
-  console.log('  API key sources:',
+  console.log(
+    '  API key sources:',
     'anthropic=' + (resolved.anthropic.source || 'none') + ',',
     'openai=' + (resolved.openai.source || 'none') + ',',
-    'gemini=' + (resolved.gemini.source || 'none'));
+    'gemini=' + (resolved.gemini.source || 'none'),
+  );
 
   // Prompt user for API key if none found
   if (!apiKey) {
@@ -356,13 +358,19 @@ async function startServer() {
       const configPath = path.join(process.env.HOME || '', '.codebot', 'config.json');
       const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       workspaceDir = validateWorkspace(cfg.workspaceDir, 'config.workspaceDir');
-    } catch { /* no config or malformed — fall through */ }
+    } catch {
+      /* no config or malformed — fall through */
+    }
   }
   if (!workspaceDir) workspaceDir = defaultWorkspace;
   if (workspaceDir !== defaultWorkspace) {
     console.log(`[main] using workspace=${workspaceDir}`);
   }
-  try { fs.mkdirSync(workspaceDir, { recursive: true }); } catch { /* best effort */ }
+  try {
+    fs.mkdirSync(workspaceDir, { recursive: true });
+  } catch {
+    /* best effort */
+  }
   // Stash for IPC handlers + menu access without re-deriving.
   global.__codebotWorkspaceDir = workspaceDir;
 
@@ -405,6 +413,19 @@ async function startServer() {
   ].join(',');
   const allowCaps = process.env.CODEBOT_DASHBOARD_ALLOW_CAPABILITY ?? DASHBOARD_DEFAULT_ALLOW_CAPS;
   const dashboardArgs = [binPath, '--dashboard', '--host', '127.0.0.1', '--no-open'];
+  // Desktop default: NO permission prompts. The user already chose to
+  // launch the local app on their own machine — making them click
+  // "Approve" on every browser/file/shell call is hostile. Launch
+  // autonomous so autoApprove=true at agent construction. The four
+  // NEVER_ALLOWABLE money/data labels (spend-money, move-money,
+  // send-on-behalf, delete-data) are still gated because they're
+  // excluded from the allow-capability list above — those are the only
+  // things that can still prompt, and only because silently spending
+  // the user's money or deleting their data is worse than one prompt.
+  // Opt back into prompts with CODEBOT_DASHBOARD_PROMPTS=1.
+  if (process.env.CODEBOT_DASHBOARD_PROMPTS !== '1') {
+    dashboardArgs.push('--autonomous');
+  }
   if (allowCaps && allowCaps.trim().length > 0) {
     dashboardArgs.push('--allow-capability', allowCaps);
   }
@@ -917,7 +938,9 @@ ipcMain.handle('pick-workspace', async () => {
   let cfg = {};
   try {
     cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-  } catch { /* missing or malformed → start empty */ }
+  } catch {
+    /* missing or malformed → start empty */
+  }
   cfg.workspaceDir = chosen;
   try {
     fs.mkdirSync(configDir, { recursive: true });
