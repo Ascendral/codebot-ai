@@ -17,7 +17,7 @@ import {
 import { isProjectSourceFile, redactSafeSourcePaths } from './path-safelist';
 
 // Import cord-engine (JavaScript) via require
- 
+
 const cord = require('cord-engine');
 
 /** Maximum recent decisions to keep for dashboard display */
@@ -45,7 +45,7 @@ const TOOL_TYPE_MAP: Record<string, string> = {
  * Adapt a CORD evaluation result to the CodeBot ConstitutionalResult format.
  */
 function adaptCordResult(cordResult: Record<string, unknown>): ConstitutionalResult {
-  const decision = (cordResult.decision as string || 'ALLOW').toUpperCase() as CordDecision;
+  const decision = ((cordResult.decision as string) || 'ALLOW').toUpperCase() as CordDecision;
   const score = typeof cordResult.score === 'number' ? cordResult.score : 0;
 
   // Extract dimension scores from risks array
@@ -53,7 +53,7 @@ function adaptCordResult(cordResult: Record<string, unknown>): ConstitutionalRes
   const risks = cordResult.risks as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(risks)) {
     for (const risk of risks) {
-      const name = risk.dimension as string || risk.name as string || 'unknown';
+      const name = (risk.dimension as string) || (risk.name as string) || 'unknown';
       const riskScore = typeof risk.score === 'number' ? risk.score : 0;
       dimensions[name] = riskScore;
     }
@@ -61,12 +61,14 @@ function adaptCordResult(cordResult: Record<string, unknown>): ConstitutionalRes
 
   // Extract explanation
   const explanation = cordResult.explanation as Record<string, unknown> | undefined;
-  const summary = explanation?.summary as string || cordResult.summary as string || '';
+  const summary = (explanation?.summary as string) || (cordResult.summary as string) || '';
 
   // Detect hard blocks
   const hardBlock = cordResult.hardBlock === true;
   const hardBlockReason = hardBlock
-    ? (cordResult.hardBlockReason as string || (cordResult.reasons as string[])?.join('; ') || 'Constitutional violation')
+    ? (cordResult.hardBlockReason as string) ||
+      (cordResult.reasons as string[])?.join('; ') ||
+      'Constitutional violation'
     : undefined;
 
   return {
@@ -92,8 +94,8 @@ function adaptVigilAlerts(vigilResult: Record<string, unknown>): VigilAlert[] {
       alerts.push({
         type: (threat.category === 'canary' ? 'canary' : 'pattern') as VigilAlert['type'],
         severity: typeof threat.severity === 'number' ? threat.severity : 5,
-        message: threat.description as string || threat.pattern as string || 'Threat detected',
-        category: threat.category as string || 'unknown',
+        message: (threat.description as string) || (threat.pattern as string) || 'Threat detected',
+        category: (threat.category as string) || 'unknown',
       });
     }
   }
@@ -103,7 +105,7 @@ function adaptVigilAlerts(vigilResult: Record<string, unknown>): VigilAlert[] {
     alerts.push({
       type: 'memory',
       severity: 7,
-      message: vigilResult.summary as string || 'Behavioral escalation detected',
+      message: (vigilResult.summary as string) || 'Behavioral escalation detected',
       category: 'behavioral',
     });
   }
@@ -149,8 +151,14 @@ export class CordAdapter {
           start.call(this.vigil);
         } else {
           const origLog = console.log;
-          console.log = () => { /* suppress vigil boot chatter */ };
-          try { start.call(this.vigil); } finally { console.log = origLog; }
+          console.log = () => {
+            /* suppress vigil boot chatter */
+          };
+          try {
+            start.call(this.vigil);
+          } finally {
+            console.log = origLog;
+          }
         }
       }
     } catch {
@@ -165,7 +173,9 @@ export class CordAdapter {
       try {
         const stop = this.vigil.stop as () => void;
         stop.call(this.vigil);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       this.vigil = null;
     }
   }
@@ -181,9 +191,7 @@ export class CordAdapter {
     // "override" in architecture docs matches promptInjection pattern).
     // Memory is permission:'auto' (lowest risk) — only evaluate tool name + scope.
     const isMemoryWrite = action.tool === 'memory' && action.args.action === 'write';
-    const text = isMemoryWrite
-      ? this.buildMemoryProposalText(action)
-      : this.buildProposalText(action);
+    const text = isMemoryWrite ? this.buildMemoryProposalText(action) : this.buildProposalText(action);
 
     // PR 15 follow-up — also strip the path from cordInput.path when
     // the file is a safelisted project source file. We initially only
@@ -368,7 +376,11 @@ export class CordAdapter {
   private extractNetworkTarget(action: ToolAction): string | undefined {
     const url = action.args.url as string;
     if (url) {
-      try { return new URL(url).hostname; } catch { /* ignore */ }
+      try {
+        return new URL(url).hostname;
+      } catch {
+        /* ignore */
+      }
     }
     return undefined;
   }

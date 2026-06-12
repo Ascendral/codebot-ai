@@ -50,9 +50,7 @@ export interface ConnectorPreview {
  * (`idempotencyKeyArg` + `idempotencyUnsupportedReason`) so connector
  * authors face one declaration site, not two competing ones.
  */
-export type IdempotencyDeclaration =
-  | { kind: 'arg'; arg: string }
-  | { kind: 'unsupported'; reason: string };
+export type IdempotencyDeclaration = { kind: 'arg'; arg: string } | { kind: 'unsupported'; reason: string };
 
 export interface ConnectorAction {
   // ── Existing fields ──
@@ -153,7 +151,10 @@ export class ConnectorReauthError extends Error {
    */
   readonly kind = 'reauth-required' as const;
 
-  constructor(public readonly service: string, message?: string) {
+  constructor(
+    public readonly service: string,
+    message?: string,
+  ) {
     super(message ?? `Re-authentication required for ${service}`);
     this.name = 'ConnectorReauthError';
   }

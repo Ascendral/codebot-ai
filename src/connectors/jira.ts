@@ -118,8 +118,8 @@ async function apiRequest(
     const opts: RequestInit = {
       method,
       headers: {
-        'Authorization': `Basic ${basic}`,
-        'Accept': 'application/json',
+        Authorization: `Basic ${basic}`,
+        Accept: 'application/json',
         'Content-Type': 'application/json',
       },
       signal: controller.signal,
@@ -129,7 +129,11 @@ async function apiRequest(
     clearTimeout(timer);
     const text = await res.text();
     let data: unknown;
-    try { data = JSON.parse(text); } catch { data = text; }
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
     if (isJiraAuthError(res.status, data as JiraApiError)) {
       throw new ConnectorReauthError('jira', `Jira auth failed: HTTP ${res.status}`);
     }
@@ -197,12 +201,16 @@ function redactAddCommentArgs(args: Record<string, unknown>): Record<string, unk
 function previewCreateIssue(args: Record<string, unknown>): ConnectorPreview {
   const project = String(args.project ?? '');
   const summary = String(args.summary ?? '');
-  const issuetype = (typeof args.issuetype === 'string' && args.issuetype.length > 0) ? args.issuetype : 'Task';
-  const priority = (typeof args.priority === 'string' && args.priority.length > 0) ? args.priority : '(unspecified)';
-  const assignee = (typeof args.assignee === 'string' && args.assignee.length > 0) ? args.assignee : '(unassigned)';
-  const labels = (typeof args.labels === 'string' && args.labels.length > 0)
-    ? args.labels.split(',').map(l => l.trim()).filter(Boolean)
-    : [];
+  const issuetype = typeof args.issuetype === 'string' && args.issuetype.length > 0 ? args.issuetype : 'Task';
+  const priority = typeof args.priority === 'string' && args.priority.length > 0 ? args.priority : '(unspecified)';
+  const assignee = typeof args.assignee === 'string' && args.assignee.length > 0 ? args.assignee : '(unassigned)';
+  const labels =
+    typeof args.labels === 'string' && args.labels.length > 0
+      ? args.labels
+          .split(',')
+          .map((l) => l.trim())
+          .filter(Boolean)
+      : [];
   const description = typeof args.description === 'string' ? args.description : '';
   const descDigest = description.length > 0 ? hashAndLength(description) : null;
 
@@ -243,9 +251,10 @@ function previewUpdateIssue(args: Record<string, unknown>): ConnectorPreview {
   if (typeof args.status === 'string') changes.push(`  status (transition) -> ${args.status}`);
   if (typeof args.assignee === 'string') changes.push(`  assignee -> ${args.assignee}`);
 
-  const summary = changes.length === 0
-    ? `Would update Jira ${issueKey} — but NO fields are set; the API call would be a no-op.`
-    : `Would update Jira ${issueKey}:\n${changes.join('\n')}\n  Note: status transition is a separate POST and is NOT idempotent if retried.`;
+  const summary =
+    changes.length === 0
+      ? `Would update Jira ${issueKey} — but NO fields are set; the API call would be a no-op.`
+      : `Would update Jira ${issueKey}:\n${changes.join('\n')}\n  Note: status transition is a separate POST and is NOT idempotent if retried.`;
 
   return {
     summary,
@@ -312,13 +321,14 @@ const createIssue: ConnectorAction = {
     };
     if (args.description) {
       fields.description = {
-        type: 'doc', version: 1,
+        type: 'doc',
+        version: 1,
         content: [{ type: 'paragraph', content: [{ type: 'text', text: args.description as string }] }],
       };
     }
     if (args.priority) fields.priority = { name: args.priority };
     if (args.assignee) fields.assignee = { id: args.assignee };
-    if (args.labels) fields.labels = (args.labels as string).split(',').map(l => l.trim());
+    if (args.labels) fields.labels = (args.labels as string).split(',').map((l) => l.trim());
 
     try {
       const { status, data } = await apiRequest('POST', '/issue', auth, { fields });
@@ -357,12 +367,27 @@ const listIssues: ConnectorAction = {
     const maxResults = Math.min((args.max_results as number) || 10, 50);
 
     try {
-      const { status, data } = await apiRequest('GET', `/search?jql=${encodeURIComponent(jql)}&maxResults=${maxResults}&fields=summary,status,assignee,priority,updated`, auth);
+      const { status, data } = await apiRequest(
+        'GET',
+        `/search?jql=${encodeURIComponent(jql)}&maxResults=${maxResults}&fields=summary,status,assignee,priority,updated`,
+        auth,
+      );
       if (status !== 200) return formatError(status, data);
-      const result = data as { issues: Array<{ key: string; fields: { summary: string; status: { name: string }; assignee: { displayName: string } | null; priority: { name: string } } }> };
+      const result = data as {
+        issues: Array<{
+          key: string;
+          fields: {
+            summary: string;
+            status: { name: string };
+            assignee: { displayName: string } | null;
+            priority: { name: string };
+          };
+        }>;
+      };
       if (!result.issues?.length) return 'No issues found.';
-      const lines = result.issues.map(i =>
-        `  ${i.key} [${i.fields.status?.name}] ${i.fields.summary} (${i.fields.assignee?.displayName || 'unassigned'}, ${i.fields.priority?.name || '?'})`
+      const lines = result.issues.map(
+        (i) =>
+          `  ${i.key} [${i.fields.status?.name}] ${i.fields.summary} (${i.fields.assignee?.displayName || 'unassigned'}, ${i.fields.priority?.name || '?'})`,
       );
       return truncate(`Issues (${result.issues.length}):\n${lines.join('\n')}`);
     } catch (err: unknown) {
@@ -401,7 +426,8 @@ const updateIssue: ConnectorAction = {
       if (args.summary) fields.summary = args.summary;
       if (args.description) {
         fields.description = {
-          type: 'doc', version: 1,
+          type: 'doc',
+          version: 1,
           content: [{ type: 'paragraph', content: [{ type: 'text', text: args.description as string }] }],
         };
       }
@@ -413,13 +439,24 @@ const updateIssue: ConnectorAction = {
       }
 
       if (args.status) {
-        const { status: tStatus, data: tData } = await apiRequest('GET', `/issue/${encodeURIComponent(issueKey)}/transitions`, auth);
+        const { status: tStatus, data: tData } = await apiRequest(
+          'GET',
+          `/issue/${encodeURIComponent(issueKey)}/transitions`,
+          auth,
+        );
         if (tStatus !== 200) return `Updated fields but could not transition status: ${formatError(tStatus, tData)}`;
         const transitions = (tData as { transitions: Array<{ id: string; name: string }> }).transitions || [];
-        const target = transitions.find(t => t.name.toLowerCase() === (args.status as string).toLowerCase());
-        if (!target) return `Updated fields but status "${args.status}" not available. Available: ${transitions.map(t => t.name).join(', ')}`;
-        const { status: pStatus, data: pData } = await apiRequest('POST', `/issue/${encodeURIComponent(issueKey)}/transitions`, auth, { transition: { id: target.id } });
-        if (pStatus !== 204 && pStatus !== 200) return `Updated fields but transition failed: ${formatError(pStatus, pData)}`;
+        const target = transitions.find((t) => t.name.toLowerCase() === (args.status as string).toLowerCase());
+        if (!target)
+          return `Updated fields but status "${args.status}" not available. Available: ${transitions.map((t) => t.name).join(', ')}`;
+        const { status: pStatus, data: pData } = await apiRequest(
+          'POST',
+          `/issue/${encodeURIComponent(issueKey)}/transitions`,
+          auth,
+          { transition: { id: target.id } },
+        );
+        if (pStatus !== 204 && pStatus !== 200)
+          return `Updated fields but transition failed: ${formatError(pStatus, pData)}`;
       }
 
       return `Issue ${issueKey} updated.`;
@@ -455,7 +492,8 @@ const addComment: ConnectorAction = {
     try {
       const body = {
         body: {
-          type: 'doc', version: 1,
+          type: 'doc',
+          version: 1,
           content: [{ type: 'paragraph', content: [{ type: 'text', text: comment }] }],
         },
       };
@@ -489,12 +527,28 @@ const search: ConnectorAction = {
     const maxResults = Math.min((args.max_results as number) || 10, 50);
 
     try {
-      const { status, data } = await apiRequest('GET', `/search?jql=${encodeURIComponent(jql)}&maxResults=${maxResults}&fields=summary,status,assignee,priority,updated`, auth);
+      const { status, data } = await apiRequest(
+        'GET',
+        `/search?jql=${encodeURIComponent(jql)}&maxResults=${maxResults}&fields=summary,status,assignee,priority,updated`,
+        auth,
+      );
       if (status !== 200) return formatError(status, data);
-      const result = data as { total: number; issues: Array<{ key: string; fields: { summary: string; status: { name: string }; assignee: { displayName: string } | null; priority: { name: string } } }> };
+      const result = data as {
+        total: number;
+        issues: Array<{
+          key: string;
+          fields: {
+            summary: string;
+            status: { name: string };
+            assignee: { displayName: string } | null;
+            priority: { name: string };
+          };
+        }>;
+      };
       if (!result.issues?.length) return 'No issues found.';
-      const lines = result.issues.map(i =>
-        `  ${i.key} [${i.fields.status?.name}] ${i.fields.summary} (${i.fields.assignee?.displayName || 'unassigned'})`
+      const lines = result.issues.map(
+        (i) =>
+          `  ${i.key} [${i.fields.status?.name}] ${i.fields.summary} (${i.fields.assignee?.displayName || 'unassigned'})`,
       );
       return truncate(`Search results (${result.issues.length} of ${result.total}):\n${lines.join('\n')}`);
     } catch (err: unknown) {

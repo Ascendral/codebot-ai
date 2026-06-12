@@ -11,12 +11,25 @@ import * as os from 'os';
 
 /** System-critical absolute paths that should NEVER be written to */
 const BLOCKED_ABSOLUTE_PATHS = [
-  '/etc', '/usr', '/bin', '/sbin', '/boot', '/dev', '/proc', '/sys',
-  '/var/log', '/var/run', '/lib', '/lib64',
+  '/etc',
+  '/usr',
+  '/bin',
+  '/sbin',
+  '/boot',
+  '/dev',
+  '/proc',
+  '/sys',
+  '/var/log',
+  '/var/run',
+  '/lib',
+  '/lib64',
   // macOS system directories
-  '/System', '/Library',
+  '/System',
+  '/Library',
   // Windows system directories
-  'C:\\Windows', 'C:\\Program Files', 'C:\\Program Files (x86)',
+  'C:\\Windows',
+  'C:\\Program Files',
+  'C:\\Program Files (x86)',
 ];
 
 /** Home-relative sensitive directories/files that should NEVER be written to */

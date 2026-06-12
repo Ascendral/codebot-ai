@@ -18,7 +18,11 @@ export class CDPClient {
   private socket: net.Socket | null = null;
   private messageId = 0;
   private pending = new Map<number, { resolve: (v: CDPResponse) => void; reject: (e: Error) => void }>();
-  private eventWaiters: Array<{ method: string; resolve: (params: Record<string, unknown>) => void; reject: (err: Error) => void }> = [];
+  private eventWaiters: Array<{
+    method: string;
+    resolve: (params: Record<string, unknown>) => void;
+    reject: (err: Error) => void;
+  }> = [];
   private buffer = Buffer.alloc(0);
   private connected = false;
   private onDisconnectCb: (() => void) | null = null;
@@ -35,8 +39,8 @@ export class CDPClient {
         path: url.pathname,
         method: 'GET',
         headers: {
-          'Connection': 'Upgrade',
-          'Upgrade': 'websocket',
+          Connection: 'Upgrade',
+          Upgrade: 'websocket',
           'Sec-WebSocket-Key': key,
           'Sec-WebSocket-Version': '13',
         },
@@ -133,13 +137,13 @@ export class CDPClient {
   async waitForEvent(method: string, timeout = 15000): Promise<Record<string, unknown>> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
-        this.eventWaiters = this.eventWaiters.filter(w => w.resolve !== resolve);
+        this.eventWaiters = this.eventWaiters.filter((w) => w.resolve !== resolve);
         resolve({}); // Resolve with empty on timeout instead of rejecting — page may still be usable
       }, timeout);
 
       const wrappedResolve = (params: Record<string, unknown>) => {
         clearTimeout(timer);
-        this.eventWaiters = this.eventWaiters.filter(w => w.resolve !== wrappedResolve);
+        this.eventWaiters = this.eventWaiters.filter((w) => w.resolve !== wrappedResolve);
         resolve(params);
       };
 
@@ -277,7 +281,9 @@ export async function getDebuggerUrl(port = 9222): Promise<string> {
         }
       });
     });
-    req.on('error', () => reject(new Error(`Chrome not running on port ${port}. Launch with: chrome --remote-debugging-port=${port}`)));
+    req.on('error', () =>
+      reject(new Error(`Chrome not running on port ${port}. Launch with: chrome --remote-debugging-port=${port}`)),
+    );
     req.setTimeout(3000, () => {
       req.destroy();
       reject(new Error('Chrome debugger timeout'));
@@ -286,7 +292,9 @@ export async function getDebuggerUrl(port = 9222): Promise<string> {
 }
 
 /** Get list of open tabs */
-export async function getTargets(port = 9222): Promise<Array<{ id: string; title: string; url: string; webSocketDebuggerUrl: string }>> {
+export async function getTargets(
+  port = 9222,
+): Promise<Array<{ id: string; title: string; url: string; webSocketDebuggerUrl: string }>> {
   return new Promise((resolve, reject) => {
     const req = http.get(`http://127.0.0.1:${port}/json/list`, (res) => {
       let data = '';

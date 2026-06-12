@@ -66,22 +66,22 @@ jobs:
 
 ## Inputs
 
-| Input | Required | Default | Description |
-|---|---|---|---|
-| `task` | ✅ | — | `review`, `fix`, or `scan` |
-| `api-key` | ✅ | — | API key for the LLM provider |
-| `provider` | | `anthropic` | `anthropic` or `openai` |
-| `model` | | `claude-sonnet-4-20250514` | Model to use |
-| `policy` | | `.codebot/policy.json` | Path to security policy file |
-| `max-iterations` | | `25` | Max agent loop iterations |
-| `sandbox` | | `auto` | Sandbox mode: `auto`, `on`, or `off` |
+| Input            | Required | Default                    | Description                          |
+| ---------------- | -------- | -------------------------- | ------------------------------------ |
+| `task`           | ✅       | —                          | `review`, `fix`, or `scan`           |
+| `api-key`        | ✅       | —                          | API key for the LLM provider         |
+| `provider`       |          | `anthropic`                | `anthropic` or `openai`              |
+| `model`          |          | `claude-sonnet-4-20250514` | Model to use                         |
+| `policy`         |          | `.codebot/policy.json`     | Path to security policy file         |
+| `max-iterations` |          | `25`                       | Max agent loop iterations            |
+| `sandbox`        |          | `auto`                     | Sandbox mode: `auto`, `on`, or `off` |
 
 ## Supported Providers
 
-| Provider | Input value | Secret |
-|---|---|---|
+| Provider           | Input value | Secret              |
+| ------------------ | ----------- | ------------------- |
 | Anthropic (Claude) | `anthropic` | `ANTHROPIC_API_KEY` |
-| OpenAI (GPT) | `openai` | `OPENAI_API_KEY` |
+| OpenAI (GPT)       | `openai`    | `OPENAI_API_KEY`    |
 
 ## Audit Trail
 

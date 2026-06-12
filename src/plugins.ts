@@ -29,7 +29,6 @@ interface PluginManifest {
   hash: string; // "sha256:abc123..."
 }
 
-
 /** Validate plugin manifest fields (lightweight, no external deps) */
 function validateManifest(manifest: Record<string, unknown>, fileName: string): string | null {
   if (typeof manifest.name !== 'string' || !manifest.name) {
@@ -44,7 +43,8 @@ function validateManifest(manifest: Record<string, unknown>, fileName: string): 
   if (typeof manifest.hash !== 'string' || !manifest.hash.startsWith('sha256:')) {
     return `Plugin skipped (${fileName}): manifest "hash" must start with "sha256:"`;
   }
-  if (manifest.hash.length !== 71) { // "sha256:" (7) + 64 hex chars
+  if (manifest.hash.length !== 71) {
+    // "sha256:" (7) + 64 hex chars
     return `Plugin skipped (${fileName}): manifest "hash" must be sha256:<64 hex chars>`;
   }
   const known = new Set(['name', 'version', 'hash', 'description', 'author', 'permissions']);
@@ -98,9 +98,7 @@ export function isPluginSafe(sourceCode: string): string | null {
 
 export function loadPlugins(projectRoot?: string): Tool[] {
   const plugins: Tool[] = [];
-  const dirs = [
-    codebotPath('plugins'),
-  ];
+  const dirs = [codebotPath('plugins')];
 
   if (projectRoot) {
     dirs.push(path.join(projectRoot, '.codebot', 'plugins'));
@@ -125,7 +123,9 @@ export function loadPlugins(projectRoot?: string): Tool[] {
         // Security: verify plugin against manifest hash
         const manifestPath = path.join(dir, 'plugin.json');
         if (!fs.existsSync(manifestPath)) {
-          log.error(`Plugin skipped (${entry.name}): no plugin.json manifest found. Create one with: { "name": "...", "version": "...", "hash": "sha256:..." }`);
+          log.error(
+            `Plugin skipped (${entry.name}): no plugin.json manifest found. Create one with: { "name": "...", "version": "...", "hash": "sha256:..." }`,
+          );
           continue;
         }
 
@@ -155,12 +155,14 @@ export function loadPlugins(projectRoot?: string): Tool[] {
         const computedHash = 'sha256:' + crypto.createHash('sha256').update(pluginContent).digest('hex');
 
         if (computedHash !== manifest.hash) {
-          log.error(`Plugin skipped (${entry.name}): hash mismatch. Expected ${manifest.hash}, got ${computedHash}. Plugin may have been tampered with.`);
+          log.error(
+            `Plugin skipped (${entry.name}): hash mismatch. Expected ${manifest.hash}, got ${computedHash}. Plugin may have been tampered with.`,
+          );
           continue;
         }
 
         // Hash verified — safe to load
-         
+
         const mod = require(pluginPath);
         const plugin = mod.default || mod;
 

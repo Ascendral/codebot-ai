@@ -54,10 +54,7 @@ async function policyDemo() {
     },
   };
 
-  fs.writeFileSync(
-    path.join(policyDir, 'policy.json'),
-    JSON.stringify(policy, null, 2)
-  );
+  fs.writeFileSync(path.join(policyDir, 'policy.json'), JSON.stringify(policy, null, 2));
 
   // Create some test files
   fs.mkdirSync(path.join(tmpDir, 'allowed'), { recursive: true });

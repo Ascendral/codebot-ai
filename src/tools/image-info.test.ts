@@ -39,12 +39,21 @@ describe('ImageInfoTool', () => {
     // Minimal valid PNG header: 8-byte signature + IHDR chunk with width=100, height=50
     const buf = Buffer.alloc(32);
     // PNG signature
-    buf[0] = 0x89; buf[1] = 0x50; buf[2] = 0x4E; buf[3] = 0x47;
-    buf[4] = 0x0D; buf[5] = 0x0A; buf[6] = 0x1A; buf[7] = 0x0A;
+    buf[0] = 0x89;
+    buf[1] = 0x50;
+    buf[2] = 0x4e;
+    buf[3] = 0x47;
+    buf[4] = 0x0d;
+    buf[5] = 0x0a;
+    buf[6] = 0x1a;
+    buf[7] = 0x0a;
     // IHDR chunk length (13 bytes)
     buf.writeUInt32BE(13, 8);
     // IHDR signature
-    buf[12] = 0x49; buf[13] = 0x48; buf[14] = 0x44; buf[15] = 0x52;
+    buf[12] = 0x49;
+    buf[13] = 0x48;
+    buf[14] = 0x44;
+    buf[15] = 0x52;
     // Width = 100
     buf.writeUInt32BE(100, 16);
     // Height = 50
@@ -63,8 +72,12 @@ describe('ImageInfoTool', () => {
     const filePath = path.join(tmpDir, 'test.gif');
     const buf = Buffer.alloc(32);
     // GIF89a signature
-    buf[0] = 0x47; buf[1] = 0x49; buf[2] = 0x46;
-    buf[3] = 0x38; buf[4] = 0x39; buf[5] = 0x61;
+    buf[0] = 0x47;
+    buf[1] = 0x49;
+    buf[2] = 0x46;
+    buf[3] = 0x38;
+    buf[4] = 0x39;
+    buf[5] = 0x61;
     // Width = 200 (little-endian)
     buf.writeUInt16LE(200, 6);
     // Height = 150 (little-endian)
@@ -80,7 +93,8 @@ describe('ImageInfoTool', () => {
     const filePath = path.join(tmpDir, 'test.bmp');
     const buf = Buffer.alloc(32);
     // BMP signature
-    buf[0] = 0x42; buf[1] = 0x4D;
+    buf[0] = 0x42;
+    buf[1] = 0x4d;
     // Width at offset 18 (int32 LE)
     buf.writeInt32LE(320, 18);
     // Height at offset 22 (int32 LE), negative = top-down
@@ -124,7 +138,10 @@ describe('ImageInfoTool', () => {
     const filePath = path.join(tmpDir, 'sized.png');
     // Write some data
     const buf = Buffer.alloc(2048);
-    buf[0] = 0x89; buf[1] = 0x50; buf[2] = 0x4E; buf[3] = 0x47;
+    buf[0] = 0x89;
+    buf[1] = 0x50;
+    buf[2] = 0x4e;
+    buf[3] = 0x47;
     fs.writeFileSync(filePath, buf);
 
     const result = await tool.execute({ path: filePath });
@@ -134,7 +151,10 @@ describe('ImageInfoTool', () => {
   it('should include modification date', async () => {
     const filePath = path.join(tmpDir, 'dated.png');
     const buf = Buffer.alloc(32);
-    buf[0] = 0x89; buf[1] = 0x50; buf[2] = 0x4E; buf[3] = 0x47;
+    buf[0] = 0x89;
+    buf[1] = 0x50;
+    buf[2] = 0x4e;
+    buf[3] = 0x47;
     fs.writeFileSync(filePath, buf);
 
     const result = await tool.execute({ path: filePath });

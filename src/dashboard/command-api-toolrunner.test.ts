@@ -115,25 +115,31 @@ function httpRequest(
   const u = new URL(url);
   return new Promise((resolve, reject) => {
     const data = body ? JSON.stringify(body) : undefined;
-    const req = http.request({
-      host: u.hostname,
-      port: parseInt(u.port, 10),
-      path: u.pathname,
-      method,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        ...(data ? { 'Content-Length': Buffer.byteLength(data) } : {}),
+    const req = http.request(
+      {
+        host: u.hostname,
+        port: parseInt(u.port, 10),
+        path: u.pathname,
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          ...(data ? { 'Content-Length': Buffer.byteLength(data) } : {}),
+        },
       },
-    }, (res) => {
-      const chunks: Buffer[] = [];
-      res.on('data', (c: Buffer) => chunks.push(c));
-      res.on('end', () => {
-        const text = Buffer.concat(chunks).toString('utf-8');
-        try { resolve({ status: res.statusCode || 0, body: JSON.parse(text) }); }
-        catch { resolve({ status: res.statusCode || 0, body: text }); }
-      });
-    });
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf-8');
+          try {
+            resolve({ status: res.statusCode || 0, body: JSON.parse(text) });
+          } catch {
+            resolve({ status: res.statusCode || 0, body: text });
+          }
+        });
+      },
+    );
     req.on('error', reject);
     if (data) req.write(data);
     req.end();
@@ -143,7 +149,7 @@ function httpRequest(
 /** Walk the test agent's audit dir for the most recent deny row. */
 function walkAuditForDeny(auditDir: string): { tool: string; action: string; reason: string } | null {
   if (!fs.existsSync(auditDir)) return null;
-  const files = fs.readdirSync(auditDir).filter(f => f.startsWith('audit-'));
+  const files = fs.readdirSync(auditDir).filter((f) => f.startsWith('audit-'));
   let latest: { tool: string; action: string; reason: string } | null = null;
   for (const f of files) {
     const lines = fs.readFileSync(path.join(auditDir, f), 'utf-8').split('\n').filter(Boolean);
@@ -151,7 +157,9 @@ function walkAuditForDeny(auditDir: string): { tool: string; action: string; rea
       try {
         const e = JSON.parse(line);
         if (e.action === 'deny') latest = { tool: e.tool, action: e.action, reason: e.reason || '' };
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     }
   }
   return latest;
@@ -167,7 +175,7 @@ async function pollUntil<T>(
   while (Date.now() < deadline) {
     const v = await fn();
     if (predicate(v)) return v;
-    await new Promise(r => setTimeout(r, intervalMs));
+    await new Promise((r) => setTimeout(r, intervalMs));
   }
   throw new Error(`pollUntil timeout after ${timeoutMs}ms`);
 }
@@ -205,13 +213,17 @@ describe('PR 25 — tool-runner permission card', () => {
         tool: 'app',
         args: {
           action: 'github.create_issue',
-          owner: 'X', repo: 'Y',
+          owner: 'X',
+          repo: 'Y',
           title: 'should not actually fire',
           body: 'placeholder',
         },
       });
-      assert.strictEqual(r.status, 202,
-        `expected 202 approval_required, got ${r.status} body=${JSON.stringify(r.body)}`);
+      assert.strictEqual(
+        r.status,
+        202,
+        `expected 202 approval_required, got ${r.status} body=${JSON.stringify(r.body)}`,
+      );
       const body = r.body as {
         jobId: string;
         status: string;
@@ -250,16 +262,23 @@ describe('PR 25 — tool-runner permission card', () => {
         tool: 'app',
         args: {
           action: 'github.create_issue',
-          owner: 'X', repo: 'Y', title: 't', body: 'b',
+          owner: 'X',
+          repo: 'Y',
+          title: 't',
+          body: 'b',
         },
       });
       assert.strictEqual(start.status, 202);
       const startBody = start.body as { jobId: string; permissionRequest: { requestId: string } };
-      const { jobId, permissionRequest: { requestId } } = startBody;
+      const {
+        jobId,
+        permissionRequest: { requestId },
+      } = startBody;
 
       // Approve.
       const respond = await httpRequest(h.url + '/api/command/permission/respond', 'POST', h.token, {
-        requestId, approved: true,
+        requestId,
+        approved: true,
       });
       assert.strictEqual(respond.status, 200);
       const rBody = respond.body as { ok: boolean };
@@ -281,8 +300,7 @@ describe('PR 25 — tool-runner permission card', () => {
       // We don't care WHAT the connector returns (likely "GitHub
       // not connected" since the test agent has no vault) — only
       // that the status moved out of approval_required.
-      assert.ok(fb.status === 'completed' || fb.status === 'failed',
-        `expected terminal status; got ${fb.status}`);
+      assert.ok(fb.status === 'completed' || fb.status === 'failed', `expected terminal status; got ${fb.status}`);
     } finally {
       await h.cleanup();
     }
@@ -295,13 +313,17 @@ describe('PR 25 — tool-runner permission card', () => {
         tool: 'app',
         args: {
           action: 'github.create_issue',
-          owner: 'X', repo: 'Y', title: 't', body: 'b',
+          owner: 'X',
+          repo: 'Y',
+          title: 't',
+          body: 'b',
         },
       });
       const startBody = start.body as { jobId: string; permissionRequest: { requestId: string } };
 
       const respond = await httpRequest(h.url + '/api/command/permission/respond', 'POST', h.token, {
-        requestId: startBody.permissionRequest.requestId, approved: false,
+        requestId: startBody.permissionRequest.requestId,
+        approved: false,
       });
       assert.strictEqual(respond.status, 200);
 
@@ -331,8 +353,11 @@ describe('PR 25 — tool-runner permission card', () => {
       const auditDir = path.join(path.dirname(projectRoot), 'audit');
       const denyRow = walkAuditForDeny(auditDir);
       assert.ok(denyRow, 'audit must record the deny');
-      assert.match(denyRow!.reason, /User denied permission/i,
-        `audit reason must be "User denied permission"; got: ${denyRow!.reason}`);
+      assert.match(
+        denyRow!.reason,
+        /User denied permission/i,
+        `audit reason must be "User denied permission"; got: ${denyRow!.reason}`,
+      );
     } finally {
       await h.cleanup();
     }
@@ -344,10 +369,7 @@ describe('PR 25 — tool-runner permission card', () => {
     // starts failing it means someone weakened NEVER_ALLOWABLE,
     // which would let unattended runs blow through paid Replicate
     // calls without a card.
-    assert.throws(
-      () => parseAllowCapabilityFlag('spend-money'),
-      /Refusing to allowlist capability "spend-money"/,
-    );
+    assert.throws(() => parseAllowCapabilityFlag('spend-money'), /Refusing to allowlist capability "spend-money"/);
     assert.throws(
       () => parseAllowCapabilityFlag('account-access,net-fetch,spend-money'),
       /Refusing to allowlist capability "spend-money"/,
@@ -357,7 +379,11 @@ describe('PR 25 — tool-runner permission card', () => {
   it('GET result/:jobId returns 404 for unknown jobId', async () => {
     const h = await startHarness();
     try {
-      const r = await httpRequest(h.url + '/api/command/tool/run/result/00000000-0000-0000-0000-000000000000', 'GET', h.token);
+      const r = await httpRequest(
+        h.url + '/api/command/tool/run/result/00000000-0000-0000-0000-000000000000',
+        'GET',
+        h.token,
+      );
       assert.strictEqual(r.status, 404);
     } finally {
       await h.cleanup();

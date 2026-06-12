@@ -11,14 +11,14 @@ export ANTHROPIC_API_KEY="sk-ant-..."   # or OPENAI_API_KEY
 
 ## Examples
 
-| # | File | Description |
-|---|------|-------------|
-| 01 | [basic-chat.ts](01-basic-chat.ts) | Simplest usage — send a message, stream the response |
-| 02 | [code-review.ts](02-code-review.ts) | Review a file for bugs, security issues, and quality |
-| 03 | [security-scan.ts](03-security-scan.ts) | Scan a codebase and export SARIF report |
-| 04 | [multi-model.ts](04-multi-model.ts) | Compare responses across Claude, GPT, and local models |
-| 05 | [event-stream.ts](05-event-stream.ts) | Process every event type from the agent generator |
-| 06 | [policy-enforcement.ts](06-policy-enforcement.ts) | Policy engine blocks unauthorized tool access |
+| #   | File                                              | Description                                            |
+| --- | ------------------------------------------------- | ------------------------------------------------------ |
+| 01  | [basic-chat.ts](01-basic-chat.ts)                 | Simplest usage — send a message, stream the response   |
+| 02  | [code-review.ts](02-code-review.ts)               | Review a file for bugs, security issues, and quality   |
+| 03  | [security-scan.ts](03-security-scan.ts)           | Scan a codebase and export SARIF report                |
+| 04  | [multi-model.ts](04-multi-model.ts)               | Compare responses across Claude, GPT, and local models |
+| 05  | [event-stream.ts](05-event-stream.ts)             | Process every event type from the agent generator      |
+| 06  | [policy-enforcement.ts](06-policy-enforcement.ts) | Policy engine blocks unauthorized tool access          |
 
 ## Running
 
@@ -69,6 +69,6 @@ When embedding CodeBot, always set `projectRoot`:
 const agent = new Agent({
   provider,
   model: 'claude-sonnet-4-20250514',
-  projectRoot: '/path/to/project',  // File operations scoped here
+  projectRoot: '/path/to/project', // File operations scoped here
 });
 ```

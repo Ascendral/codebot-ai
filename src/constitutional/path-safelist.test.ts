@@ -16,10 +16,7 @@ describe('isProjectSourceFile', () => {
   });
 
   it('safelists project source files (absolute paths under root)', () => {
-    assert.strictEqual(
-      isProjectSourceFile(path.join(PROJECT_ROOT, 'src', 'secrets.ts'), PROJECT_ROOT),
-      true,
-    );
+    assert.strictEqual(isProjectSourceFile(path.join(PROJECT_ROOT, 'src', 'secrets.ts'), PROJECT_ROOT), true);
   });
 
   it('does NOT safelist .env files even inside the project', () => {
@@ -59,8 +56,11 @@ describe('CordAdapter — project source file safelist (Bug 1 regression)', () =
       type: 'read',
       args: { path: 'src/secrets.ts' },
     });
-    assert.notStrictEqual(result.decision, 'BLOCK',
-      `read_file on src/secrets.ts should not be BLOCKed; got ${result.decision} (${result.explanation})`);
+    assert.notStrictEqual(
+      result.decision,
+      'BLOCK',
+      `read_file on src/secrets.ts should not be BLOCKed; got ${result.decision} (${result.explanation})`,
+    );
   });
 
   it('does NOT block read_file on src/secret-guard.ts', () => {
@@ -84,8 +84,11 @@ describe('CordAdapter — project source file safelist (Bug 1 regression)', () =
       type: 'write',
       args: { path: 'src/secret-patterns.ts', content },
     });
-    assert.notStrictEqual(result.decision, 'BLOCK',
-      `write_file on src/secret-patterns.ts should not be BLOCKed; got ${result.decision}`);
+    assert.notStrictEqual(
+      result.decision,
+      'BLOCK',
+      `write_file on src/secret-patterns.ts should not be BLOCKed; got ${result.decision}`,
+    );
   });
 
   it('STILL blocks write_file targeting .env (sensitive runtime path)', () => {
@@ -96,8 +99,7 @@ describe('CordAdapter — project source file safelist (Bug 1 regression)', () =
       args: { path: '.env', content: 'AWS_SECRET_KEY=hunter2' },
     });
     // .env paths must NOT be safelisted — they're real secrets.
-    assert.strictEqual(result.decision, 'BLOCK',
-      `write_file on .env should remain BLOCKed; got ${result.decision}`);
+    assert.strictEqual(result.decision, 'BLOCK', `write_file on .env should remain BLOCKed; got ${result.decision}`);
   });
 });
 

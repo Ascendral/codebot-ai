@@ -3,8 +3,21 @@ import { Tool, CapabilityLabel } from '../types';
 import { PolicyEnforcer } from '../policy';
 
 const ALLOWED_ACTIONS = [
-  'status', 'diff', 'log', 'commit', 'branch', 'checkout',
-  'stash', 'push', 'pull', 'merge', 'blame', 'tag', 'add', 'reset', 'clone',
+  'status',
+  'diff',
+  'log',
+  'commit',
+  'branch',
+  'checkout',
+  'stash',
+  'push',
+  'pull',
+  'merge',
+  'blame',
+  'tag',
+  'add',
+  'reset',
+  'clone',
 ];
 
 const STASH_SAFE_SUBS = ['list', 'show', 'apply', 'pop', 'drop', 'branch'];
@@ -21,11 +34,18 @@ function splitArgs(argsStr: string): string[] {
   let inQuote = '';
   for (const ch of argsStr) {
     if (inQuote) {
-      if (ch === inQuote) { inQuote = ''; } else { current += ch; }
+      if (ch === inQuote) {
+        inQuote = '';
+      } else {
+        current += ch;
+      }
     } else if (ch === '"' || ch === "'") {
       inQuote = ch;
     } else if (ch === ' ' || ch === '\t') {
-      if (current) { result.push(current); current = ''; }
+      if (current) {
+        result.push(current);
+        current = '';
+      }
     } else {
       current += ch;
     }
@@ -38,7 +58,11 @@ function splitArgs(argsStr: string): string[] {
 function validateClone(extra: string): string | null {
   const cloneArgs = splitArgs(extra);
   const url = cloneArgs[0] || '';
-  if (!url.startsWith('https://github.com/') && !url.startsWith('git@github.com:') && !url.startsWith('https://gitlab.com/')) {
+  if (
+    !url.startsWith('https://github.com/') &&
+    !url.startsWith('git@github.com:') &&
+    !url.startsWith('https://gitlab.com/')
+  ) {
     return 'Error: clone is restricted to github.com and gitlab.com URLs for safety.';
   }
   return null;
@@ -72,7 +96,12 @@ function validateDestructive(action: string, extra: string, fullCmd: string): st
 }
 
 /** Validate policy-enforcer rules (never_push_main, always_branch). */
-function validatePolicy(action: string, cwd: string, pe: PolicyEnforcer | undefined, getBranch: (cwd: string) => string): string | null {
+function validatePolicy(
+  action: string,
+  cwd: string,
+  pe: PolicyEnforcer | undefined,
+  getBranch: (cwd: string) => string,
+): string | null {
   if (action === 'push' && pe?.isMainPushBlocked()) {
     const branch = getBranch(cwd);
     if (branch === 'main' || branch === 'master') {
@@ -90,14 +119,19 @@ function validatePolicy(action: string, cwd: string, pe: PolicyEnforcer | undefi
 
 export class GitTool implements Tool {
   name = 'git';
-  description = 'Run git operations. Actions: status, diff, log, commit, branch, checkout, stash, push, pull, merge, blame, tag, add, reset, clone.';
+  description =
+    'Run git operations. Actions: status, diff, log, commit, branch, checkout, stash, push, pull, merge, blame, tag, add, reset, clone.';
   permission: Tool['permission'] = 'prompt';
   capabilities: CapabilityLabel[] = ['write-fs', 'run-cmd', 'net-fetch'];
   private policyEnforcer?: PolicyEnforcer;
   parameters = {
     type: 'object',
     properties: {
-      action: { type: 'string', description: 'Git action (status, diff, log, commit, branch, checkout, stash, push, pull, merge, blame, tag, add, reset, clone)' },
+      action: {
+        type: 'string',
+        description:
+          'Git action (status, diff, log, commit, branch, checkout, stash, push, pull, merge, blame, tag, add, reset, clone)',
+      },
       args: { type: 'string', description: 'Additional arguments (e.g., file path, branch name, commit message)' },
       cwd: { type: 'string', description: 'Working directory (defaults to current)' },
     },

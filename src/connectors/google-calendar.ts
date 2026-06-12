@@ -117,8 +117,8 @@ export function isGoogleCalendarAuthError(status: number, body: GoogleApiError |
   // Explicit non-auth wins over explicit auth (rate-limit + auth in the
   // same response is ambiguous; treat conservatively as non-auth so the
   // user retries rather than reconnects).
-  if (errs.some(e => e.reason && GOOGLE_NON_AUTH_403_REASONS.has(e.reason))) return false;
-  if (errs.some(e => e.reason && GOOGLE_AUTH_REASONS.has(e.reason))) return true;
+  if (errs.some((e) => e.reason && GOOGLE_NON_AUTH_403_REASONS.has(e.reason))) return false;
+  if (errs.some((e) => e.reason && GOOGLE_AUTH_REASONS.has(e.reason))) return true;
   return false;
 }
 
@@ -136,7 +136,7 @@ async function calFetch(
     const res = await fetch(`${CAL_API}${endpoint}`, {
       method,
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: body ? JSON.stringify(body) : undefined,
@@ -147,7 +147,11 @@ async function calFetch(
     // so the parser doesn't throw on empty input.
     let data: Record<string, unknown> = {};
     if (res.status !== 204) {
-      try { data = (await res.json()) as Record<string, unknown>; } catch { data = {}; }
+      try {
+        data = (await res.json()) as Record<string, unknown>;
+      } catch {
+        data = {};
+      }
     }
     if (isGoogleCalendarAuthError(res.status, data as GoogleApiError)) {
       throw new ConnectorReauthError('google_calendar', `Google Calendar auth failed: HTTP ${res.status}`);
@@ -199,7 +203,7 @@ function redactWriteEventArgs(args: Record<string, unknown>): Record<string, unk
     out.description = `<redacted sha256:${d.hash} len:${d.length}>`;
   }
   if (typeof args.attendees === 'string' && args.attendees.length > 0) {
-    const count = args.attendees.split(',').filter(s => s.trim().length > 0).length;
+    const count = args.attendees.split(',').filter((s) => s.trim().length > 0).length;
     const d = hashAndLength(args.attendees);
     out.attendees = `<redacted ${count} email(s) sha256:${d.hash} len:${d.length}>`;
   }
@@ -214,13 +218,12 @@ function previewCreateEvent(args: Record<string, unknown>): ConnectorPreview {
   const end = typeof args.end === 'string' && args.end.length > 0 ? args.end : '(default: start + 1h)';
   const location = typeof args.location === 'string' && args.location.length > 0 ? args.location : '';
   const calendar = typeof args.calendar === 'string' && args.calendar.length > 0 ? args.calendar : 'primary';
-  const requestId = typeof args.request_id === 'string' && args.request_id.length > 0 ? args.request_id : '(none — server-only dedup)';
+  const requestId =
+    typeof args.request_id === 'string' && args.request_id.length > 0 ? args.request_id : '(none — server-only dedup)';
   const description = typeof args.description === 'string' ? args.description : '';
   const descDigest = description.length > 0 ? hashAndLength(description) : null;
   const attendeesStr = typeof args.attendees === 'string' ? args.attendees : '';
-  const attendeeCount = attendeesStr.length > 0
-    ? attendeesStr.split(',').filter(s => s.trim().length > 0).length
-    : 0;
+  const attendeeCount = attendeesStr.length > 0 ? attendeesStr.split(',').filter((s) => s.trim().length > 0).length : 0;
 
   const lines = [
     `Would create Google Calendar event:`,
@@ -230,7 +233,9 @@ function previewCreateEvent(args: Record<string, unknown>): ConnectorPreview {
     `  End:         ${end}`,
     location ? `  Location:    ${location}` : '',
     descDigest ? `  Notes:       ${descDigest.length} chars (sha256:${descDigest.hash})` : '',
-    attendeeCount > 0 ? `  Attendees:   ${attendeeCount} email(s) — invites WILL be sent on commit` : '  Attendees:   (none)',
+    attendeeCount > 0
+      ? `  Attendees:   ${attendeeCount} email(s) — invites WILL be sent on commit`
+      : '  Attendees:   (none)',
     `  request_id:  ${requestId}`,
   ].filter(Boolean);
 
@@ -262,9 +267,10 @@ function previewUpdateEvent(args: Record<string, unknown>): ConnectorPreview {
     const d = hashAndLength(args.description);
     changes.push(`  description → ${d.length} chars (sha256:${d.hash})`);
   }
-  const summary = changes.length === 0
-    ? `Would update Google Calendar event ${eventId} on calendar=${calendar} — but NO fields are set; the API call would error.`
-    : `Would update Google Calendar event ${eventId} on calendar=${calendar}:\n${changes.join('\n')}`;
+  const summary =
+    changes.length === 0
+      ? `Would update Google Calendar event ${eventId} on calendar=${calendar} — but NO fields are set; the API call would error.`
+      : `Would update Google Calendar event ${eventId} on calendar=${calendar}:\n${changes.join('\n')}`;
   return {
     summary,
     details: {
@@ -338,7 +344,11 @@ const createEvent: ConnectorAction = {
       description: { type: 'string', description: 'Event description/notes' },
       attendees: { type: 'string', description: 'Comma-separated email addresses of attendees. Invites will be sent.' },
       calendar: { type: 'string', description: 'Calendar ID (default "primary")' },
-      request_id: { type: 'string', description: 'Idempotency key — Google Calendar dedups events.insert by this value within ~24h. Optional but recommended for retries.' },
+      request_id: {
+        type: 'string',
+        description:
+          'Idempotency key — Google Calendar dedups events.insert by this value within ~24h. Optional but recommended for retries.',
+      },
     },
     required: ['title', 'start'],
   },
@@ -367,7 +377,7 @@ const createEvent: ConnectorAction = {
     if (args.location) event.location = args.location;
     if (args.description) event.description = args.description;
     if (args.attendees) {
-      event.attendees = (args.attendees as string).split(',').map(e => ({ email: e.trim() }));
+      event.attendees = (args.attendees as string).split(',').map((e) => ({ email: e.trim() }));
     }
 
     // Honor the user-supplied idempotency key. Google Calendar's
@@ -531,16 +541,18 @@ const findFreeTime: ConnectorAction = {
         const dayEnd = new Date(day);
         dayEnd.setHours(workEnd, 0, 0, 0);
 
-        const dayEvents = events.filter(e => {
-          const start = (e.start as Record<string, string>)?.dateTime || (e.start as Record<string, string>)?.date;
-          if (!start) return false;
-          const eventDate = new Date(start);
-          return eventDate >= dayStart && eventDate < dayEnd;
-        }).sort((a, b) => {
-          const aStart = new Date((a.start as Record<string, string>)?.dateTime || '');
-          const bStart = new Date((b.start as Record<string, string>)?.dateTime || '');
-          return aStart.getTime() - bStart.getTime();
-        });
+        const dayEvents = events
+          .filter((e) => {
+            const start = (e.start as Record<string, string>)?.dateTime || (e.start as Record<string, string>)?.date;
+            if (!start) return false;
+            const eventDate = new Date(start);
+            return eventDate >= dayStart && eventDate < dayEnd;
+          })
+          .sort((a, b) => {
+            const aStart = new Date((a.start as Record<string, string>)?.dateTime || '');
+            const bStart = new Date((b.start as Record<string, string>)?.dateTime || '');
+            return aStart.getTime() - bStart.getTime();
+          });
 
         let cursor = dayStart.getTime();
         for (const event of dayEvents) {
@@ -548,18 +560,24 @@ const findFreeTime: ConnectorAction = {
           const eventEnd = new Date((event.end as Record<string, string>)?.dateTime || '').getTime();
           const gap = (eventStart - cursor) / (60 * 1000);
           if (gap >= minDuration) {
-            freeSlots.push(`  ${new Date(cursor).toLocaleString()} → ${new Date(eventStart).toLocaleString()} (${Math.round(gap)} min)`);
+            freeSlots.push(
+              `  ${new Date(cursor).toLocaleString()} → ${new Date(eventStart).toLocaleString()} (${Math.round(gap)} min)`,
+            );
           }
           cursor = Math.max(cursor, eventEnd);
         }
         const remaining = (dayEnd.getTime() - cursor) / (60 * 1000);
         if (remaining >= minDuration) {
-          freeSlots.push(`  ${new Date(cursor).toLocaleString()} → ${dayEnd.toLocaleString()} (${Math.round(remaining)} min)`);
+          freeSlots.push(
+            `  ${new Date(cursor).toLocaleString()} → ${dayEnd.toLocaleString()} (${Math.round(remaining)} min)`,
+          );
         }
       }
 
       if (!freeSlots.length) return `No free slots of ${minDuration}+ minutes found in the next ${days} days.`;
-      return truncate(`Free time slots (${minDuration}+ min, ${workStart}:00-${workEnd}:00):\n\n${freeSlots.join('\n')}`);
+      return truncate(
+        `Free time slots (${minDuration}+ min, ${workStart}:00-${workEnd}:00):\n\n${freeSlots.join('\n')}`,
+      );
     } catch (err: unknown) {
       if (err instanceof ConnectorReauthError) throw err;
       return `Error: ${err instanceof Error ? err.message : String(err)}`;
@@ -577,13 +595,7 @@ export class GoogleCalendarConnector implements Connector {
   envKey = 'GOOGLE_CALENDAR_TOKEN';
   vaultKeyName = 'google_calendar';
 
-  actions: ConnectorAction[] = [
-    listEvents,
-    createEvent,
-    updateEvent,
-    deleteEvent,
-    findFreeTime,
-  ];
+  actions: ConnectorAction[] = [listEvents, createEvent, updateEvent, deleteEvent, findFreeTime];
 
   async validate(credential: string): Promise<boolean> {
     try {

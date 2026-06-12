@@ -68,8 +68,7 @@ function isContained(root: string, target: string): boolean {
  * Resolve `p` against `root` and reject if the result escapes.
  * Returns the absolute resolved path on success, or an error string.
  */
-function resolveInside(root: string, p: string, label: string):
-  { resolved: string } | { error: string } {
+function resolveInside(root: string, p: string, label: string): { resolved: string } | { error: string } {
   const resolved = path.resolve(root, p);
   if (!isContained(root, resolved)) {
     return { error: `Error: ${label} escapes project root (${resolved} not under ${root})` };
@@ -86,8 +85,7 @@ function resolveInside(root: string, p: string, label: string):
  * outright. Favicon `sizes` is a string field by design; it uses
  * `parseSizeToken` below.
  */
-function validateInt(v: unknown, name: string, min = 0, max = 100_000):
-  { n: number } | { error: string } {
+function validateInt(v: unknown, name: string, min = 0, max = 100_000): { n: number } | { error: string } {
   if (typeof v !== 'number' || !Number.isFinite(v) || !Number.isInteger(v) || v < min || v > max) {
     return { error: `Error: ${name} must be a number (integer in [${min}, ${max}])` };
   }
@@ -99,8 +97,7 @@ function validateInt(v: unknown, name: string, min = 0, max = 100_000):
  * decimal digits — no '1e3', no '0x10', no '100; ls'. Kept separate from
  * validateInt() because `sizes` is intentionally a string parameter.
  */
-function parseSizeToken(raw: string, min = 1, max = 2048):
-  { n: number } | { error: string } {
+function parseSizeToken(raw: string, min = 1, max = 2048): { n: number } | { error: string } {
   const s = raw.trim();
   if (!/^\d+$/.test(s)) {
     return { error: `Error: sizes entry "${raw}" must be a positive integer` };
@@ -114,8 +111,7 @@ function parseSizeToken(raw: string, min = 1, max = 2048):
 
 const ALLOWED_FORMATS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'ico']);
 
-function validateFormat(v: unknown):
-  { ok: string } | { error: string } {
+function validateFormat(v: unknown): { ok: string } | { error: string } {
   if (typeof v !== 'string' || !ALLOWED_FORMATS.has(v.toLowerCase())) {
     return { error: `Error: format must be one of ${[...ALLOWED_FORMATS].join(', ')}` };
   }
@@ -127,8 +123,7 @@ function validateFormat(v: unknown):
  * digits after the hash). Returns an error rather than a silent fallback
  * because silent fallback can hide hostile input in an otherwise-valid SVG.
  */
-function validateHexColor(v: unknown, name: string):
-  { ok: string } | { error: string } {
+function validateHexColor(v: unknown, name: string): { ok: string } | { error: string } {
   if (typeof v !== 'string' || !/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v)) {
     return { error: `Error: ${name} must be a hex color (#RGB, #RRGGBB, #RRGGBBAA)` };
   }
@@ -157,17 +152,23 @@ function probeMagick(): { flavor: MagickFlavor } {
     execFileSync('magick', ['--version'], { stdio: 'pipe', timeout: 5_000 });
     _magickCache = { flavor: 'v7' };
     return _magickCache;
-  } catch { /* fall through */ }
+  } catch {
+    /* fall through */
+  }
   try {
     execFileSync('convert', ['--version'], { stdio: 'pipe', timeout: 5_000 });
     _magickCache = { flavor: 'v6' };
     return _magickCache;
-  } catch { /* fall through */ }
+  } catch {
+    /* fall through */
+  }
   _magickCache = { flavor: null };
   return _magickCache;
 }
 
-function hasMagick(): boolean { return probeMagick().flavor !== null; }
+function hasMagick(): boolean {
+  return probeMagick().flavor !== null;
+}
 
 /** The convert-style command: `magick` on v7, `convert` on v6. */
 function magickConvertCmd(): string {
@@ -179,14 +180,15 @@ function magickConvertCmd(): string {
  * On v7 this is `magick <sub> …`. On v6 the subcommand is its own binary.
  * Returned as `{ command, prefix }` so plans can splat prefix into argv.
  */
-function magickSubcommand(sub: 'identify' | 'montage'):
-  { command: string; prefix: string[] } {
+function magickSubcommand(sub: 'identify' | 'montage'): { command: string; prefix: string[] } {
   if (probeMagick().flavor === 'v7') return { command: 'magick', prefix: [sub] };
   return { command: sub, prefix: [] };
 }
 
 /** Reset the magick probe cache. Exposed for tests only. */
-export function __resetMagickCache(): void { _magickCache = null; }
+export function __resetMagickCache(): void {
+  _magickCache = null;
+}
 
 /**
  * Test-only: override the magick probe result. Lets tests exercise v7 and
@@ -194,7 +196,10 @@ export function __resetMagickCache(): void { _magickCache = null; }
  * Pass `null` to clear and let the real probe run next time.
  */
 export function __setMagickFlavorForTest(flavor: MagickFlavor): void {
-  if (flavor === null) { _magickCache = null; return; }
+  if (flavor === null) {
+    _magickCache = null;
+    return;
+  }
   _magickCache = { flavor };
 }
 
@@ -211,7 +216,9 @@ function runPlan(command: string, argv: string[], label: 'magick' | 'sips'): str
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 30_000,
       maxBuffer: 10 * 1024 * 1024,
-    }).toString().trim();
+    })
+      .toString()
+      .trim();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`${label === 'sips' ? 'sips' : 'ImageMagick'} error: ${msg.substring(0, 200)}`);
@@ -253,7 +260,8 @@ export type MagickPlan =
 
 export class GraphicsTool implements Tool {
   name = 'graphics';
-  description = 'Image processing, SVG generation & design assets. Actions: resize, convert, compress, crop, watermark, info, svg, favicon, og_image, combine. Uses ImageMagick/sips.';
+  description =
+    'Image processing, SVG generation & design assets. Actions: resize, convert, compress, crop, watermark, info, svg, favicon, og_image, combine. Uses ImageMagick/sips.';
   permission: Tool['permission'] = 'prompt';
   capabilities: CapabilityLabel[] = ['write-fs', 'run-cmd'];
   /**
@@ -308,17 +316,28 @@ export class GraphicsTool implements Tool {
     if (!action) return 'Error: action is required';
 
     switch (action) {
-      case 'resize': return this.resize(args);
-      case 'convert': return this.convert(args);
-      case 'compress': return this.compress(args);
-      case 'crop': return this.crop(args);
-      case 'watermark': return this.watermark(args);
-      case 'info': return this.info(args);
-      case 'svg': return this.svg(args);
-      case 'favicon': return this.favicon(args);
-      case 'og_image': return this.ogImage(args);
-      case 'combine': return this.combine(args);
-      default: return `Error: unknown action "${action}". Available: resize, convert, compress, crop, watermark, info, svg, favicon, og_image, combine`;
+      case 'resize':
+        return this.resize(args);
+      case 'convert':
+        return this.convert(args);
+      case 'compress':
+        return this.compress(args);
+      case 'crop':
+        return this.crop(args);
+      case 'watermark':
+        return this.watermark(args);
+      case 'info':
+        return this.info(args);
+      case 'svg':
+        return this.svg(args);
+      case 'favicon':
+        return this.favicon(args);
+      case 'og_image':
+        return this.ogImage(args);
+      case 'combine':
+        return this.combine(args);
+      default:
+        return `Error: unknown action "${action}". Available: resize, convert, compress, crop, watermark, info, svg, favicon, og_image, combine`;
     }
   }
 
@@ -328,21 +347,26 @@ export class GraphicsTool implements Tool {
    * string interpolation without stubbing child_process (whose exports are
    * read-only getters in modern Node).
    */
-  public buildMagickPlan(
-    action: string,
-    args: Record<string, unknown>,
-    cwd: string = this.projectRoot,
-  ): MagickPlan {
+  public buildMagickPlan(action: string, args: Record<string, unknown>, cwd: string = this.projectRoot): MagickPlan {
     switch (action) {
-      case 'resize': return this.planResize(args, cwd);
-      case 'convert': return this.planConvert(args, cwd);
-      case 'compress': return this.planCompress(args, cwd);
-      case 'crop': return this.planCrop(args, cwd);
-      case 'watermark': return this.planWatermark(args, cwd);
-      case 'info': return this.planInfo(args, cwd);
-      case 'combine': return this.planCombine(args, cwd);
-      case 'og_image': return this.planOgImagePng(args, cwd);
-      default: return { error: `Error: no plan for action "${action}"` };
+      case 'resize':
+        return this.planResize(args, cwd);
+      case 'convert':
+        return this.planConvert(args, cwd);
+      case 'compress':
+        return this.planCompress(args, cwd);
+      case 'crop':
+        return this.planCrop(args, cwd);
+      case 'watermark':
+        return this.planWatermark(args, cwd);
+      case 'info':
+        return this.planInfo(args, cwd);
+      case 'combine':
+        return this.planCombine(args, cwd);
+      case 'og_image':
+        return this.planOgImagePng(args, cwd);
+      default:
+        return { error: `Error: no plan for action "${action}"` };
     }
   }
 
@@ -388,14 +412,18 @@ export class GraphicsTool implements Tool {
       };
     }
     if (os.platform() === 'darwin') {
-      const sipsArgv = w !== null && h !== null
-        ? ['-z', String(h), String(w), outRes.resolved]
-        : w !== null
-          ? ['--resampleWidth', String(w), outRes.resolved]
-          : ['--resampleHeight', String(h), outRes.resolved];
+      const sipsArgv =
+        w !== null && h !== null
+          ? ['-z', String(h), String(w), outRes.resolved]
+          : w !== null
+            ? ['--resampleWidth', String(w), outRes.resolved]
+            : ['--resampleHeight', String(h), outRes.resolved];
       return { backend: 'sips', command: 'sips', argv: sipsArgv };
     }
-    return { error: 'Error: ImageMagick not found. Install with: brew install imagemagick (macOS) or apt install imagemagick (Linux)' };
+    return {
+      error:
+        'Error: ImageMagick not found. Install with: brew install imagemagick (macOS) or apt install imagemagick (Linux)',
+    };
   }
 
   private resize(args: Record<string, unknown>): string {
@@ -608,8 +636,11 @@ export class GraphicsTool implements Tool {
 
     const position = typeof args.position === 'string' ? args.position : 'bottom-right';
     const gravityMap: Record<string, string> = {
-      'center': 'Center', 'top-left': 'NorthWest', 'top-right': 'NorthEast',
-      'bottom-left': 'SouthWest', 'bottom-right': 'SouthEast',
+      center: 'Center',
+      'top-left': 'NorthWest',
+      'top-right': 'NorthEast',
+      'bottom-left': 'SouthWest',
+      'bottom-right': 'SouthEast',
     };
     const gravity = gravityMap[position] ?? 'SouthEast';
 
@@ -618,10 +649,15 @@ export class GraphicsTool implements Tool {
       command: magickConvertCmd(),
       argv: [
         inRes.resolved,
-        '-gravity', gravity,
-        '-fill', 'rgba(255,255,255,0.5)',
-        '-pointsize', '24',
-        '-annotate', '+10+10', args.text,
+        '-gravity',
+        gravity,
+        '-fill',
+        'rgba(255,255,255,0.5)',
+        '-pointsize',
+        '24',
+        '-annotate',
+        '+10+10',
+        args.text,
         outRes.resolved,
       ],
     };
@@ -686,7 +722,9 @@ export class GraphicsTool implements Tool {
       // Replaced with JS slicing — no shell dependency.
       const truncated = raw.split('\n').slice(0, 20).join('\n');
       details += `\n  ${truncated}`;
-    } catch { /* info unavailable */ }
+    } catch {
+      /* info unavailable */
+    }
 
     return details;
   }
@@ -803,9 +841,8 @@ export class GraphicsTool implements Tool {
     if ('error' in inRes) return inRes.error;
     if (!fs.existsSync(inRes.resolved)) return `Error: file not found: ${inRes.resolved}`;
 
-    const outputDirArg = typeof args.output === 'string' && args.output.length > 0
-      ? args.output
-      : path.dirname(inRes.resolved);
+    const outputDirArg =
+      typeof args.output === 'string' && args.output.length > 0 ? args.output : path.dirname(inRes.resolved);
     const outDirRes = resolveInside(cwd, outputDirArg, 'output');
     if ('error' in outDirRes) return outDirRes.error;
     const outputDir = outDirRes.resolved;
@@ -833,24 +870,27 @@ export class GraphicsTool implements Tool {
         for (const size of sizes) {
           const pngPath = path.join(outputDir, `favicon-${size}x${size}.png`);
           try {
-            runPlan(convertCmd, [
-              '-background', 'none', '-density', '300',
-              inRes.resolved,
-              '-resize', `${size}x${size}`,
-              pngPath,
-            ], 'magick');
+            runPlan(
+              convertCmd,
+              ['-background', 'none', '-density', '300', inRes.resolved, '-resize', `${size}x${size}`, pngPath],
+              'magick',
+            );
             results.push(`  ${pngPath} (${size}x${size})`);
-          } catch { /* skip failed sizes */ }
+          } catch {
+            /* skip failed sizes */
+          }
         }
         const icoSources = [16, 32, 48]
-          .map(s => path.join(outputDir, `favicon-${s}x${s}.png`))
-          .filter(f => fs.existsSync(f));
+          .map((s) => path.join(outputDir, `favicon-${s}x${s}.png`))
+          .filter((f) => fs.existsSync(f));
         if (icoSources.length) {
           const icoPath = path.join(outputDir, 'favicon.ico');
           try {
             runPlan(convertCmd, [...icoSources, icoPath], 'magick');
             results.push(`  ${icoPath} (ICO)`);
-          } catch { /* ico generation failed */ }
+          } catch {
+            /* ico generation failed */
+          }
         }
       }
       return `Favicon set generated:\n${results.join('\n')}`;
@@ -871,19 +911,23 @@ export class GraphicsTool implements Tool {
           runPlan('sips', ['-z', String(size), String(size), pngPath], 'sips');
         }
         results.push(`  ${pngPath} (${size}x${size})`);
-      } catch { /* skip failed sizes */ }
+      } catch {
+        /* skip failed sizes */
+      }
     }
 
     if (hasMagick()) {
       const icoSources = [16, 32, 48]
-        .map(s => path.join(outputDir, `favicon-${s}x${s}.png`))
-        .filter(f => fs.existsSync(f));
+        .map((s) => path.join(outputDir, `favicon-${s}x${s}.png`))
+        .filter((f) => fs.existsSync(f));
       if (icoSources.length) {
         const icoPath = path.join(outputDir, 'favicon.ico');
         try {
           runPlan(convertCmd, [...icoSources, icoPath], 'magick');
           results.push(`  ${icoPath} (ICO)`);
-        } catch { /* ico failed */ }
+        } catch {
+          /* ico failed */
+        }
       }
     }
 
@@ -899,9 +943,8 @@ export class GraphicsTool implements Tool {
    * only the optional PNG rasterization does. Used by tests.
    */
   private planOgImagePng(args: Record<string, unknown>, cwd: string): MagickPlan {
-    const outputArg = typeof args.output === 'string' && args.output.length > 0
-      ? args.output
-      : path.join(cwd, 'og-image.svg');
+    const outputArg =
+      typeof args.output === 'string' && args.output.length > 0 ? args.output : path.join(cwd, 'og-image.svg');
     const outRes = resolveInside(cwd, outputArg, 'output');
     if ('error' in outRes) return outRes;
     if (!outRes.resolved.endsWith('.svg')) {
@@ -928,9 +971,8 @@ export class GraphicsTool implements Tool {
     const accent = validateHexColor(args.accent_color ?? '#6366f1', 'accent_color');
     if ('error' in accent) return accent.error;
 
-    const outputArg = typeof args.output === 'string' && args.output.length > 0
-      ? args.output
-      : path.join(cwd, 'og-image.svg');
+    const outputArg =
+      typeof args.output === 'string' && args.output.length > 0 ? args.output : path.join(cwd, 'og-image.svg');
     const outRes = resolveInside(cwd, outputArg, 'output');
     if ('error' in outRes) return outRes.error;
 
@@ -950,14 +992,15 @@ export class GraphicsTool implements Tool {
     if (hasMagick() && outRes.resolved.endsWith('.svg')) {
       const pngPath = outRes.resolved.replace(/\.svg$/, '.png');
       try {
-        runPlan(magickConvertCmd(), [
-          '-background', 'none', '-density', '150',
-          outRes.resolved,
-          '-resize', '1200x630!',
-          pngPath,
-        ], 'magick');
+        runPlan(
+          magickConvertCmd(),
+          ['-background', 'none', '-density', '150', outRes.resolved, '-resize', '1200x630!', pngPath],
+          'magick',
+        );
         pngNote = `\n  PNG: ${pngPath}`;
-      } catch { /* png conversion failed */ }
+      } catch {
+        /* png conversion failed */
+      }
     }
 
     return `OG image generated:\n  SVG: ${outRes.resolved}${pngNote}\n  Dimensions: 1200x630 (standard Open Graph)`;
@@ -971,7 +1014,10 @@ export class GraphicsTool implements Tool {
     }
     if (!hasMagick()) return { error: 'Error: ImageMagick not found (needed for combine)' };
 
-    const rawInputs = args.inputs.split(',').map(s => s.trim()).filter(Boolean);
+    const rawInputs = args.inputs
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (rawInputs.length === 0) return { error: 'Error: inputs must contain at least one path' };
 
     const resolved: string[] = [];
@@ -986,9 +1032,10 @@ export class GraphicsTool implements Tool {
       return { error: `Error: unknown direction "${direction}". Use: horizontal, vertical, grid` };
     }
 
-    const outputArg = typeof args.output === 'string' && args.output.length > 0
-      ? args.output
-      : path.join(cwd, `combined-${Date.now()}.png`);
+    const outputArg =
+      typeof args.output === 'string' && args.output.length > 0
+        ? args.output
+        : path.join(cwd, `combined-${Date.now()}.png`);
     const outRes = resolveInside(cwd, outputArg, 'output');
     if ('error' in outRes) return outRes;
 
@@ -1025,9 +1072,9 @@ export class GraphicsTool implements Tool {
       const direction = typeof args.direction === 'string' ? args.direction : 'horizontal';
       // Count inputs: argv elements that aren't flags, aren't the 'montage'
       // subcommand, aren't tile specs, minus the trailing output.
-      const countGuess = plan.argv.filter(a =>
-        !a.startsWith('+') && !a.startsWith('-') && a !== 'montage' && !/^\d+x$/.test(a)
-      ).length - 1;
+      const countGuess =
+        plan.argv.filter((a) => !a.startsWith('+') && !a.startsWith('-') && a !== 'montage' && !/^\d+x$/.test(a))
+          .length - 1;
       return `Combined ${countGuess} images (${direction}) → ${outPath}`;
     } catch (err: unknown) {
       return `Error: ${err instanceof Error ? err.message : String(err)}`;

@@ -26,7 +26,9 @@ export class ImageInfoTool implements Tool {
     const ext = path.extname(filePath).toLowerCase();
     const sizeKB = (stat.size / 1024).toFixed(1);
 
-    let width = 0, height = 0, format = 'unknown';
+    let width = 0,
+      height = 0,
+      format = 'unknown';
 
     try {
       const buf = Buffer.alloc(Math.min(stat.size, 32));
@@ -35,13 +37,13 @@ export class ImageInfoTool implements Tool {
       fs.closeSync(fd);
 
       // PNG: bytes 16-23 contain width (4 bytes) and height (4 bytes)
-      if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) {
+      if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
         format = 'PNG';
         width = buf.readUInt32BE(16);
         height = buf.readUInt32BE(20);
       }
       // JPEG: SOI marker
-      else if (buf[0] === 0xFF && buf[1] === 0xD8) {
+      else if (buf[0] === 0xff && buf[1] === 0xd8) {
         format = 'JPEG';
         const dims = this.readJpegDimensions(filePath);
         width = dims.width;
@@ -54,7 +56,7 @@ export class ImageInfoTool implements Tool {
         height = buf.readUInt16LE(8);
       }
       // BMP
-      else if (buf[0] === 0x42 && buf[1] === 0x4D) {
+      else if (buf[0] === 0x42 && buf[1] === 0x4d) {
         format = 'BMP';
         const fullBuf = Buffer.alloc(26);
         const fd2 = fs.openSync(filePath, 'r');
@@ -72,7 +74,10 @@ export class ImageInfoTool implements Tool {
         const vbMatch = content.match(/viewBox=["']\s*\d+\s+\d+\s+(\d+)\s+(\d+)/);
         if (wMatch) width = parseInt(wMatch[1]);
         if (hMatch) height = parseInt(hMatch[1]);
-        if (!width && vbMatch) { width = parseInt(vbMatch[1]); height = parseInt(vbMatch[2]); }
+        if (!width && vbMatch) {
+          width = parseInt(vbMatch[1]);
+          height = parseInt(vbMatch[2]);
+        }
       }
     } catch {
       // Could not read dimensions
@@ -107,25 +112,37 @@ export class ImageInfoTool implements Tool {
       let offset = 2; // Skip SOI
 
       while (offset < buf.length - 1) {
-        if (buf[offset] !== 0xFF) break;
+        if (buf[offset] !== 0xff) break;
         const marker = buf[offset + 1];
 
         // SOF markers (C0-C3, C5-C7, C9-CB, CD-CF)
-        if ((marker >= 0xC0 && marker <= 0xC3) || (marker >= 0xC5 && marker <= 0xC7) ||
-            (marker >= 0xC9 && marker <= 0xCB) || (marker >= 0xCD && marker <= 0xCF)) {
+        if (
+          (marker >= 0xc0 && marker <= 0xc3) ||
+          (marker >= 0xc5 && marker <= 0xc7) ||
+          (marker >= 0xc9 && marker <= 0xcb) ||
+          (marker >= 0xcd && marker <= 0xcf)
+        ) {
           const height = buf.readUInt16BE(offset + 5);
           const width = buf.readUInt16BE(offset + 7);
           return { width, height };
         }
 
         // Skip non-SOF markers
-        if (marker === 0xD8 || marker === 0xD9) { offset += 2; continue; }
-        if (marker >= 0xD0 && marker <= 0xD7) { offset += 2; continue; }
+        if (marker === 0xd8 || marker === 0xd9) {
+          offset += 2;
+          continue;
+        }
+        if (marker >= 0xd0 && marker <= 0xd7) {
+          offset += 2;
+          continue;
+        }
 
         const len = buf.readUInt16BE(offset + 2);
         offset += 2 + len;
       }
-    } catch { /* fallback */ }
+    } catch {
+      /* fallback */
+    }
     return { width: 0, height: 0 };
   }
 }

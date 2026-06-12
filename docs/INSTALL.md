@@ -44,6 +44,7 @@ codebot
 ```
 
 It auto-detects your environment:
+
 - **Ollama running locally?** Picks the best model and starts immediately
 - **API key in environment?** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.) Uses it automatically
 - **Nothing found?** Shows a one-question menu to pick your provider
@@ -198,16 +199,16 @@ Runs diagnostics on your environment.
 
 ## CLI Flags
 
-| Flag | Description |
-|------|-------------|
-| `--setup` | Run the setup wizard |
-| `--autonomous` | Skip all permission prompts |
+| Flag                | Description                                    |
+| ------------------- | ---------------------------------------------- |
+| `--setup`           | Run the setup wizard                           |
+| `--autonomous`      | Skip all permission prompts                    |
 | `--provider <name>` | LLM provider (openai, anthropic, ollama, etc.) |
-| `--model <name>` | Model name (gpt-4.1, claude-sonnet-4, etc.) |
-| `--dashboard` | Open the web dashboard |
-| `--doctor` | Run environment diagnostics |
-| `--version` | Show version |
-| `--help` | Show all options |
+| `--model <name>`    | Model name (gpt-4.1, claude-sonnet-4, etc.)    |
+| `--dashboard`       | Open the web dashboard                         |
+| `--doctor`          | Run environment diagnostics                    |
+| `--version`         | Show version                                   |
+| `--help`            | Show all options                               |
 
 ---
 
@@ -231,16 +232,19 @@ rm -rf ~/.codebot    # remove saved config (optional)
 ## Troubleshooting
 
 **`npm: command not found`** — Your Node.js install doesn't have npm in PATH. Use the direct path:
+
 ```bash
 node $(dirname $(which node))/../lib/node_modules/npm/bin/npm-cli.js install -g codebot-ai
 ```
 
 **`codebot` still shows old version** — The symlink points to an old install. Reinstall with the correct prefix:
+
 ```bash
 npm install -g codebot-ai@latest --prefix $(npm config get prefix)
 ```
 
 **Dashboard says "Port 3120 is already in use"** — Kill the existing process:
+
 ```bash
 lsof -i :3120 | grep LISTEN | awk '{print $2}' | xargs kill
 ```
@@ -248,6 +252,7 @@ lsof -i :3120 | grep LISTEN | awk '{print $2}' | xargs kill
 **Permission prompts on every command** — Run with `--autonomous` or run `codebot --setup` and enable autonomous mode.
 
 **Docker sandbox errors** — CodeBot tries Docker if available. Disable with:
+
 ```bash
 CODEBOT_NO_DOCKER=1 codebot
 ```

@@ -174,8 +174,9 @@ export class AuditLogger {
   query(filter?: { tool?: string; action?: string; since?: string; sessionId?: string }): AuditEntry[] {
     const entries: AuditEntry[] = [];
     try {
-      const files = fs.readdirSync(this.logDir)
-        .filter(f => f.startsWith('audit-') && f.endsWith('.jsonl'))
+      const files = fs
+        .readdirSync(this.logDir)
+        .filter((f) => f.startsWith('audit-') && f.endsWith('.jsonl'))
         .sort();
 
       for (const file of files) {
@@ -189,7 +190,9 @@ export class AuditLogger {
             if (filter?.since && entry.timestamp < filter.since) continue;
             if (filter?.sessionId && entry.sessionId !== filter.sessionId) continue;
             entries.push(entry);
-          } catch { /* skip malformed */ }
+          } catch {
+            /* skip malformed */
+          }
         }
       }
     } catch {
@@ -328,9 +331,7 @@ export class AuditLogger {
       } else if (typeof value === 'object' && value !== null) {
         const str = JSON.stringify(value);
         const masked = maskSecretsInString(str);
-        sanitized[key] = masked.length > MAX_ARG_LENGTH
-          ? masked.substring(0, MAX_ARG_LENGTH) + '...'
-          : masked;
+        sanitized[key] = masked.length > MAX_ARG_LENGTH ? masked.substring(0, MAX_ARG_LENGTH) + '...' : masked;
       } else {
         sanitized[key] = value;
       }

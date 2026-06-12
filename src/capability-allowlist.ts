@@ -46,12 +46,7 @@ import type { CapabilityLabel } from './types';
  *   with one of these labels is interactive approval per call.
  */
 export const NEVER_ALLOWABLE: ReadonlySet<CapabilityLabel> = Object.freeze(
-  new Set<CapabilityLabel>([
-    'move-money',
-    'spend-money',
-    'send-on-behalf',
-    'delete-data',
-  ]),
+  new Set<CapabilityLabel>(['move-money', 'spend-money', 'send-on-behalf', 'delete-data']),
 );
 
 /**
@@ -92,7 +87,10 @@ export function parseAllowCapabilityFlag(raw: string): Set<CapabilityLabel> {
   const allowed = new Set<CapabilityLabel>();
   if (!raw || !raw.trim()) return allowed;
 
-  const tokens = raw.split(',').map(t => t.trim()).filter(t => t.length > 0);
+  const tokens = raw
+    .split(',')
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
 
   for (const token of tokens) {
     // Hard exclusions — fail before considering whether the label is even
@@ -101,15 +99,15 @@ export function parseAllowCapabilityFlag(raw: string): Set<CapabilityLabel> {
     if (NEVER_ALLOWABLE.has(token as CapabilityLabel)) {
       throw new CapabilityAllowlistError(
         `Refusing to allowlist capability "${token}": this label is not eligible ` +
-        `for --allow-capability. Labels in the never-allowable set ` +
-        `(${[...NEVER_ALLOWABLE].join(', ')}) require interactive per-call approval ` +
-        `or a future stronger-flag mechanism. See docs/personal-agent-infrastructure.md §7.`,
+          `for --allow-capability. Labels in the never-allowable set ` +
+          `(${[...NEVER_ALLOWABLE].join(', ')}) require interactive per-call approval ` +
+          `or a future stronger-flag mechanism. See docs/personal-agent-infrastructure.md §7.`,
       );
     }
     if (!CURRENTLY_ALLOWABLE.has(token as CapabilityLabel)) {
       throw new CapabilityAllowlistError(
         `Unknown or unsupported capability label "${token}". ` +
-        `Allowable labels: ${[...CURRENTLY_ALLOWABLE].sort().join(', ')}.`,
+          `Allowable labels: ${[...CURRENTLY_ALLOWABLE].sort().join(', ')}.`,
       );
     }
     allowed.add(token as CapabilityLabel);

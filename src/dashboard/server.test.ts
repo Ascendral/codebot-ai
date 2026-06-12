@@ -6,7 +6,12 @@ import * as path from 'path';
 import { DashboardServer } from './server';
 
 // Helper to make HTTP requests
-function request(url: string, method: string = 'GET', body?: string, authToken?: string): Promise<{ status: number; headers: http.IncomingHttpHeaders; body: string }> {
+function request(
+  url: string,
+  method: string = 'GET',
+  body?: string,
+  authToken?: string,
+): Promise<{ status: number; headers: http.IncomingHttpHeaders; body: string }> {
   return new Promise((resolve, reject) => {
     const headers: Record<string, string> = {};
     if (authToken) headers['Authorization'] = `Bearer ${authToken}`;

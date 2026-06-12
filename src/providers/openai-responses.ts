@@ -23,13 +23,7 @@
  *     `call_id` echoed back from the original `function_call`.
  */
 
-import {
-  LLMProvider,
-  Message,
-  ToolSchema,
-  StreamEvent,
-  ProviderConfig,
-} from '../types';
+import { LLMProvider, Message, ToolSchema, StreamEvent, ProviderConfig } from '../types';
 import { isRetryable, getRetryDelay, sleep } from '../retry';
 
 /** Strip lone UTF-16 surrogates so JSON.stringify doesn't produce strict-rejected output. */
@@ -38,13 +32,13 @@ function sanitizeForJSON(obj: unknown): unknown {
     let out = '';
     for (let i = 0; i < obj.length; i++) {
       const c = obj.charCodeAt(i);
-      if (c >= 0xD800 && c <= 0xDBFF) {
+      if (c >= 0xd800 && c <= 0xdbff) {
         const next = i + 1 < obj.length ? obj.charCodeAt(i + 1) : 0;
-        if (next >= 0xDC00 && next <= 0xDFFF) {
+        if (next >= 0xdc00 && next <= 0xdfff) {
           out += obj[i] + obj[i + 1];
           i++;
         }
-      } else if (c >= 0xDC00 && c <= 0xDFFF) {
+      } else if (c >= 0xdc00 && c <= 0xdfff) {
         // lone low surrogate — drop
       } else {
         out += obj[i];
@@ -135,7 +129,7 @@ export class OpenAIResponsesProvider implements LLMProvider {
     }
 
     if (tools?.length) {
-      body.tools = tools.map(t => ({
+      body.tools = tools.map((t) => ({
         type: 'function',
         name: t.function.name,
         description: t.function.description,
@@ -213,8 +207,13 @@ export class OpenAIResponsesProvider implements LLMProvider {
     for (const item of parsed.output || []) {
       if (item.type === 'reasoning') {
         const summary = Array.isArray(item.summary)
-          ? item.summary.map(s => s.text || '').filter(Boolean).join('\n')
-          : (typeof item.summary === 'string' ? item.summary : '');
+          ? item.summary
+              .map((s) => s.text || '')
+              .filter(Boolean)
+              .join('\n')
+          : typeof item.summary === 'string'
+            ? item.summary
+            : '';
         if (summary) yield { type: 'thinking', text: summary };
       } else if (item.type === 'message') {
         for (const c of item.content || []) {

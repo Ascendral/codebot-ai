@@ -70,7 +70,7 @@ export function listTasks(): PersistedTask[] {
   try {
     const dir = tasksDir();
     if (!fs.existsSync(dir)) return [];
-    const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json'));
     const out: PersistedTask[] = [];
     for (const f of files) {
       try {

@@ -15,8 +15,6 @@ import * as path from 'path';
 import { Tool } from './types';
 import { codebotPath } from './paths';
 
-
-
 export interface SkillStep {
   /** Tool name or 'app.<connector>.<action>' */
   tool: string;
@@ -61,11 +59,21 @@ const BUILTIN_SKILLS: SkillDefinition[] = [
     steps: [
       {
         tool: 'app',
-        args: { action: 'github.list_prs', owner: '{{input.owner}}', repo: '{{input.repo}}', state: 'open', per_page: 5 },
+        args: {
+          action: 'github.list_prs',
+          owner: '{{input.owner}}',
+          repo: '{{input.repo}}',
+          state: 'open',
+          per_page: 5,
+        },
       },
       {
         tool: 'app',
-        args: { action: 'slack.post_message', channel: '{{input.channel}}', message: 'PR Summary for {{input.owner}}/{{input.repo}}:\n{{prev.output}}' },
+        args: {
+          action: 'slack.post_message',
+          channel: '{{input.channel}}',
+          message: 'PR Summary for {{input.owner}}/{{input.repo}}:\n{{prev.output}}',
+        },
         condition: '{{prev.success}}',
       },
     ],
@@ -87,12 +95,25 @@ const BUILTIN_SKILLS: SkillDefinition[] = [
     steps: [
       {
         tool: 'app',
-        args: { action: 'github.create_issue', owner: '{{input.owner}}', repo: '{{input.repo}}', title: '{{input.title}}', body: '{{input.body}}', labels: 'bug' },
+        args: {
+          action: 'github.create_issue',
+          owner: '{{input.owner}}',
+          repo: '{{input.repo}}',
+          title: '{{input.title}}',
+          body: '{{input.body}}',
+          labels: 'bug',
+        },
         condition: '{{input.owner}}',
       },
       {
         tool: 'app',
-        args: { action: 'jira.create_issue', project: '{{input.project}}', summary: '{{input.title}}', description: '{{input.body}}', issuetype: 'Bug' },
+        args: {
+          action: 'jira.create_issue',
+          project: '{{input.project}}',
+          summary: '{{input.title}}',
+          description: '{{input.body}}',
+          issuetype: 'Bug',
+        },
         condition: '{{input.project}}',
       },
     ],
@@ -111,11 +132,18 @@ const BUILTIN_SKILLS: SkillDefinition[] = [
     steps: [
       {
         tool: 'execute',
-        args: { command: 'git log --oneline --since="{{input.days}} days ago" --no-merges 2>/dev/null | head -15 || echo "No recent commits"' },
+        args: {
+          command:
+            'git log --oneline --since="{{input.days}} days ago" --no-merges 2>/dev/null | head -15 || echo "No recent commits"',
+        },
       },
       {
         tool: 'app',
-        args: { action: 'slack.post_message', channel: '{{input.channel}}', message: 'Standup Summary:\n{{prev.output}}' },
+        args: {
+          action: 'slack.post_message',
+          channel: '{{input.channel}}',
+          message: 'Standup Summary:\n{{prev.output}}',
+        },
         condition: '{{prev.success}}',
       },
     ],
@@ -159,7 +187,7 @@ export function loadSkills(): SkillDefinition[] {
   // Load user-defined skills
   try {
     if (fs.existsSync(codebotPath('skills'))) {
-      const files = fs.readdirSync(codebotPath('skills')).filter(f => f.endsWith('.json'));
+      const files = fs.readdirSync(codebotPath('skills')).filter((f) => f.endsWith('.json'));
       for (const file of files) {
         try {
           const raw = fs.readFileSync(path.join(codebotPath('skills'), file), 'utf-8');
@@ -171,13 +199,17 @@ export function loadSkills(): SkillDefinition[] {
             }
             skills.push(skill);
           }
-        } catch { /* skip invalid skill files */ }
+        } catch {
+          /* skip invalid skill files */
+        }
       }
     }
-  } catch { /* skills dir unavailable */ }
+  } catch {
+    /* skills dir unavailable */
+  }
 
   // Add built-in skills that aren't overridden by user skills
-  const userNames = new Set(skills.map(s => s.name));
+  const userNames = new Set(skills.map((s) => s.name));
   for (const builtin of BUILTIN_SKILLS) {
     if (!userNames.has(builtin.name)) {
       skills.push(builtin);

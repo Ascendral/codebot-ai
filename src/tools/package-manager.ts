@@ -41,25 +41,38 @@ interface PkgManager {
 
 const MANAGERS: Record<string, PkgManager> = {
   npm: {
-    name: 'npm', command: 'npm',
-    install: ['install'], add: ['install'],
-    remove: ['uninstall'], list: ['ls', '--depth=0'],
-    outdated: ['outdated'], audit: ['audit'],
+    name: 'npm',
+    command: 'npm',
+    install: ['install'],
+    add: ['install'],
+    remove: ['uninstall'],
+    list: ['ls', '--depth=0'],
+    outdated: ['outdated'],
+    audit: ['audit'],
   },
   yarn: {
-    name: 'yarn', command: 'yarn',
-    install: ['install'], add: ['add'],
-    remove: ['remove'], list: ['list', '--depth=0'],
-    outdated: ['outdated'], audit: ['audit'],
+    name: 'yarn',
+    command: 'yarn',
+    install: ['install'],
+    add: ['add'],
+    remove: ['remove'],
+    list: ['list', '--depth=0'],
+    outdated: ['outdated'],
+    audit: ['audit'],
   },
   pnpm: {
-    name: 'pnpm', command: 'pnpm',
-    install: ['install'], add: ['add'],
-    remove: ['remove'], list: ['ls', '--depth=0'],
-    outdated: ['outdated'], audit: ['audit'],
+    name: 'pnpm',
+    command: 'pnpm',
+    install: ['install'],
+    add: ['add'],
+    remove: ['remove'],
+    list: ['ls', '--depth=0'],
+    outdated: ['outdated'],
+    audit: ['audit'],
   },
   pip: {
-    name: 'pip', command: 'pip',
+    name: 'pip',
+    command: 'pip',
     install: ['install', '-r', 'requirements.txt'],
     add: ['install'],
     remove: ['uninstall', '-y'],
@@ -68,13 +81,18 @@ const MANAGERS: Record<string, PkgManager> = {
     audit: ['audit'],
   },
   cargo: {
-    name: 'cargo', command: 'cargo',
-    install: ['build'], add: ['add'],
-    remove: ['remove'], list: ['tree', '--depth=1'],
-    outdated: ['outdated'], audit: ['audit'],
+    name: 'cargo',
+    command: 'cargo',
+    install: ['build'],
+    add: ['add'],
+    remove: ['remove'],
+    list: ['tree', '--depth=1'],
+    outdated: ['outdated'],
+    audit: ['audit'],
   },
   go: {
-    name: 'go', command: 'go',
+    name: 'go',
+    command: 'go',
     install: ['mod', 'download'],
     add: ['get'],
     remove: ['mod', 'tidy'],
@@ -95,12 +113,12 @@ const AUDIT_OVERRIDE: Record<string, { command: string; argv: string[] }> = {
  * `execFileSync`. Patterns kept as a clean policy-level rule.
  */
 const SAFE_PKG_PATTERNS: Record<string, RegExp> = {
-  npm:   /^(@[a-z0-9\-~][a-z0-9\-._~]*\/)?[a-z0-9\-~][a-z0-9\-._~]*(@[a-z0-9^~>=<.*\-]+)?$/,
-  yarn:  /^(@[a-z0-9\-~][a-z0-9\-._~]*\/)?[a-z0-9\-~][a-z0-9\-._~]*(@[a-z0-9^~>=<.*\-]+)?$/,
-  pnpm:  /^(@[a-z0-9\-~][a-z0-9\-._~]*\/)?[a-z0-9\-~][a-z0-9\-._~]*(@[a-z0-9^~>=<.*\-]+)?$/,
-  pip:   /^[a-zA-Z0-9][a-zA-Z0-9._\-]*(\[[a-zA-Z0-9,._\-]+\])?(([>=<!=~]+)[a-zA-Z0-9.*]+)?$/,
+  npm: /^(@[a-z0-9\-~][a-z0-9\-._~]*\/)?[a-z0-9\-~][a-z0-9\-._~]*(@[a-z0-9^~>=<.*\-]+)?$/,
+  yarn: /^(@[a-z0-9\-~][a-z0-9\-._~]*\/)?[a-z0-9\-~][a-z0-9\-._~]*(@[a-z0-9^~>=<.*\-]+)?$/,
+  pnpm: /^(@[a-z0-9\-~][a-z0-9\-._~]*\/)?[a-z0-9\-~][a-z0-9\-._~]*(@[a-z0-9^~>=<.*\-]+)?$/,
+  pip: /^[a-zA-Z0-9][a-zA-Z0-9._\-]*(\[[a-zA-Z0-9,._\-]+\])?(([>=<!=~]+)[a-zA-Z0-9.*]+)?$/,
   cargo: /^[a-zA-Z][a-zA-Z0-9_\-]*(@[a-zA-Z0-9.^~>=<*\-]+)?$/,
-  go:    /^[a-zA-Z0-9][a-zA-Z0-9._\-/]*(@[a-zA-Z0-9.^~>=<*\-]+)?$/,
+  go: /^[a-zA-Z0-9][a-zA-Z0-9._\-/]*(@[a-zA-Z0-9.^~>=<*\-]+)?$/,
 };
 
 function splitPackages(pkg: string): string[] {
@@ -138,7 +156,8 @@ export type PkgPlan =
 
 export class PackageManagerTool implements Tool {
   name = 'package_manager';
-  description = 'Manage dependencies. Auto-detects npm/yarn/pnpm/pip/cargo/go. Actions: install, add, remove, list, outdated, audit, detect.';
+  description =
+    'Manage dependencies. Auto-detects npm/yarn/pnpm/pip/cargo/go. Actions: install, add, remove, list, outdated, audit, detect.';
   permission: Tool['permission'] = 'prompt';
   capabilities: CapabilityLabel[] = ['write-fs', 'run-cmd', 'net-fetch'];
   /**
@@ -153,7 +172,10 @@ export class PackageManagerTool implements Tool {
     type: 'object',
     properties: {
       action: { type: 'string', description: 'Action: install, add, remove, list, outdated, audit, detect' },
-      package: { type: 'string', description: 'Package name(s) (for add/remove). Multiple names separated by whitespace.' },
+      package: {
+        type: 'string',
+        description: 'Package name(s) (for add/remove). Multiple names separated by whitespace.',
+      },
       cwd: { type: 'string', description: 'Working directory (must be inside projectRoot)' },
       manager: { type: 'string', description: 'Force specific manager (npm, yarn, pnpm, pip, cargo, go)' },
     },
@@ -206,7 +228,9 @@ export class PackageManagerTool implements Tool {
         }
         const packages = splitPackages(pkg);
         if (!arePackageNamesSafe(packages, mgr.name)) {
-          return { error: `Error: invalid package name "${pkg}". Package names must be alphanumeric with hyphens/underscores/dots only. Shell metacharacters are not allowed.` };
+          return {
+            error: `Error: invalid package name "${pkg}". Package names must be alphanumeric with hyphens/underscores/dots only. Shell metacharacters are not allowed.`,
+          };
         }
         argv = [...mgr.add, ...packages];
         break;
@@ -218,7 +242,9 @@ export class PackageManagerTool implements Tool {
         }
         const packages = splitPackages(pkg);
         if (!arePackageNamesSafe(packages, mgr.name)) {
-          return { error: `Error: invalid package name "${pkg}". Package names must be alphanumeric with hyphens/underscores/dots only. Shell metacharacters are not allowed.` };
+          return {
+            error: `Error: invalid package name "${pkg}". Package names must be alphanumeric with hyphens/underscores/dots only. Shell metacharacters are not allowed.`,
+          };
         }
         argv = [...mgr.remove, ...packages];
         break;
@@ -281,8 +307,14 @@ export class PackageManagerTool implements Tool {
 
     if (fs.existsSync(path.join(cwd, 'pnpm-lock.yaml'))) return MANAGERS.pnpm;
     if (fs.existsSync(path.join(cwd, 'yarn.lock'))) return MANAGERS.yarn;
-    if (fs.existsSync(path.join(cwd, 'package-lock.json')) || fs.existsSync(path.join(cwd, 'package.json'))) return MANAGERS.npm;
-    if (fs.existsSync(path.join(cwd, 'requirements.txt')) || fs.existsSync(path.join(cwd, 'setup.py')) || fs.existsSync(path.join(cwd, 'pyproject.toml'))) return MANAGERS.pip;
+    if (fs.existsSync(path.join(cwd, 'package-lock.json')) || fs.existsSync(path.join(cwd, 'package.json')))
+      return MANAGERS.npm;
+    if (
+      fs.existsSync(path.join(cwd, 'requirements.txt')) ||
+      fs.existsSync(path.join(cwd, 'setup.py')) ||
+      fs.existsSync(path.join(cwd, 'pyproject.toml'))
+    )
+      return MANAGERS.pip;
     if (fs.existsSync(path.join(cwd, 'Cargo.toml'))) return MANAGERS.cargo;
     if (fs.existsSync(path.join(cwd, 'go.mod'))) return MANAGERS.go;
 

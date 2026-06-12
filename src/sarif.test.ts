@@ -37,7 +37,7 @@ describe('SARIF Export', () => {
     const rules = sarif.runs[0].tool.driver.rules;
     assert.strictEqual(rules.length, 5);
 
-    const ruleIds = rules.map(r => r.id);
+    const ruleIds = rules.map((r) => r.id);
     assert.ok(ruleIds.includes('CB001'));
     assert.ok(ruleIds.includes('CB002'));
     assert.ok(ruleIds.includes('CB003'));
@@ -104,10 +104,12 @@ describe('SARIF Export', () => {
   // ── File Locations ──
 
   it('includes artifact location from args.path', () => {
-    const sarif = exportSarif([makeEntry({
-      action: 'security_block',
-      args: { path: '/home/user/.env' },
-    })]);
+    const sarif = exportSarif([
+      makeEntry({
+        action: 'security_block',
+        args: { path: '/home/user/.env' },
+      }),
+    ]);
     const result = sarif.runs[0].results[0];
     assert.ok(result.locations);
     assert.strictEqual(result.locations.length, 1);
@@ -115,20 +117,24 @@ describe('SARIF Export', () => {
   });
 
   it('includes artifact location from args.file', () => {
-    const sarif = exportSarif([makeEntry({
-      action: 'policy_block',
-      args: { file: 'credentials.json' },
-    })]);
+    const sarif = exportSarif([
+      makeEntry({
+        action: 'policy_block',
+        args: { file: 'credentials.json' },
+      }),
+    ]);
     const result = sarif.runs[0].results[0];
     assert.ok(result.locations);
     assert.strictEqual(result.locations[0].physicalLocation.artifactLocation.uri, 'credentials.json');
   });
 
   it('omits locations when no file path in args', () => {
-    const sarif = exportSarif([makeEntry({
-      action: 'deny',
-      args: { command: 'curl evil.com' },
-    })]);
+    const sarif = exportSarif([
+      makeEntry({
+        action: 'deny',
+        args: { command: 'curl evil.com' },
+      }),
+    ]);
     const result = sarif.runs[0].results[0];
     assert.strictEqual(result.locations, undefined);
   });
@@ -136,11 +142,13 @@ describe('SARIF Export', () => {
   // ── Messages ──
 
   it('builds message with tool name and action', () => {
-    const sarif = exportSarif([makeEntry({
-      tool: 'write_file',
-      action: 'security_block',
-      reason: 'Path traversal detected',
-    })]);
+    const sarif = exportSarif([
+      makeEntry({
+        tool: 'write_file',
+        action: 'security_block',
+        reason: 'Path traversal detected',
+      }),
+    ]);
     const msg = sarif.runs[0].results[0].message.text;
     assert.ok(msg.includes('write_file'));
     assert.ok(msg.includes('security block'));

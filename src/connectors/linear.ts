@@ -68,16 +68,13 @@ interface LinearGraphQLError {
 
 const LINEAR_AUTH_MESSAGE_RE = /authentication|invalid api key|unauthenticated|token expired|unauthorized/i;
 
-export function isLinearAuthError(
-  status: number,
-  body: { errors?: LinearGraphQLError[] } | undefined,
-): boolean {
+export function isLinearAuthError(status: number, body: { errors?: LinearGraphQLError[] } | undefined): boolean {
   if (status === 401) return true;
   if (status === 429) return false;
   if (status !== 200) return false;
   const errs = body?.errors ?? [];
   if (errs.length === 0) return false;
-  return errs.some(e => typeof e.message === 'string' && LINEAR_AUTH_MESSAGE_RE.test(e.message));
+  return errs.some((e) => typeof e.message === 'string' && LINEAR_AUTH_MESSAGE_RE.test(e.message));
 }
 
 // ─── HTTP wrapper ─────────────────────────────────────────────────────────
@@ -93,7 +90,7 @@ async function gql(
     const res = await fetch(ENDPOINT, {
       method: 'POST',
       headers: {
-        'Authorization': credential,
+        Authorization: credential,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ query, variables }),
@@ -101,9 +98,16 @@ async function gql(
     });
     clearTimeout(timer);
     let body: { data?: Record<string, unknown>; errors?: LinearGraphQLError[] } = {};
-    try { body = await res.json() as typeof body; } catch { body = {}; }
+    try {
+      body = (await res.json()) as typeof body;
+    } catch {
+      body = {};
+    }
     if (isLinearAuthError(res.status, body)) {
-      throw new ConnectorReauthError('linear', `Linear auth failed: HTTP ${res.status}${body.errors ? ` ${body.errors[0]?.message || ''}` : ''}`);
+      throw new ConnectorReauthError(
+        'linear',
+        `Linear auth failed: HTTP ${res.status}${body.errors ? ` ${body.errors[0]?.message || ''}` : ''}`,
+      );
     }
     return body;
   } catch (err: unknown) {
@@ -113,7 +117,7 @@ async function gql(
 }
 
 function formatErrors(errors: LinearGraphQLError[]): string {
-  return `Error: Linear API: ${errors.map(e => e.message || JSON.stringify(e)).join(', ')}`;
+  return `Error: Linear API: ${errors.map((e) => e.message || JSON.stringify(e)).join(', ')}`;
 }
 
 function truncate(text: string): string {
@@ -154,12 +158,17 @@ function previewCreateIssue(args: Record<string, unknown>): ConnectorPreview {
   const title = String(args.title ?? '');
   const teamId = String(args.team_id ?? '');
   const priority = typeof args.priority === 'number' ? args.priority : null;
-  const priorityLabel = priority === null ? '(unspecified)'
-    : ['None', 'Urgent', 'High', 'Medium', 'Low'][priority] ?? String(priority);
-  const assignee = (typeof args.assignee_id === 'string' && args.assignee_id.length > 0) ? args.assignee_id : '(unassigned)';
-  const labels = (typeof args.labels === 'string' && args.labels.length > 0)
-    ? args.labels.split(',').map(s => s.trim()).filter(Boolean)
-    : [];
+  const priorityLabel =
+    priority === null ? '(unspecified)' : (['None', 'Urgent', 'High', 'Medium', 'Low'][priority] ?? String(priority));
+  const assignee =
+    typeof args.assignee_id === 'string' && args.assignee_id.length > 0 ? args.assignee_id : '(unassigned)';
+  const labels =
+    typeof args.labels === 'string' && args.labels.length > 0
+      ? args.labels
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
   const description = typeof args.description === 'string' ? args.description : '';
   const descDigest = description.length > 0 ? hashAndLength(description) : null;
 
@@ -175,7 +184,16 @@ function previewCreateIssue(args: Record<string, unknown>): ConnectorPreview {
   ];
   return {
     summary: lines.join('\n'),
-    details: { title, teamId, priority, priorityLabel, assignee, labels, descriptionLength: descDigest?.length ?? 0, descriptionHash: descDigest?.hash ?? null },
+    details: {
+      title,
+      teamId,
+      priority,
+      priorityLabel,
+      assignee,
+      labels,
+      descriptionLength: descDigest?.length ?? 0,
+      descriptionHash: descDigest?.hash ?? null,
+    },
   };
 }
 
@@ -190,9 +208,10 @@ function previewUpdateIssue(args: Record<string, unknown>): ConnectorPreview {
   if (typeof args.state_id === 'string') changes.push(`  state_id -> ${args.state_id}`);
   if (typeof args.priority === 'number') changes.push(`  priority -> ${args.priority}`);
   if (typeof args.assignee_id === 'string') changes.push(`  assignee_id -> ${args.assignee_id}`);
-  const summary = changes.length === 0
-    ? `Would update Linear issue ${issueId} — but NO fields are set; the API call would error.`
-    : `Would update Linear issue ${issueId}:\n${changes.join('\n')}\n  Idempotency: NONE — concurrent edits between retries are unsafe.`;
+  const summary =
+    changes.length === 0
+      ? `Would update Linear issue ${issueId} — but NO fields are set; the API call would error.`
+      : `Would update Linear issue ${issueId}:\n${changes.join('\n')}\n  Idempotency: NONE — concurrent edits between retries are unsafe.`;
   return { summary, details: { issueId, changedFields: changes.length } };
 }
 
@@ -226,19 +245,26 @@ const createIssue: ConnectorAction = {
     if (args.description) input.description = args.description;
     if (args.priority !== undefined) input.priority = args.priority;
     if (args.assignee_id) input.assigneeId = args.assignee_id;
-    if (args.labels) input.labelIds = (args.labels as string).split(',').map(l => l.trim());
+    if (args.labels) input.labelIds = (args.labels as string).split(',').map((l) => l.trim());
 
     try {
-      const result = await gql(`
+      const result = await gql(
+        `
         mutation CreateIssue($input: IssueCreateInput!) {
           issueCreate(input: $input) {
             success
             issue { id identifier title url }
           }
         }
-      `, { input }, cred);
+      `,
+        { input },
+        cred,
+      );
       if (result.errors) return formatErrors(result.errors);
-      const create = result.data?.issueCreate as { success: boolean; issue: { identifier: string; title: string; url: string } };
+      const create = result.data?.issueCreate as {
+        success: boolean;
+        issue: { identifier: string; title: string; url: string };
+      };
       if (!create?.success) return 'Error: issue creation failed';
       return `Issue ${create.issue.identifier} created: ${create.issue.title}\n${create.issue.url}`;
     } catch (err: unknown) {
@@ -268,7 +294,8 @@ const listIssues: ConnectorAction = {
     const filterStr = filters.length ? `(filter: { ${filters.join(', ')} })` : '';
 
     try {
-      const result = await gql(`
+      const result = await gql(
+        `
         query ListIssues($first: Int!) {
           issues${filterStr}(first: $first, orderBy: updatedAt) {
             nodes {
@@ -280,12 +307,28 @@ const listIssues: ConnectorAction = {
             }
           }
         }
-      `, { first }, cred);
+      `,
+        { first },
+        cred,
+      );
       if (result.errors) return formatErrors(result.errors);
-      const issues = (result.data?.issues as { nodes: Array<{ identifier: string; title: string; state: { name: string }; assignee: { name: string } | null; priorityLabel: string; url: string }> })?.nodes || [];
+      const issues =
+        (
+          result.data?.issues as {
+            nodes: Array<{
+              identifier: string;
+              title: string;
+              state: { name: string };
+              assignee: { name: string } | null;
+              priorityLabel: string;
+              url: string;
+            }>;
+          }
+        )?.nodes || [];
       if (!issues.length) return 'No issues found.';
-      const lines = issues.map(i =>
-        `  ${i.identifier} [${i.state?.name}] ${i.title} (${i.assignee?.name || 'unassigned'}, ${i.priorityLabel})`
+      const lines = issues.map(
+        (i) =>
+          `  ${i.identifier} [${i.state?.name}] ${i.title} (${i.assignee?.name || 'unassigned'}, ${i.priorityLabel})`,
       );
       return truncate(`Issues (${issues.length}):\n${lines.join('\n')}`);
     } catch (err: unknown) {
@@ -328,16 +371,23 @@ const updateIssue: ConnectorAction = {
     if (Object.keys(input).length === 0) return 'Error: at least one field to update is required';
 
     try {
-      const result = await gql(`
+      const result = await gql(
+        `
         mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
           issueUpdate(id: $id, input: $input) {
             success
             issue { identifier title url }
           }
         }
-      `, { id: issueId, input }, cred);
+      `,
+        { id: issueId, input },
+        cred,
+      );
       if (result.errors) return formatErrors(result.errors);
-      const update = result.data?.issueUpdate as { success: boolean; issue: { identifier: string; title: string; url: string } };
+      const update = result.data?.issueUpdate as {
+        success: boolean;
+        issue: { identifier: string; title: string; url: string };
+      };
       if (!update?.success) return 'Error: issue update failed';
       return `Issue ${update.issue.identifier} updated: ${update.issue.title}`;
     } catch (err: unknown) {
@@ -354,7 +404,8 @@ const listTeams: ConnectorAction = {
   capabilities: ['read-only', 'account-access', 'net-fetch'],
   execute: async (_args, cred) => {
     try {
-      const result = await gql(`
+      const result = await gql(
+        `
         query ListTeams {
           teams {
             nodes {
@@ -364,13 +415,28 @@ const listTeams: ConnectorAction = {
             }
           }
         }
-      `, {}, cred);
+      `,
+        {},
+        cred,
+      );
       if (result.errors) return formatErrors(result.errors);
-      const teams = (result.data?.teams as { nodes: Array<{ id: string; name: string; key: string; description: string; members: { nodes: Array<{ name: string }> }; states: { nodes: Array<{ id: string; name: string }> } }> })?.nodes || [];
+      const teams =
+        (
+          result.data?.teams as {
+            nodes: Array<{
+              id: string;
+              name: string;
+              key: string;
+              description: string;
+              members: { nodes: Array<{ name: string }> };
+              states: { nodes: Array<{ id: string; name: string }> };
+            }>;
+          }
+        )?.nodes || [];
       if (!teams.length) return 'No teams found.';
-      const lines = teams.map(t => {
+      const lines = teams.map((t) => {
         const members = t.members?.nodes?.length || 0;
-        const states = t.states?.nodes?.map(s => s.name).join(', ') || 'N/A';
+        const states = t.states?.nodes?.map((s) => s.name).join(', ') || 'N/A';
         return `  ${t.key} - ${t.name} (${members} members)\n    ID: ${t.id}\n    States: ${states}${t.description ? `\n    ${t.description}` : ''}`;
       });
       return truncate(`Teams (${teams.length}):\n${lines.join('\n')}`);

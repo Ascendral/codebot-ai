@@ -76,8 +76,8 @@ export function isGoogleDriveAuthError(status: number, body: GoogleApiError | un
   if (status === 401) return true;
   if (status !== 403) return false;
   const errs = body?.error?.errors ?? [];
-  if (errs.some(e => e.reason && GOOGLE_NON_AUTH_403_REASONS.has(e.reason))) return false;
-  if (errs.some(e => e.reason && GOOGLE_AUTH_REASONS.has(e.reason))) return true;
+  if (errs.some((e) => e.reason && GOOGLE_NON_AUTH_403_REASONS.has(e.reason))) return false;
+  if (errs.some((e) => e.reason && GOOGLE_AUTH_REASONS.has(e.reason))) return true;
   return false;
 }
 
@@ -95,7 +95,7 @@ async function driveFetch(
     const res = await fetch(`${DRIVE_API}${endpoint}`, {
       method,
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: body ? JSON.stringify(body) : undefined,
@@ -104,7 +104,11 @@ async function driveFetch(
     clearTimeout(timer);
     let data: Record<string, unknown> = {};
     if (res.status !== 204) {
-      try { data = (await res.json()) as Record<string, unknown>; } catch { data = {}; }
+      try {
+        data = (await res.json()) as Record<string, unknown>;
+      } catch {
+        data = {};
+      }
     }
     if (isGoogleDriveAuthError(res.status, data as GoogleApiError)) {
       throw new ConnectorReauthError('google_drive', `Google Drive auth failed: HTTP ${res.status}`);
@@ -244,7 +248,7 @@ const readFile: ConnectorAction = {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), TIMEOUT);
       const res = await fetch(exportUrl, {
-        headers: { 'Authorization': `Bearer ${cred}` },
+        headers: { Authorization: `Bearer ${cred}` },
         signal: controller.signal,
       });
       clearTimeout(timer);
@@ -252,7 +256,10 @@ const readFile: ConnectorAction = {
       if (isGoogleDriveAuthError(res.status, undefined)) {
         // Body may not be JSON for the export endpoint on auth failures;
         // we already know the status is auth-class so throw directly.
-        throw new ConnectorReauthError('google_drive', `Google Drive auth failed reading "${name}": HTTP ${res.status}`);
+        throw new ConnectorReauthError(
+          'google_drive',
+          `Google Drive auth failed reading "${name}": HTTP ${res.status}`,
+        );
       }
       if (!res.ok) return `Error: Drive API ${res.status} reading file "${name}"`;
 
@@ -288,7 +295,7 @@ const getFileInfo: ConnectorAction = {
       if (status !== 200) return `Error: Drive API ${status}: ${JSON.stringify(data).substring(0, 200)}`;
 
       const owners = (data.owners as Array<{ displayName: string; emailAddress: string }>) || [];
-      const ownerStr = owners.map(o => `${o.displayName} <${o.emailAddress}>`).join(', ');
+      const ownerStr = owners.map((o) => `${o.displayName} <${o.emailAddress}>`).join(', ');
       const size = data.size ? `${Math.round(Number(data.size) / 1024)}KB` : 'N/A';
 
       return [
@@ -301,7 +308,9 @@ const getFileInfo: ConnectorAction = {
         `Owner: ${ownerStr || 'unknown'}`,
         `Shared: ${data.shared ? 'Yes' : 'No'}`,
         data.webViewLink ? `Link: ${data.webViewLink}` : '',
-      ].filter(Boolean).join('\n');
+      ]
+        .filter(Boolean)
+        .join('\n');
     } catch (err: unknown) {
       if (err instanceof ConnectorReauthError) throw err;
       return `Error: ${err instanceof Error ? err.message : String(err)}`;

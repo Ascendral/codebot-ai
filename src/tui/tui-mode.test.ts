@@ -73,7 +73,9 @@ describe('TuiMode', () => {
     let permFnSet = false;
     const agent = {
       ...createMockAgent(),
-      setAskPermission: () => { permFnSet = true; },
+      setAskPermission: () => {
+        permFnSet = true;
+      },
     };
     new TuiMode(agent);
     assert.strictEqual(permFnSet, true);

@@ -58,9 +58,7 @@ function isContained(root: string, target: string): boolean {
   return true;
 }
 
-export type SqlitePlan =
-  | { command: 'sqlite3'; argv: string[] }
-  | { error: string };
+export type SqlitePlan = { command: 'sqlite3'; argv: string[] } | { error: string };
 
 export class DatabaseTool implements Tool {
   name = 'database';
@@ -130,7 +128,10 @@ export class DatabaseTool implements Tool {
         return { command: 'sqlite3', argv: [dbResolved, '.schema'] };
       }
       case 'info':
-        return { command: 'sqlite3', argv: [dbResolved, "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"] };
+        return {
+          command: 'sqlite3',
+          argv: [dbResolved, "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"],
+        };
       default:
         return { error: `Error: unknown action "${action}". Use: query, tables, schema, info` };
     }

@@ -96,7 +96,9 @@ function cmdSessions() {
   console.log(c('\nSaved sessions:', 'bold'));
   for (const s of sessions) {
     const date = s.updated ? new Date(s.updated).toLocaleString() : 'unknown';
-    console.log(`  ${c(s.id.substring(0, 8), 'cyan')}  ${date}  ${s.messageCount} msgs  ${c(s.preview || '(empty)', 'dim')}`);
+    console.log(
+      `  ${c(s.id.substring(0, 8), 'cyan')}  ${date}  ${s.messageCount} msgs  ${c(s.preview || '(empty)', 'dim')}`,
+    );
   }
   console.log(c('\nResume with: codebot --resume <id>', 'dim'));
 }
@@ -203,7 +205,7 @@ function cmdTheme(rest: string[]) {
 }
 
 function cmdDoctor() {
-  runDoctor().then(report => {
+  runDoctor().then((report) => {
     console.log(formatDoctorReport(report));
   });
 }
@@ -241,7 +243,7 @@ function cmdApps() {
       const status = connected ? c('connected', 'green') : c('not connected', 'dim');
       const envHint = conn.envKey ? c(` (${conn.envKey})`, 'dim') : '';
       console.log(`  ${conn.displayName} [${conn.name}]: ${status}${envHint}`);
-      console.log(`    Actions: ${conn.actions.map((a: {name: string}) => a.name).join(', ')}`);
+      console.log(`    Actions: ${conn.actions.map((a: { name: string }) => a.name).join(', ')}`);
     }
     console.log(c('\nConnect with: /connect <app> or set env var', 'dim'));
   } catch {
@@ -265,30 +267,30 @@ function cmdConnect(rest: string[]) {
 type Handler = (agent: Agent, config: Config, rest: string[]) => void;
 
 const COMMAND_TABLE: Record<string, Handler> = {
-  '/help':      (_a, _c, _r) => cmdHelp(),
-  '/model':     (a, c, r) => cmdModel(a, c, r),
-  '/models':    () => showModels(),
-  '/clear':     (a) => cmdClear(a),
-  '/compact':   (a) => cmdCompact(a),
-  '/auto':      (a, c) => cmdAuto(a, c),
-  '/sessions':  () => cmdSessions(),
-  '/undo':      (_a, _c, r) => cmdUndo(r),
-  '/usage':     (a) => cmdUsage(a),
-  '/cost':      (a) => cmdCost(a),
-  '/metrics':   (a) => cmdMetrics(a),
-  '/risk':      (a) => cmdRisk(a),
-  '/policy':    (a) => cmdPolicy(a),
-  '/audit':     (a) => cmdAudit(a),
-  '/routines':  () => cmdRoutines(),
-  '/rate':      (a) => cmdRate(a),
-  '/theme':     (_a, _c, r) => cmdTheme(r),
-  '/doctor':    () => cmdDoctor(),
-  '/toolcost':  (a) => cmdToolcost(a),
-  '/config':    (_a, c) => cmdConfig(c),
-  '/apps':      () => cmdApps(),
-  '/connect':   (_a, _c, r) => cmdConnect(r),
-  '/quit':      () => process.exit(0),
-  '/exit':      () => process.exit(0),
+  '/help': (_a, _c, _r) => cmdHelp(),
+  '/model': (a, c, r) => cmdModel(a, c, r),
+  '/models': () => showModels(),
+  '/clear': (a) => cmdClear(a),
+  '/compact': (a) => cmdCompact(a),
+  '/auto': (a, c) => cmdAuto(a, c),
+  '/sessions': () => cmdSessions(),
+  '/undo': (_a, _c, r) => cmdUndo(r),
+  '/usage': (a) => cmdUsage(a),
+  '/cost': (a) => cmdCost(a),
+  '/metrics': (a) => cmdMetrics(a),
+  '/risk': (a) => cmdRisk(a),
+  '/policy': (a) => cmdPolicy(a),
+  '/audit': (a) => cmdAudit(a),
+  '/routines': () => cmdRoutines(),
+  '/rate': (a) => cmdRate(a),
+  '/theme': (_a, _c, r) => cmdTheme(r),
+  '/doctor': () => cmdDoctor(),
+  '/toolcost': (a) => cmdToolcost(a),
+  '/config': (_a, c) => cmdConfig(c),
+  '/apps': () => cmdApps(),
+  '/connect': (_a, _c, r) => cmdConnect(r),
+  '/quit': () => process.exit(0),
+  '/exit': () => process.exit(0),
 };
 
 export function handleSlashCommand(input: string, agent: Agent, config: Config) {

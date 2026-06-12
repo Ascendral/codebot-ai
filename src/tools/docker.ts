@@ -34,8 +34,19 @@ import * as path from 'path';
 import { Tool, CapabilityLabel } from '../types';
 
 const ALLOWED_ACTIONS = [
-  'ps', 'images', 'run', 'stop', 'rm', 'build', 'logs', 'exec',
-  'compose_up', 'compose_down', 'compose_ps', 'inspect', 'pull',
+  'ps',
+  'images',
+  'run',
+  'stop',
+  'rm',
+  'build',
+  'logs',
+  'exec',
+  'compose_up',
+  'compose_down',
+  'compose_ps',
+  'inspect',
+  'pull',
 ];
 
 /**
@@ -43,19 +54,19 @@ const ALLOWED_ACTIONS = [
  * never from agent input.
  */
 const ACTION_PREFIX: Record<string, string[]> = {
-  ps:            ['ps'],
-  images:        ['images'],
-  run:           ['run'],
-  stop:          ['stop'],
-  rm:            ['rm'],
-  build:         ['build'],
-  logs:          ['logs', '--tail', '100'],
-  exec:          ['exec'],
-  inspect:       ['inspect'],
-  pull:          ['pull'],
-  compose_up:    ['compose', 'up', '-d'],
-  compose_down:  ['compose', 'down'],
-  compose_ps:    ['compose', 'ps'],
+  ps: ['ps'],
+  images: ['images'],
+  run: ['run'],
+  stop: ['stop'],
+  rm: ['rm'],
+  build: ['build'],
+  logs: ['logs', '--tail', '100'],
+  exec: ['exec'],
+  inspect: ['inspect'],
+  pull: ['pull'],
+  compose_up: ['compose', 'up', '-d'],
+  compose_down: ['compose', 'down'],
+  compose_ps: ['compose', 'ps'],
 };
 
 /**
@@ -102,13 +113,12 @@ function findBlockedFlag(argv: string[]): string | null {
   return null;
 }
 
-export type DockerPlan =
-  | { command: 'docker'; argv: string[]; cwd: string }
-  | { error: string };
+export type DockerPlan = { command: 'docker'; argv: string[]; cwd: string } | { error: string };
 
 export class DockerTool implements Tool {
   name = 'docker';
-  description = 'Run Docker operations. Actions: ps, images, run, stop, rm, build, logs, exec, compose_up, compose_down, compose_ps, inspect, pull. `args` MUST be a string array (e.g., ["-d", "--name", "nginx", "nginx:latest"]). String args are rejected.';
+  description =
+    'Run Docker operations. Actions: ps, images, run, stop, rm, build, logs, exec, compose_up, compose_down, compose_ps, inspect, pull. `args` MUST be a string array (e.g., ["-d", "--name", "nginx", "nginx:latest"]). String args are rejected.';
   permission: Tool['permission'] = 'prompt';
   capabilities: CapabilityLabel[] = ['write-fs', 'run-cmd', 'net-fetch'];
   /**
@@ -126,7 +136,8 @@ export class DockerTool implements Tool {
       args: {
         type: 'array',
         items: { type: 'string' },
-        description: 'Docker flags/args as a string array. Each element becomes one argv token, never interpreted by a shell. Example: ["-d", "--name", "nginx", "nginx:latest"]',
+        description:
+          'Docker flags/args as a string array. Each element becomes one argv token, never interpreted by a shell. Example: ["-d", "--name", "nginx", "nginx:latest"]',
       },
       cwd: { type: 'string', description: 'Working directory (must be inside projectRoot)' },
     },
@@ -150,9 +161,12 @@ export class DockerTool implements Tool {
     let extra: string[] = [];
     if (args.args !== undefined && args.args !== null) {
       if (typeof args.args === 'string') {
-        return { error: 'Error: docker args must be a string array (e.g., ["-d", "--name", "nginx"]). Pass each flag/value as its own array element. String args are rejected to avoid silent shell-quoting bugs.' };
+        return {
+          error:
+            'Error: docker args must be a string array (e.g., ["-d", "--name", "nginx"]). Pass each flag/value as its own array element. String args are rejected to avoid silent shell-quoting bugs.',
+        };
       }
-      if (!Array.isArray(args.args) || !args.args.every(a => typeof a === 'string')) {
+      if (!Array.isArray(args.args) || !args.args.every((a) => typeof a === 'string')) {
         return { error: 'Error: docker args must be an array of strings' };
       }
       extra = args.args as string[];

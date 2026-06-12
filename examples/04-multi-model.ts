@@ -25,16 +25,13 @@ interface ModelConfig {
 const models: ModelConfig[] = [
   {
     name: 'Claude Sonnet',
-    provider: () => process.env.ANTHROPIC_API_KEY
-      ? new AnthropicProvider({ apiKey: process.env.ANTHROPIC_API_KEY })
-      : null,
+    provider: () =>
+      process.env.ANTHROPIC_API_KEY ? new AnthropicProvider({ apiKey: process.env.ANTHROPIC_API_KEY }) : null,
     model: 'claude-sonnet-4-20250514',
   },
   {
     name: 'GPT-4o',
-    provider: () => process.env.OPENAI_API_KEY
-      ? new OpenAIProvider({ apiKey: process.env.OPENAI_API_KEY })
-      : null,
+    provider: () => (process.env.OPENAI_API_KEY ? new OpenAIProvider({ apiKey: process.env.OPENAI_API_KEY }) : null),
     model: 'gpt-4o',
   },
   {
@@ -89,5 +86,7 @@ async function compareModels(prompt: string) {
   }
 }
 
-const prompt = process.argv[2] || 'Write a TypeScript function that checks if a string is a valid email address. Just the function, no explanation.';
+const prompt =
+  process.argv[2] ||
+  'Write a TypeScript function that checks if a string is a valid email address. Just the function, no explanation.';
 compareModels(prompt).catch(console.error);

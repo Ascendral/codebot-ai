@@ -111,11 +111,11 @@ const RULES: SarifRule[] = [
 ];
 
 const ACTION_TO_RULE: Record<string, { ruleId: string; level: 'error' | 'warning' | 'note' }> = {
-  security_block:   { ruleId: 'CB001', level: 'error' },
-  policy_block:     { ruleId: 'CB002', level: 'warning' },
+  security_block: { ruleId: 'CB001', level: 'error' },
+  policy_block: { ruleId: 'CB002', level: 'warning' },
   capability_block: { ruleId: 'CB003', level: 'warning' },
-  error:            { ruleId: 'CB004', level: 'note' },
-  deny:             { ruleId: 'CB005', level: 'note' },
+  error: { ruleId: 'CB004', level: 'note' },
+  deny: { ruleId: 'CB005', level: 'note' },
 };
 
 // ── Export Functions ──
@@ -151,11 +151,13 @@ export function exportSarif(entries: AuditEntry[], options?: SarifExportOptions)
       // Add file location if available
       const filePath = extractFilePath(entry);
       if (filePath) {
-        result.locations = [{
-          physicalLocation: {
-            artifactLocation: { uri: filePath },
+        result.locations = [
+          {
+            physicalLocation: {
+              artifactLocation: { uri: filePath },
+            },
           },
-        }];
+        ];
       }
 
       results.push(result);
@@ -174,41 +176,47 @@ export function exportSarif(entries: AuditEntry[], options?: SarifExportOptions)
     return {
       $schema: 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json',
       version: '2.1.0',
-      runs: [{
-        tool: {
-          driver: {
-            name: 'CodeBot',
-            version,
-            informationUri: 'https://github.com/Ascendral/codebot-ai',
-            rules: RULES,
+      runs: [
+        {
+          tool: {
+            driver: {
+              name: 'CodeBot',
+              version,
+              informationUri: 'https://github.com/Ascendral/codebot-ai',
+              rules: RULES,
+            },
           },
+          results,
+          invocations: [
+            {
+              executionSuccessful: results.every((r) => r.level !== 'error'),
+              startTimeUtc: startTime,
+              endTimeUtc: endTime,
+              properties: options?.sessionId ? { sessionId: options.sessionId } : undefined,
+            },
+          ],
         },
-        results,
-        invocations: [{
-          executionSuccessful: results.every(r => r.level !== 'error'),
-          startTimeUtc: startTime,
-          endTimeUtc: endTime,
-          properties: options?.sessionId ? { sessionId: options.sessionId } : undefined,
-        }],
-      }],
+      ],
     };
   } catch {
     // Fail-safe: return minimal valid SARIF
     return {
       $schema: 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json',
       version: '2.1.0',
-      runs: [{
-        tool: {
-          driver: {
-            name: 'CodeBot',
-            version: options?.version || '1.9.0',
-            informationUri: 'https://github.com/Ascendral/codebot-ai',
-            rules: RULES,
+      runs: [
+        {
+          tool: {
+            driver: {
+              name: 'CodeBot',
+              version: options?.version || '1.9.0',
+              informationUri: 'https://github.com/Ascendral/codebot-ai',
+              rules: RULES,
+            },
           },
+          results: [],
+          invocations: [{ executionSuccessful: true }],
         },
-        results: [],
-        invocations: [{ executionSuccessful: true }],
-      }],
+      ],
     };
   }
 }

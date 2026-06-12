@@ -99,9 +99,15 @@ describe('Sidebar Provider Logic', () => {
 
     function handleMessage(msg: { type: string }) {
       switch (msg.type) {
-        case 'sendMessage': dispatched.push('send'); break;
-        case 'cancelSession': dispatched.push('cancel'); break;
-        case 'clearHistory': dispatched.push('clear'); break;
+        case 'sendMessage':
+          dispatched.push('send');
+          break;
+        case 'cancelSession':
+          dispatched.push('cancel');
+          break;
+        case 'clearHistory':
+          dispatched.push('clear');
+          break;
       }
     }
 

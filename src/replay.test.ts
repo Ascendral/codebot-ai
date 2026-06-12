@@ -5,16 +5,14 @@ import { Message } from './types';
 
 describe('ReplayProvider', () => {
   it('yields recorded text content', async () => {
-    const assistantMsgs: Message[] = [
-      { role: 'assistant', content: 'Hello from replay' },
-    ];
+    const assistantMsgs: Message[] = [{ role: 'assistant', content: 'Hello from replay' }];
     const provider = new ReplayProvider(assistantMsgs);
     const events = [];
     for await (const event of provider.chat([])) {
       events.push(event);
     }
-    assert.ok(events.some(e => e.type === 'text' && e.text === 'Hello from replay'));
-    assert.ok(events.some(e => e.type === 'done'));
+    assert.ok(events.some((e) => e.type === 'text' && e.text === 'Hello from replay'));
+    assert.ok(events.some((e) => e.type === 'done'));
   });
 
   it('yields recorded tool calls', async () => {
@@ -22,11 +20,13 @@ describe('ReplayProvider', () => {
       {
         role: 'assistant',
         content: 'Let me check',
-        tool_calls: [{
-          id: 'tc_1',
-          type: 'function',
-          function: { name: 'read_file', arguments: '{"path":"test.ts"}' },
-        }],
+        tool_calls: [
+          {
+            id: 'tc_1',
+            type: 'function',
+            function: { name: 'read_file', arguments: '{"path":"test.ts"}' },
+          },
+        ],
       },
     ];
     const provider = new ReplayProvider(assistantMsgs);
@@ -34,8 +34,8 @@ describe('ReplayProvider', () => {
     for await (const event of provider.chat([])) {
       events.push(event);
     }
-    assert.ok(events.some(e => e.type === 'tool_call_end'));
-    assert.ok(events.some(e => e.type === 'text' && e.text === 'Let me check'));
+    assert.ok(events.some((e) => e.type === 'tool_call_end'));
+    assert.ok(events.some((e) => e.type === 'text' && e.text === 'Let me check'));
   });
 
   it('handles exhausted responses gracefully', async () => {
@@ -44,8 +44,8 @@ describe('ReplayProvider', () => {
     for await (const event of provider.chat([])) {
       events.push(event);
     }
-    assert.ok(events.some(e => e.type === 'text' && e.text?.includes('no more recorded')));
-    assert.ok(events.some(e => e.type === 'done'));
+    assert.ok(events.some((e) => e.type === 'text' && e.text?.includes('no more recorded')));
+    assert.ok(events.some((e) => e.type === 'done'));
   });
 
   it('advances through multiple calls', async () => {
@@ -58,12 +58,12 @@ describe('ReplayProvider', () => {
     // First call
     const events1 = [];
     for await (const e of provider.chat([])) events1.push(e);
-    assert.ok(events1.some(e => e.text === 'First response'));
+    assert.ok(events1.some((e) => e.text === 'First response'));
 
     // Second call
     const events2 = [];
     for await (const e of provider.chat([])) events2.push(e);
-    assert.ok(events2.some(e => e.text === 'Second response'));
+    assert.ok(events2.some((e) => e.text === 'Second response'));
   });
 });
 

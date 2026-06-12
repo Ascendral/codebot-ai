@@ -518,8 +518,7 @@ describe('DatabaseTool', () => {
     const tool = registry.get('database')!;
     const missing = path.join(dbDir, `codebot-missing-${Date.now()}.sqlite`);
     const result = await tool.execute({ action: 'tables', db: missing });
-    assert.ok(result.includes('Error: database not found'),
-      `Expected "Error: database not found" in: ${result}`);
+    assert.ok(result.includes('Error: database not found'), `Expected "Error: database not found" in: ${result}`);
   });
 });
 
@@ -702,8 +701,7 @@ describe('DockerTool', () => {
     const registry = new ToolRegistry();
     const tool = registry.get('docker')!;
     const result = await tool.execute({ action: 'run', args: ['--privileged', 'ubuntu'] });
-    assert.ok(result.includes('blocked'),
-      `Expected "blocked" in: ${result}`);
+    assert.ok(result.includes('blocked'), `Expected "blocked" in: ${result}`);
   });
 
   it('returns error for unknown action', async () => {

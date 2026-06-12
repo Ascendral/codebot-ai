@@ -46,7 +46,7 @@ export class MultiSearchTool implements Tool {
 
     if (top.length === 0) return `No results for "${query}".`;
 
-    const lines = top.map(r => {
+    const lines = top.map((r) => {
       const tag = r.type === 'filename' ? '[file]' : r.type === 'symbol' ? '[symbol]' : '[content]';
       const loc = r.line ? `:${r.line}` : '';
       const preview = r.text ? ` — ${r.text.substring(0, 80)}` : '';
@@ -58,10 +58,34 @@ export class MultiSearchTool implements Tool {
 
   private searchDir(dir: string, query: string, parts: string[], results: SearchResult[]): void {
     const skip = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '__pycache__', '.next']);
-    const codeExts = new Set(['.ts', '.js', '.tsx', '.jsx', '.py', '.go', '.rs', '.java', '.rb', '.c', '.cpp', '.h', '.css', '.html', '.json', '.md', '.yaml', '.yml', '.toml']);
+    const codeExts = new Set([
+      '.ts',
+      '.js',
+      '.tsx',
+      '.jsx',
+      '.py',
+      '.go',
+      '.rs',
+      '.java',
+      '.rb',
+      '.c',
+      '.cpp',
+      '.h',
+      '.css',
+      '.html',
+      '.json',
+      '.md',
+      '.yaml',
+      '.yml',
+      '.toml',
+    ]);
 
     let entries: fs.Dirent[];
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
 
     for (const entry of entries) {
       if (entry.name.startsWith('.') || skip.has(entry.name)) continue;
@@ -108,7 +132,9 @@ export class MultiSearchTool implements Tool {
               }
             }
           }
-        } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
       }
     }
   }
@@ -119,9 +145,9 @@ export class MultiSearchTool implements Tool {
     // Contains full query
     if (target.includes(query)) return 7;
     // All parts present
-    if (parts.every(p => target.includes(p))) return 5;
+    if (parts.every((p) => target.includes(p))) return 5;
     // Some parts present
-    const matched = parts.filter(p => target.includes(p)).length;
+    const matched = parts.filter((p) => target.includes(p)).length;
     if (matched > 0) return matched * 2;
     return 0;
   }

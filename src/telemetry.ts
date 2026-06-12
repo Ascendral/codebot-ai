@@ -13,40 +13,40 @@ import * as path from 'path';
 // ── Pricing (per 1M tokens, in USD) ──
 
 interface ModelPricing {
-  input: number;   // per 1M input tokens
-  output: number;  // per 1M output tokens
+  input: number; // per 1M input tokens
+  output: number; // per 1M output tokens
 }
 
 const PRICING: Record<string, ModelPricing> = {
   // Anthropic
-  'claude-opus-4-6':       { input: 15.0,  output: 75.0 },
-  'claude-sonnet-4-20250514':     { input: 3.0,   output: 15.0 },
-  'claude-haiku-3-5':      { input: 0.80,  output: 4.0 },
+  'claude-opus-4-6': { input: 15.0, output: 75.0 },
+  'claude-sonnet-4-20250514': { input: 3.0, output: 15.0 },
+  'claude-haiku-3-5': { input: 0.8, output: 4.0 },
   // OpenAI
-  'gpt-4o':                { input: 2.50,  output: 10.0 },
-  'gpt-4o-mini':           { input: 0.15,  output: 0.60 },
-  'gpt-4.1':               { input: 2.0,   output: 8.0 },
-  'gpt-4.1-mini':          { input: 0.40,  output: 1.60 },
-  'gpt-4.1-nano':          { input: 0.10,  output: 0.40 },
-  'o1':                    { input: 15.0,  output: 60.0 },
-  'o3':                    { input: 10.0,  output: 40.0 },
-  'o3-mini':               { input: 1.10,  output: 4.40 },
-  'o4-mini':               { input: 1.10,  output: 4.40 },
+  'gpt-4o': { input: 2.5, output: 10.0 },
+  'gpt-4o-mini': { input: 0.15, output: 0.6 },
+  'gpt-4.1': { input: 2.0, output: 8.0 },
+  'gpt-4.1-mini': { input: 0.4, output: 1.6 },
+  'gpt-4.1-nano': { input: 0.1, output: 0.4 },
+  o1: { input: 15.0, output: 60.0 },
+  o3: { input: 10.0, output: 40.0 },
+  'o3-mini': { input: 1.1, output: 4.4 },
+  'o4-mini': { input: 1.1, output: 4.4 },
   // Google
-  'gemini-2.5-pro':        { input: 1.25,  output: 10.0 },
-  'gemini-2.5-flash':      { input: 0.15,  output: 0.60 },
-  'gemini-2.0-flash':      { input: 0.10,  output: 0.40 },
+  'gemini-2.5-pro': { input: 1.25, output: 10.0 },
+  'gemini-2.5-flash': { input: 0.15, output: 0.6 },
+  'gemini-2.0-flash': { input: 0.1, output: 0.4 },
   // DeepSeek
-  'deepseek-chat':         { input: 0.14,  output: 0.28 },
-  'deepseek-reasoner':     { input: 0.55,  output: 2.19 },
+  'deepseek-chat': { input: 0.14, output: 0.28 },
+  'deepseek-reasoner': { input: 0.55, output: 2.19 },
   // Groq (free tier pricing)
   'llama-3.3-70b-versatile': { input: 0.59, output: 0.79 },
   // Mistral
-  'mistral-large-latest':  { input: 2.0,   output: 6.0 },
-  'codestral-latest':      { input: 0.30,  output: 0.90 },
+  'mistral-large-latest': { input: 2.0, output: 6.0 },
+  'codestral-latest': { input: 0.3, output: 0.9 },
   // xAI
-  'grok-3':                { input: 3.0,   output: 15.0 },
-  'grok-3-mini':           { input: 0.30,  output: 0.50 },
+  'grok-3': { input: 3.0, output: 15.0 },
+  'grok-3-mini': { input: 0.3, output: 0.5 },
 };
 
 // Default pricing for unknown models (conservative estimate)
@@ -86,7 +86,8 @@ export class TokenTracker {
   private records: UsageRecord[] = [];
   private toolCallCount: number = 0;
   private filesModifiedSet: Set<string> = new Set();
-  private toolCosts: Map<string, { inputTokens: number; outputTokens: number; costUsd: number; calls: number }> = new Map();
+  private toolCosts: Map<string, { inputTokens: number; outputTokens: number; costUsd: number; calls: number }> =
+    new Map();
   private startTime: string;
   private costLimitUsd: number = 0;
 
@@ -146,9 +147,23 @@ export class TokenTracker {
   }
 
   /** Get per-tool cost breakdown */
-  getToolCostBreakdown(): Array<{ tool: string; inputTokens: number; outputTokens: number; costUsd: number; calls: number; pctOfTotal: number }> {
+  getToolCostBreakdown(): Array<{
+    tool: string;
+    inputTokens: number;
+    outputTokens: number;
+    costUsd: number;
+    calls: number;
+    pctOfTotal: number;
+  }> {
     const totalCost = this.getTotalCost();
-    const breakdown: Array<{ tool: string; inputTokens: number; outputTokens: number; costUsd: number; calls: number; pctOfTotal: number }> = [];
+    const breakdown: Array<{
+      tool: string;
+      inputTokens: number;
+      outputTokens: number;
+      costUsd: number;
+      calls: number;
+      pctOfTotal: number;
+    }> = [];
     for (const [tool, data] of this.toolCosts) {
       breakdown.push({
         tool,
@@ -170,7 +185,9 @@ export class TokenTracker {
       const tokens = `${entry.inputTokens + entry.outputTokens}`;
       const cost = entry.costUsd === 0 ? 'free' : `$${entry.costUsd.toFixed(4)}`;
       const pct = entry.pctOfTotal.toFixed(1) + '%';
-      lines.push('  ' + entry.tool.padEnd(20) + String(entry.calls).padEnd(8) + tokens.padEnd(14) + cost.padEnd(12) + pct);
+      lines.push(
+        '  ' + entry.tool.padEnd(20) + String(entry.calls).padEnd(8) + tokens.padEnd(14) + cost.padEnd(12) + pct,
+      );
     }
     return lines.join('\n');
   }
@@ -266,14 +283,13 @@ export class TokenTracker {
       const usageDir = codebotPath('usage');
       if (!fs.existsSync(usageDir)) return [];
 
-      const files = fs.readdirSync(usageDir)
-        .filter(f => f.startsWith('usage-') && f.endsWith('.jsonl'))
+      const files = fs
+        .readdirSync(usageDir)
+        .filter((f) => f.startsWith('usage-') && f.endsWith('.jsonl'))
         .sort();
 
       // Filter by date range if specified
-      const cutoff = days
-        ? new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
-        : undefined;
+      const cutoff = days ? new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString() : undefined;
 
       for (const file of files) {
         const content = fs.readFileSync(path.join(usageDir, file), 'utf-8');
@@ -283,7 +299,9 @@ export class TokenTracker {
             const summary = JSON.parse(line) as SessionSummary;
             if (cutoff && summary.startTime < cutoff) continue;
             summaries.push(summary);
-          } catch { /* skip malformed */ }
+          } catch {
+            /* skip malformed */
+          }
         }
       }
     } catch {
@@ -346,14 +364,15 @@ export class TokenTracker {
 
   private isLocalModel(): boolean {
     // Models running on Ollama, LM Studio, vLLM are free
-    return !this.provider ||
+    return (
+      !this.provider ||
       this.provider === 'ollama' ||
       this.provider === 'lmstudio' ||
       this.provider === 'vllm' ||
-      this.provider === 'local';
+      this.provider === 'local'
+    );
   }
 }
-
 
 // ── Cost Estimation (v2.2.0) ──
 

@@ -67,7 +67,7 @@ async function drainRun(agent: Agent, msg: string): Promise<AgentEvent[]> {
 }
 
 function readAuditRows(auditDir: string): Array<Record<string, unknown>> {
-  const files = fs.readdirSync(auditDir).filter(f => f.startsWith('audit-'));
+  const files = fs.readdirSync(auditDir).filter((f) => f.startsWith('audit-'));
   const rows: Array<Record<string, unknown>> = [];
   for (const f of files) {
     const lines = fs.readFileSync(path.join(auditDir, f), 'utf-8').split('\n').filter(Boolean);
@@ -94,22 +94,30 @@ describe('PR 11/26 — per-action resolution unblocks read connector actions', (
       args: { action: 'github.list_prs', owner: 'X', repo: 'Y', state: 'open' },
     });
     const agent = new Agent({
-      auditDir, provider,
-      model: 'claude-sonnet-4-6', providerName: 'anthropic',
-      maxIterations: 2, autoApprove: true,
+      auditDir,
+      provider,
+      model: 'claude-sonnet-4-6',
+      providerName: 'anthropic',
+      maxIterations: 2,
+      autoApprove: true,
       allowedCapabilities: parseAllowCapabilityFlag('account-access,net-fetch'),
     });
 
     await drainRun(agent, 'list prs');
 
     const rows = readAuditRows(auditDir);
-    const blockRow = rows.find(r =>
-      r.tool === 'app' && r.action === 'deny' &&
-      typeof r.reason === 'string' &&
-      r.reason.startsWith('blocked: required capability labels'),
+    const blockRow = rows.find(
+      (r) =>
+        r.tool === 'app' &&
+        r.action === 'deny' &&
+        typeof r.reason === 'string' &&
+        r.reason.startsWith('blocked: required capability labels'),
     );
-    assert.strictEqual(blockRow, undefined,
-      `read action with allowlisted labels must NOT be blocked; saw ${JSON.stringify(blockRow)}`);
+    assert.strictEqual(
+      blockRow,
+      undefined,
+      `read action with allowlisted labels must NOT be blocked; saw ${JSON.stringify(blockRow)}`,
+    );
   });
 
   // PR 26 — without the allowlist, --auto-approve alone is not enough
@@ -122,22 +130,27 @@ describe('PR 11/26 — per-action resolution unblocks read connector actions', (
       args: { action: 'github.list_prs', owner: 'X', repo: 'Y', state: 'open' },
     });
     const agent = new Agent({
-      auditDir, provider,
-      model: 'claude-sonnet-4-6', providerName: 'anthropic',
-      maxIterations: 2, autoApprove: true,
+      auditDir,
+      provider,
+      model: 'claude-sonnet-4-6',
+      providerName: 'anthropic',
+      maxIterations: 2,
+      autoApprove: true,
       // no allowedCapabilities
     });
 
     await drainRun(agent, 'list prs');
 
     const rows = readAuditRows(auditDir);
-    const blockRow = rows.find(r =>
-      r.tool === 'app' && r.action === 'deny' &&
-      typeof r.reason === 'string' &&
-      r.reason.startsWith('blocked: required capability labels'),
+    const blockRow = rows.find(
+      (r) =>
+        r.tool === 'app' &&
+        r.action === 'deny' &&
+        typeof r.reason === 'string' &&
+        r.reason.startsWith('blocked: required capability labels'),
     );
     assert.ok(blockRow, 'no-allowlist + autoApprove on connector read MUST surface as a structured deny');
-    assert.match((blockRow!.reason as string), /account-access|net-fetch/);
+    assert.match(blockRow!.reason as string, /account-access|net-fetch/);
   });
 
   it('app github.create_issue is blocked under --auto-approve (send-on-behalf is NEVER_ALLOWABLE)', async () => {
@@ -147,16 +160,19 @@ describe('PR 11/26 — per-action resolution unblocks read connector actions', (
       args: { action: 'github.create_issue', owner: 'X', repo: 'Y', title: 't', body: 'b' },
     });
     const agent = new Agent({
-      auditDir, provider,
-      model: 'claude-sonnet-4-6', providerName: 'anthropic',
-      maxIterations: 2, autoApprove: true,
+      auditDir,
+      provider,
+      model: 'claude-sonnet-4-6',
+      providerName: 'anthropic',
+      maxIterations: 2,
+      autoApprove: true,
     });
 
     await drainRun(agent, 'create issue');
 
     const rows = readAuditRows(auditDir);
-    const denyRow = rows.find(r => r.tool === 'app' && r.action === 'deny');
-    assert.ok(denyRow, `expected deny row; got ${JSON.stringify(rows.map(r => `${r.tool}/${r.action}`))}`);
+    const denyRow = rows.find((r) => r.tool === 'app' && r.action === 'deny');
+    assert.ok(denyRow, `expected deny row; got ${JSON.stringify(rows.map((r) => `${r.tool}/${r.action}`))}`);
     assert.match(
       denyRow.reason as string,
       /^blocked: required capability labels \[.*send-on-behalf.*\] are not permitted by --allow-capability in unattended mode$/,
@@ -171,16 +187,19 @@ describe('PR 11/26 — per-action resolution unblocks read connector actions', (
     });
     const allowed = parseAllowCapabilityFlag('account-access,net-fetch');
     const agent = new Agent({
-      auditDir, provider,
-      model: 'claude-sonnet-4-6', providerName: 'anthropic',
-      maxIterations: 2, autoApprove: true,
+      auditDir,
+      provider,
+      model: 'claude-sonnet-4-6',
+      providerName: 'anthropic',
+      maxIterations: 2,
+      autoApprove: true,
       allowedCapabilities: allowed,
     });
 
     await drainRun(agent, 'create issue');
 
     const rows = readAuditRows(auditDir);
-    const denyRow = rows.find(r => r.tool === 'app' && r.action === 'deny');
+    const denyRow = rows.find((r) => r.tool === 'app' && r.action === 'deny');
     assert.ok(denyRow, 'send-on-behalf must remain immune even with partial allowlist');
     assert.match(denyRow.reason as string, /send-on-behalf/);
   });
@@ -193,10 +212,7 @@ describe('PR 11/26 — per-action resolution unblocks read connector actions', (
   });
 
   it('hard exclusion: parseAllowCapabilityFlag rejects move-money', () => {
-    assert.throws(
-      () => parseAllowCapabilityFlag('move-money'),
-      /Refusing to allowlist capability "move-money"/,
-    );
+    assert.throws(() => parseAllowCapabilityFlag('move-money'), /Refusing to allowlist capability "move-money"/);
   });
 });
 
@@ -224,9 +240,12 @@ describe('PR 11 — allowlist is load-bearing for auto-permission tools with pro
     const auditDir = makeTestAuditDir();
     const provider = makeOneToolCallProvider({ name: 'syn_account_read', args: { q: 'hi' } });
     const agent = new Agent({
-      auditDir, provider,
-      model: 'claude-sonnet-4-6', providerName: 'anthropic',
-      maxIterations: 2, autoApprove: true,
+      auditDir,
+      provider,
+      model: 'claude-sonnet-4-6',
+      providerName: 'anthropic',
+      maxIterations: 2,
+      autoApprove: true,
     });
     // Inject the synthetic tool into the agent's registry post-construction.
     (agent as unknown as { tools: { register: (t: Tool) => void } }).tools.register(new SyntheticAccountAccessTool());
@@ -234,18 +253,27 @@ describe('PR 11 — allowlist is load-bearing for auto-permission tools with pro
     await drainRun(agent, 'go');
 
     const rows = readAuditRows(auditDir);
-    const denyRow = rows.find(r => r.tool === 'syn_account_read' && r.action === 'deny');
-    assert.ok(denyRow, `expected deny row for synthetic tool; saw ${JSON.stringify(rows.map(r=>`${r.tool}/${r.action}`))}`);
-    assert.match(denyRow.reason as string, /^blocked: required capability labels \[.*\] are not permitted by --allow-capability in unattended mode$/);
+    const denyRow = rows.find((r) => r.tool === 'syn_account_read' && r.action === 'deny');
+    assert.ok(
+      denyRow,
+      `expected deny row for synthetic tool; saw ${JSON.stringify(rows.map((r) => `${r.tool}/${r.action}`))}`,
+    );
+    assert.match(
+      denyRow.reason as string,
+      /^blocked: required capability labels \[.*\] are not permitted by --allow-capability in unattended mode$/,
+    );
   });
 
   it('with allowlist=account-access,net-fetch: escalation is satisfied, tool runs', async () => {
     const auditDir = makeTestAuditDir();
     const provider = makeOneToolCallProvider({ name: 'syn_account_read', args: { q: 'hi' } });
     const agent = new Agent({
-      auditDir, provider,
-      model: 'claude-sonnet-4-6', providerName: 'anthropic',
-      maxIterations: 2, autoApprove: true,
+      auditDir,
+      provider,
+      model: 'claude-sonnet-4-6',
+      providerName: 'anthropic',
+      maxIterations: 2,
+      autoApprove: true,
       allowedCapabilities: parseAllowCapabilityFlag('account-access,net-fetch'),
     });
     (agent as unknown as { tools: { register: (t: Tool) => void } }).tools.register(new SyntheticAccountAccessTool());
@@ -253,7 +281,7 @@ describe('PR 11 — allowlist is load-bearing for auto-permission tools with pro
     await drainRun(agent, 'go');
 
     const rows = readAuditRows(auditDir);
-    const allowRow = rows.find(r => r.tool === 'capability' && r.action === 'capability_allow');
+    const allowRow = rows.find((r) => r.tool === 'capability' && r.action === 'capability_allow');
     assert.ok(allowRow, 'expected capability_allow session-start row');
     // sanitizeArgs in audit.ts JSON-stringifies object values, so labels
     // round-trips as a string. Parse before asserting structure — the
@@ -262,10 +290,12 @@ describe('PR 11 — allowlist is load-bearing for auto-permission tools with pro
     const labelsRaw = (allowRow.args as Record<string, unknown>).labels as string;
     const labels = JSON.parse(labelsRaw) as string[];
     assert.deepStrictEqual(labels.slice().sort(), ['account-access', 'net-fetch']);
-    const blockRow = rows.find(r =>
-      r.tool === 'syn_account_read' && r.action === 'deny' &&
-      typeof r.reason === 'string' &&
-      r.reason.startsWith('blocked: required capability labels'),
+    const blockRow = rows.find(
+      (r) =>
+        r.tool === 'syn_account_read' &&
+        r.action === 'deny' &&
+        typeof r.reason === 'string' &&
+        r.reason.startsWith('blocked: required capability labels'),
     );
     assert.strictEqual(blockRow, undefined, 'allowlist should clear the unattended block');
   });

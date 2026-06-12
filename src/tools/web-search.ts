@@ -9,7 +9,8 @@ interface SearchResult {
 
 export class WebSearchTool implements Tool {
   name = 'web_search';
-  description = 'Search the web using DuckDuckGo. Returns titles, URLs, and snippets. Use for research, fact-checking, finding documentation, or discovering information. If results are empty, try the browser tool to navigate to a search engine directly.';
+  description =
+    'Search the web using DuckDuckGo. Returns titles, URLs, and snippets. Use for research, fact-checking, finding documentation, or discovering information. If results are empty, try the browser tool to navigate to a search engine directly.';
   permission: Tool['permission'] = 'prompt';
   capabilities: CapabilityLabel[] = ['read-only', 'net-fetch'];
   parameters = {
@@ -66,7 +67,7 @@ export class WebSearchTool implements Tool {
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; CodeBot/1.0)',
-        'Accept': 'text/html',
+        Accept: 'text/html',
       },
       signal: AbortSignal.timeout(10000),
     });
@@ -117,14 +118,14 @@ export class WebSearchTool implements Tool {
 
   private stripTags(html: string): string {
     return html
-      .replace(/<[^>]+>/g, '')           // Remove HTML tags
+      .replace(/<[^>]+>/g, '') // Remove HTML tags
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#x27;/g, "'")
       .replace(/&nbsp;/g, ' ')
-      .replace(/\s+/g, ' ')             // Collapse whitespace
+      .replace(/\s+/g, ' ') // Collapse whitespace
       .trim();
   }
 }

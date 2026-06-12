@@ -162,14 +162,14 @@ export class ContextManager {
 
     // Build a condensed version of the conversation for summarization
     const convoText = messages
-      .filter(m => m.role !== 'system')
-      .map(m => {
+      .filter((m) => m.role !== 'system')
+      .map((m) => {
         if (m.role === 'tool') {
           const result = m.content.length > 200 ? m.content.substring(0, 200) + '...' : m.content;
           return `[Tool result]: ${result}`;
         }
         if (m.role === 'assistant' && m.tool_calls?.length) {
-          const tools = m.tool_calls.map(tc => tc.function.name).join(', ');
+          const tools = m.tool_calls.map((tc) => tc.function.name).join(', ');
           const text = m.content ? m.content.substring(0, 200) : '';
           return `Assistant: ${text}\n[Used tools: ${tools}]`;
         }
@@ -181,7 +181,8 @@ export class ContextManager {
     const summaryPrompt: Message[] = [
       {
         role: 'system',
-        content: 'Summarize this conversation excerpt in 2-4 sentences. Focus on: what was discussed, what actions were taken, what was decided, and any important context for continuing the conversation. Be specific about file names, functions, and technical details.',
+        content:
+          'Summarize this conversation excerpt in 2-4 sentences. Focus on: what was discussed, what actions were taken, what was decided, and any important context for continuing the conversation. Be specific about file names, functions, and technical details.',
       },
       { role: 'user', content: convoText },
     ];

@@ -38,7 +38,11 @@ describe('heartbeat', () => {
   afterEach(() => {
     // Reset disk state between tests so each starts fresh.
     const p = path.join(tmpDir, 'heartbeat.json');
-    try { fs.unlinkSync(p); } catch { /* ok */ }
+    try {
+      fs.unlinkSync(p);
+    } catch {
+      /* ok */
+    }
   });
 
   describe('todayIso', () => {
@@ -108,7 +112,14 @@ describe('heartbeat', () => {
     });
 
     it('rejects wrong schema version', () => {
-      const cfg = { v: 999, enabled: true, installRoot: 'x'.repeat(36), lastPingDate: '', firstSeenDate: '', promptShown: true };
+      const cfg = {
+        v: 999,
+        enabled: true,
+        installRoot: 'x'.repeat(36),
+        lastPingDate: '',
+        firstSeenDate: '',
+        promptShown: true,
+      };
       fs.writeFileSync(path.join(tmpDir, 'heartbeat.json'), JSON.stringify(cfg));
       assert.strictEqual(loadHeartbeatConfig(), null);
     });
@@ -222,7 +233,17 @@ describe('heartbeat', () => {
 
     it('sends a ping when enabled and not already sent today', async () => {
       ensureHeartbeatConfig({ quiet: true, defaultEnabled: true });
-      type Received = { url: string; body: { version: string; active_today: boolean; installation_id: string; os: string; node: string; first_seen_week: string } };
+      type Received = {
+        url: string;
+        body: {
+          version: string;
+          active_today: boolean;
+          installation_id: string;
+          os: string;
+          node: string;
+          first_seen_week: string;
+        };
+      };
       let received: Received | null = null;
       // Simulate a successful endpoint by patching globalThis.fetch.
       const origFetch = globalThis.fetch;
@@ -264,7 +285,9 @@ describe('heartbeat', () => {
     it('swallows network errors silently', async () => {
       ensureHeartbeatConfig({ quiet: true, defaultEnabled: true });
       const origFetch = globalThis.fetch;
-      globalThis.fetch = (async () => { throw new Error('ECONNREFUSED'); }) as any;
+      globalThis.fetch = (async () => {
+        throw new Error('ECONNREFUSED');
+      }) as any;
       try {
         const sent = await maybePing('2.10.0', { endpoint: 'https://test.invalid/api/ping' });
         assert.strictEqual(sent, false);

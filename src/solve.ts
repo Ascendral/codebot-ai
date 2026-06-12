@@ -113,7 +113,9 @@ export function parseIssueUrl(url: string): { owner: string; repo: string; numbe
     return { owner: shortMatch[1], repo: shortMatch[2], number: parseInt(shortMatch[3], 10) };
   }
 
-  throw new Error(`Invalid GitHub issue URL: "${url}". Expected: https://github.com/owner/repo/issues/123 or owner/repo#123`);
+  throw new Error(
+    `Invalid GitHub issue URL: "${url}". Expected: https://github.com/owner/repo/issues/123 or owner/repo#123`,
+  );
 }
 
 /** Build a safe git branch name from an issue. */
@@ -140,8 +142,8 @@ async function githubApi(
     const opts: RequestInit = {
       method,
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github.v3+json',
         'Content-Type': 'application/json',
         'User-Agent': 'CodeBot-AI-Solve',
       },
@@ -154,7 +156,11 @@ async function githubApi(
 
     const text = await res.text();
     let data: unknown;
-    try { data = JSON.parse(text); } catch { data = text; }
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
     return { status: res.status, data };
   } catch (err: unknown) {
     clearTimeout(timer);
@@ -164,11 +170,13 @@ async function githubApi(
 
 /** Detect package manager install command for a project. */
 function detectInstallCommand(cwd: string): { name: string; command: string } | null {
-  if (fs.existsSync(path.join(cwd, 'pnpm-lock.yaml'))) return { name: 'pnpm', command: 'pnpm install --frozen-lockfile' };
+  if (fs.existsSync(path.join(cwd, 'pnpm-lock.yaml')))
+    return { name: 'pnpm', command: 'pnpm install --frozen-lockfile' };
   if (fs.existsSync(path.join(cwd, 'yarn.lock'))) return { name: 'yarn', command: 'yarn install --frozen-lockfile' };
   if (fs.existsSync(path.join(cwd, 'package-lock.json'))) return { name: 'npm', command: 'npm ci' };
   if (fs.existsSync(path.join(cwd, 'package.json'))) return { name: 'npm', command: 'npm install' };
-  if (fs.existsSync(path.join(cwd, 'requirements.txt'))) return { name: 'pip', command: 'pip install -r requirements.txt' };
+  if (fs.existsSync(path.join(cwd, 'requirements.txt')))
+    return { name: 'pip', command: 'pip install -r requirements.txt' };
   if (fs.existsSync(path.join(cwd, 'pyproject.toml'))) return { name: 'pip', command: 'pip install -e .' };
   if (fs.existsSync(path.join(cwd, 'go.mod'))) return { name: 'go', command: 'go mod download' };
   if (fs.existsSync(path.join(cwd, 'Cargo.toml'))) return { name: 'cargo', command: 'cargo fetch' };
@@ -193,10 +201,16 @@ function detectTestFramework(cwd: string): { name: string; command: string } | n
       }
       if (deps['vitest']) return { name: 'vitest', command: 'npx vitest run' };
       if (deps['jest']) return { name: 'jest', command: 'npx jest' };
-    } catch { /* invalid package.json */ }
+    } catch {
+      /* invalid package.json */
+    }
   }
 
-  if (fs.existsSync(path.join(cwd, 'pyproject.toml')) || fs.existsSync(path.join(cwd, 'pytest.ini')) || fs.existsSync(path.join(cwd, 'setup.py'))) {
+  if (
+    fs.existsSync(path.join(cwd, 'pyproject.toml')) ||
+    fs.existsSync(path.join(cwd, 'pytest.ini')) ||
+    fs.existsSync(path.join(cwd, 'setup.py'))
+  ) {
     return { name: 'pytest', command: 'python -m pytest -v' };
   }
   if (fs.existsSync(path.join(cwd, 'go.mod'))) {
@@ -217,9 +231,12 @@ function detectStack(cwd: string): string {
       const deps = { ...pkg.dependencies, ...pkg.devDependencies };
       if (deps['typescript'] || fs.existsSync(path.join(cwd, 'tsconfig.json'))) return 'TypeScript/Node.js';
       return 'JavaScript/Node.js';
-    } catch { return 'JavaScript/Node.js'; }
+    } catch {
+      return 'JavaScript/Node.js';
+    }
   }
-  if (fs.existsSync(path.join(cwd, 'pyproject.toml')) || fs.existsSync(path.join(cwd, 'requirements.txt'))) return 'Python';
+  if (fs.existsSync(path.join(cwd, 'pyproject.toml')) || fs.existsSync(path.join(cwd, 'requirements.txt')))
+    return 'Python';
   if (fs.existsSync(path.join(cwd, 'go.mod'))) return 'Go';
   if (fs.existsSync(path.join(cwd, 'Cargo.toml'))) return 'Rust';
   if (fs.existsSync(path.join(cwd, 'Gemfile'))) return 'Ruby';
@@ -230,7 +247,7 @@ function detectStack(cwd: string): string {
 /** Extract structured signals from issue body: error messages, file paths, stack traces. */
 function triageIssue(issue: IssueInfo): string {
   const signals: string[] = [];
-  const text = `${issue.title}\n${issue.body}\n${issue.comments.map(c => c.body).join('\n')}`;
+  const text = `${issue.title}\n${issue.body}\n${issue.comments.map((c) => c.body).join('\n')}`;
 
   // File paths mentioned
   const filePaths = text.match(/[\w./]+\.(ts|js|py|go|rs|rb|java|tsx|jsx|css|html|json|yaml|yml|toml|md)\b/g);
@@ -240,11 +257,16 @@ function triageIssue(issue: IssueInfo): string {
   }
 
   // Error messages / stack traces
-  const errorLines = text.split('\n').filter(l =>
-    /error|exception|traceback|panic|failed|cannot|undefined|null pointer/i.test(l)
-  );
+  const errorLines = text
+    .split('\n')
+    .filter((l) => /error|exception|traceback|panic|failed|cannot|undefined|null pointer/i.test(l));
   if (errorLines.length > 0) {
-    signals.push(`Error signals:\n${errorLines.slice(0, 5).map(l => `  ${l.trim()}`).join('\n')}`);
+    signals.push(
+      `Error signals:\n${errorLines
+        .slice(0, 5)
+        .map((l) => `  ${l.trim()}`)
+        .join('\n')}`,
+    );
   }
 
   // Expected vs actual
@@ -417,7 +439,8 @@ export class SolveCommand {
       yield {
         type: 'error',
         phase: 'fetching',
-        error: 'GITHUB_TOKEN not set. Required for accessing issues and creating PRs.\n  Set it: export GITHUB_TOKEN=ghp_...',
+        error:
+          'GITHUB_TOKEN not set. Required for accessing issues and creating PRs.\n  Set it: export GITHUB_TOKEN=ghp_...',
       };
       return;
     }
@@ -467,7 +490,7 @@ export class SolveCommand {
       repoMap = '(repo map unavailable)';
     }
     const triage = triageIssue(issue);
-    const fileCount = repoMap.split('\n').filter(l => l.trim()).length;
+    const fileCount = repoMap.split('\n').filter((l) => l.trim()).length;
     audit.phaseEnd('analyzing', `${stack}, ${testFw?.name || 'no tests'}, ${fileCount} files`);
     yield {
       type: 'phase_end',
@@ -482,7 +505,6 @@ export class SolveCommand {
       return;
     }
 
-
     // ── Phase 4.3: Install Dependencies ──
     if (installCmd) {
       audit.phaseStart('installing');
@@ -490,21 +512,32 @@ export class SolveCommand {
       try {
         const installParts = installCmd.command.split(' ');
         execFileSync(installParts[0], installParts.slice(1), {
-          cwd: repoDir, encoding: 'utf-8', timeout: 180_000,
-          maxBuffer: 10 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'],
+          cwd: repoDir,
+          encoding: 'utf-8',
+          timeout: 180_000,
+          maxBuffer: 10 * 1024 * 1024,
+          stdio: ['pipe', 'pipe', 'pipe'],
         });
         audit.phaseEnd('installing', installCmd.name);
         yield { type: 'phase_end', phase: 'installing', message: `Dependencies installed (${installCmd.name})` };
       } catch (installErr) {
         audit.decision('installing', 'Install failed — continuing', { error: (installErr as Error).message });
-        yield { type: 'progress', phase: 'installing', message: `Dependency install warning: continuing without full install` };
+        yield {
+          type: 'progress',
+          phase: 'installing',
+          message: `Dependency install warning: continuing without full install`,
+        };
       }
     }
 
     // ── Phase 4.5: Run baseline tests (reproduction attempt) ──
     let baselineTestsPassed = true;
     if (testFw) {
-      yield { type: 'progress', phase: 'analyzing', message: 'Running baseline tests to check for pre-existing failures...' };
+      yield {
+        type: 'progress',
+        phase: 'analyzing',
+        message: 'Running baseline tests to check for pre-existing failures...',
+      };
       try {
         const baseResult = this.runTestCommand(testFw.command, repoDir);
         baselineTestsPassed = baseResult.passed;
@@ -568,24 +601,48 @@ export class SolveCommand {
 
     // Check if safe mode file limit exceeded
     if (this.options.safe && filesModified.length > 3) {
-      yield { type: 'progress', phase: 'fixing', message: `Safe mode: ${filesModified.length} files exceeds limit of 3. Stashing changes.` };
+      yield {
+        type: 'progress',
+        phase: 'fixing',
+        message: `Safe mode: ${filesModified.length} files exceeds limit of 3. Stashing changes.`,
+      };
       try {
-        execFileSync('git', ['stash', 'push', '-m', 'codebot-solve: safe mode rollback (' + filesModified.length + ' files)'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 });
+        execFileSync(
+          'git',
+          ['stash', 'push', '-m', 'codebot-solve: safe mode rollback (' + filesModified.length + ' files)'],
+          { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 },
+        );
       } catch {
         warnNonFatal('solve.safeMode', 'Could not stash changes — leaving working tree intact for manual recovery');
       }
-      yield { type: 'error', phase: 'fixing', error: 'Safe mode: too many files changed. Changes stashed (git stash list to recover). Try without --safe.' };
+      yield {
+        type: 'error',
+        phase: 'fixing',
+        error: 'Safe mode: too many files changed. Changes stashed (git stash list to recover). Try without --safe.',
+      };
       return;
     }
 
     if (filesModified.length > this.options.maxFiles) {
-      yield { type: 'progress', phase: 'fixing', message: `${filesModified.length} files exceeds --max-files ${this.options.maxFiles}. Stashing changes.` };
+      yield {
+        type: 'progress',
+        phase: 'fixing',
+        message: `${filesModified.length} files exceeds --max-files ${this.options.maxFiles}. Stashing changes.`,
+      };
       try {
-        execFileSync('git', ['stash', 'push', '-m', 'codebot-solve: max-files rollback (' + filesModified.length + ' files)'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 });
+        execFileSync(
+          'git',
+          ['stash', 'push', '-m', 'codebot-solve: max-files rollback (' + filesModified.length + ' files)'],
+          { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 },
+        );
       } catch {
         warnNonFatal('solve.maxFiles', 'Could not stash changes — leaving working tree intact for manual recovery');
       }
-      yield { type: 'error', phase: 'fixing', error: `Max files limit exceeded (${filesModified.length} > ${this.options.maxFiles}). Changes stashed (git stash list to recover).` };
+      yield {
+        type: 'error',
+        phase: 'fixing',
+        error: `Max files limit exceeded (${filesModified.length} > ${this.options.maxFiles}). Changes stashed (git stash list to recover).`,
+      };
       return;
     }
 
@@ -598,9 +655,15 @@ export class SolveCommand {
     let diff = '';
     try {
       diff = execFileSync('git', ['diff', '--stat'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 }).trim();
-      const fullDiff = execFileSync('git', ['diff', '--', '.', ':!.spark', ':!*.db', ':!*.db-shm', ':!*.db-wal'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 }).trim();
+      const fullDiff = execFileSync('git', ['diff', '--', '.', ':!.spark', ':!*.db', ':!*.db-shm', ':!*.db-wal'], {
+        cwd: repoDir,
+        encoding: 'utf-8',
+        timeout: 10_000,
+      }).trim();
       if (fullDiff.length < 5000) diff = fullDiff;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // ── Phase 6: Run Tests ──
     let testsPassed = false;
@@ -617,7 +680,11 @@ export class SolveCommand {
 
       // If baseline was already failing, don't retry — just check we didn't make it worse
       if (!testsPassed && !baselineTestsPassed) {
-        yield { type: 'progress', phase: 'testing', message: 'Baseline tests were already failing — treating as no regression' };
+        yield {
+          type: 'progress',
+          phase: 'testing',
+          message: 'Baseline tests were already failing — treating as no regression',
+        };
         testsPassed = true;
       } else if (!testsPassed) {
         // Baseline was passing but now failing — agent broke something. Retry up to 2 times.
@@ -689,15 +756,21 @@ export class SolveCommand {
     yield { type: 'phase_start', phase: 'scoring', message: 'Computing confidence...' };
 
     // Check for dependency changes
-    const depsChanged = filesModified.some(f =>
-      f === 'package.json' || f === 'package-lock.json' || f === 'yarn.lock' ||
-      f === 'pnpm-lock.yaml' || f === 'go.sum' || f === 'Cargo.lock' ||
-      f === 'requirements.txt' || f === 'Pipfile.lock'
+    const depsChanged = filesModified.some(
+      (f) =>
+        f === 'package.json' ||
+        f === 'package-lock.json' ||
+        f === 'yarn.lock' ||
+        f === 'pnpm-lock.yaml' ||
+        f === 'go.sum' ||
+        f === 'Cargo.lock' ||
+        f === 'requirements.txt' ||
+        f === 'Pipfile.lock',
     );
 
     // Check for sensitive files
-    const sensitiveFiles = filesModified.some(f =>
-      /auth|security|password|secret|token|key|crypt|permission|rbac/i.test(f)
+    const sensitiveFiles = filesModified.some((f) =>
+      /auth|security|password|secret|token|key|crypt|permission|rbac/i.test(f),
     );
 
     const confidence = computeConfidence({
@@ -722,7 +795,13 @@ export class SolveCommand {
     audit.setSummary({
       totalDurationMs: Date.now() - this.startTime,
       phasesCompleted: ['parsing', 'fetching', 'cloning', 'analyzing', 'fixing', 'testing', 'reviewing', 'scoring'],
-      filesModified, testsRun: testsExist, testsPassed, confidence, risk, tokensUsed: 0, cost: '',
+      filesModified,
+      testsRun: testsExist,
+      testsPassed,
+      confidence,
+      risk,
+      tokensUsed: 0,
+      cost: '',
     });
 
     // ── Phase 8: Commit + PR ──
@@ -733,11 +812,28 @@ export class SolveCommand {
     // Self-review rejection gate
     if (selfReviewVerdict === 'reject') {
       audit.finalize('failure');
-      yield { type: 'error', phase: 'committing', error: `Self-review rejected: ${selfReviewReasoning.substring(0, 200)}` };
+      yield {
+        type: 'error',
+        phase: 'committing',
+        error: `Self-review rejected: ${selfReviewReasoning.substring(0, 200)}`,
+      };
       const rejectResult: SolveResult = {
-        success: false, issue, branch: branchName, filesModified, diff, testsPassed, testsOutput,
-        confidence, risk, durationMs: Date.now() - this.startTime, tokensUsed, cost, sessionId,
-        auditPath: audit.getFilePath(), selfReviewVerdict, selfReviewReasoning,
+        success: false,
+        issue,
+        branch: branchName,
+        filesModified,
+        diff,
+        testsPassed,
+        testsOutput,
+        confidence,
+        risk,
+        durationMs: Date.now() - this.startTime,
+        tokensUsed,
+        cost,
+        sessionId,
+        auditPath: audit.getFilePath(),
+        selfReviewVerdict,
+        selfReviewReasoning,
       };
       this.saveSession(rejectResult);
       yield { type: 'result', phase: 'done', result: rejectResult };
@@ -753,11 +849,15 @@ export class SolveCommand {
         // Ensure .spark/ is gitignored before staging
         const gitignorePath = require('path').join(repoDir, '.gitignore');
         try {
-          const existing = require('fs').existsSync(gitignorePath) ? require('fs').readFileSync(gitignorePath, 'utf-8') : '';
+          const existing = require('fs').existsSync(gitignorePath)
+            ? require('fs').readFileSync(gitignorePath, 'utf-8')
+            : '';
           if (!existing.includes('.spark/')) {
             require('fs').appendFileSync(gitignorePath, '\n.spark/\n');
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
 
         // Ensure .spark is gitignored before staging
         try {
@@ -766,17 +866,29 @@ export class SolveCommand {
           if (!giContent.includes('.spark/')) {
             fs.writeFileSync(gi, giContent.trimEnd() + '\n.spark/\n');
           }
-        } catch { /* best effort */ }
+        } catch {
+          /* best effort */
+        }
         execFileSync('git', ['add', '-A'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 });
         // Unstage any .spark files that slipped through
         try {
           execFileSync('git', ['reset', 'HEAD', '--', '.spark/'], { cwd: repoDir, encoding: 'utf-8', timeout: 5_000 });
-        } catch { /* no .spark files staged — fine */ }
+        } catch {
+          /* no .spark files staged — fine */
+        }
 
         // Check if there's anything to commit
-        const staged = execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 }).trim();
+        const staged = execFileSync('git', ['diff', '--cached', '--name-only'], {
+          cwd: repoDir,
+          encoding: 'utf-8',
+          timeout: 10_000,
+        }).trim();
         if (!staged) {
-          yield { type: 'progress', phase: 'committing', message: 'No source changes to commit (issue may already be fixed)' };
+          yield {
+            type: 'progress',
+            phase: 'committing',
+            message: 'No source changes to commit (issue may already be fixed)',
+          };
         } else {
           const commitMsg = `fix: ${issue.title} (fixes #${issue.number})\n\nAutonomously generated by CodeBot-AI solve command.\nConfidence: ${confidence}% | Risk: ${risk}\nSelf-review: ${selfReviewVerdict}`;
           execFileSync('git', ['commit', '-m', commitMsg], { cwd: repoDir, encoding: 'utf-8', timeout: 30_000 });
@@ -784,12 +896,25 @@ export class SolveCommand {
 
         // Push
         const pushUrl = `https://${this.githubToken}@github.com/${parsed.owner}/${parsed.repo}.git`;
-        execFileSync('git', ['remote', 'set-url', 'origin', pushUrl], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 });
+        execFileSync('git', ['remote', 'set-url', 'origin', pushUrl], {
+          cwd: repoDir,
+          encoding: 'utf-8',
+          timeout: 10_000,
+        });
         execFileSync('git', ['push', '-u', 'origin', branchName], { cwd: repoDir, encoding: 'utf-8', timeout: 60_000 });
 
         // Create PR
         const defaultBranch = this.getDefaultBranch(repoDir);
-        const prBody = this.buildPrBody(issue, filesModified, testsPassed, testsOutput, confidence, risk, audit, selfReviewVerdict);
+        const prBody = this.buildPrBody(
+          issue,
+          filesModified,
+          testsPassed,
+          testsOutput,
+          confidence,
+          risk,
+          audit,
+          selfReviewVerdict,
+        );
         const prResult = await githubApi('POST', `/repos/${parsed.owner}/${parsed.repo}/pulls`, this.githubToken, {
           title: `fix: ${issue.title}`,
           body: prBody,
@@ -804,19 +929,35 @@ export class SolveCommand {
           // Build final result
           const auditPath = audit.finalize('success');
           const result: SolveResult = {
-            success: true, issue, branch: branchName,
-            prUrl: pr.html_url, prNumber: pr.number,
-            filesModified, diff, testsPassed, testsOutput,
-            confidence, risk, durationMs: Date.now() - this.startTime,
-            tokensUsed, cost, sessionId,
-            auditPath, selfReviewVerdict, selfReviewReasoning,
+            success: true,
+            issue,
+            branch: branchName,
+            prUrl: pr.html_url,
+            prNumber: pr.number,
+            filesModified,
+            diff,
+            testsPassed,
+            testsOutput,
+            confidence,
+            risk,
+            durationMs: Date.now() - this.startTime,
+            tokensUsed,
+            cost,
+            sessionId,
+            auditPath,
+            selfReviewVerdict,
+            selfReviewReasoning,
           };
           this.saveSession(result);
           yield { type: 'result', phase: 'done', result };
           return;
         } else {
           const errData = prResult.data as { message?: string };
-          yield { type: 'error', phase: 'committing', error: `PR creation failed: ${errData.message || JSON.stringify(prResult.data).substring(0, 200)}` };
+          yield {
+            type: 'error',
+            phase: 'committing',
+            error: `PR creation failed: ${errData.message || JSON.stringify(prResult.data).substring(0, 200)}`,
+          };
         }
       } catch (e) {
         yield { type: 'error', phase: 'committing', error: `Commit/push failed: ${(e as Error).message}` };
@@ -832,11 +973,15 @@ export class SolveCommand {
         // Ensure .spark/ is gitignored
         const gitignorePath2 = require('path').join(repoDir, '.gitignore');
         try {
-          const existing2 = require('fs').existsSync(gitignorePath2) ? require('fs').readFileSync(gitignorePath2, 'utf-8') : '';
+          const existing2 = require('fs').existsSync(gitignorePath2)
+            ? require('fs').readFileSync(gitignorePath2, 'utf-8')
+            : '';
           if (!existing2.includes('.spark/')) {
             require('fs').appendFileSync(gitignorePath2, '\n.spark/\n');
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
 
         // Ensure .spark is gitignored before staging
         try {
@@ -845,19 +990,35 @@ export class SolveCommand {
           if (!giContent.includes('.spark/')) {
             fs.writeFileSync(gi, giContent.trimEnd() + '\n.spark/\n');
           }
-        } catch { /* best effort */ }
+        } catch {
+          /* best effort */
+        }
         execFileSync('git', ['add', '-A'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 });
         // Unstage any .spark files that slipped through
         try {
           execFileSync('git', ['reset', 'HEAD', '--', '.spark/'], { cwd: repoDir, encoding: 'utf-8', timeout: 5_000 });
-        } catch { /* no .spark files staged — fine */ }
-        const staged2 = execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 }).trim();
+        } catch {
+          /* no .spark files staged — fine */
+        }
+        const staged2 = execFileSync('git', ['diff', '--cached', '--name-only'], {
+          cwd: repoDir,
+          encoding: 'utf-8',
+          timeout: 10_000,
+        }).trim();
         if (!staged2) {
-          yield { type: 'progress', phase: 'committing', message: 'No source changes to commit (issue may already be fixed)' };
+          yield {
+            type: 'progress',
+            phase: 'committing',
+            message: 'No source changes to commit (issue may already be fixed)',
+          };
         } else {
           const commitMsg = `fix: ${issue.title} (fixes #${issue.number})\n\nAutonomously generated by CodeBot-AI solve command.\nConfidence: ${confidence}% | Risk: ${risk}\nSelf-review: ${selfReviewVerdict}`;
           execFileSync('git', ['commit', '-m', commitMsg], { cwd: repoDir, encoding: 'utf-8', timeout: 30_000 });
-          yield { type: 'progress', phase: 'committing', message: `Committed locally on branch ${branchName}. Use --open-pr to push and create a PR.` };
+          yield {
+            type: 'progress',
+            phase: 'committing',
+            message: `Committed locally on branch ${branchName}. Use --open-pr to push and create a PR.`,
+          };
         }
       } catch (e) {
         yield { type: 'progress', phase: 'committing', message: `Local commit: ${(e as Error).message}` };
@@ -868,12 +1029,21 @@ export class SolveCommand {
     const auditPath = audit.finalize(filesModified.length > 0 ? 'success' : 'failure');
     const result: SolveResult = {
       success: filesModified.length > 0,
-      issue, branch: branchName,
-      filesModified, diff, testsPassed, testsOutput,
-      confidence, risk,
+      issue,
+      branch: branchName,
+      filesModified,
+      diff,
+      testsPassed,
+      testsOutput,
+      confidence,
+      risk,
       durationMs: Date.now() - this.startTime,
-      tokensUsed, cost, sessionId,
-      auditPath, selfReviewVerdict, selfReviewReasoning,
+      tokensUsed,
+      cost,
+      sessionId,
+      auditPath,
+      selfReviewVerdict,
+      selfReviewReasoning,
     };
     this.saveSession(result);
     yield { type: 'result', phase: 'done', result };
@@ -882,37 +1052,52 @@ export class SolveCommand {
   // ── Private Methods ──
 
   private async fetchIssue(owner: string, repo: string, number: number): Promise<IssueInfo> {
-    const issueRes = await githubApi('GET', `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${number}`, this.githubToken);
+    const issueRes = await githubApi(
+      'GET',
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${number}`,
+      this.githubToken,
+    );
     if (issueRes.status !== 200) {
-      const msg = typeof issueRes.data === 'object' && issueRes.data && 'message' in issueRes.data
-        ? (issueRes.data as { message: string }).message
-        : `HTTP ${issueRes.status}`;
+      const msg =
+        typeof issueRes.data === 'object' && issueRes.data && 'message' in issueRes.data
+          ? (issueRes.data as { message: string }).message
+          : `HTTP ${issueRes.status}`;
       throw new Error(`Failed to fetch issue: ${msg}`);
     }
 
     const data = issueRes.data as {
-      number: number; title: string; body: string; state: string;
-      user: { login: string }; labels: Array<{ name: string }>;
+      number: number;
+      title: string;
+      body: string;
+      state: string;
+      user: { login: string };
+      labels: Array<{ name: string }>;
       html_url: string;
     };
 
     // Fetch comments
     let comments: Array<{ user: string; body: string }> = [];
     try {
-      const commentsRes = await githubApi('GET',
+      const commentsRes = await githubApi(
+        'GET',
         `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${number}/comments?per_page=20`,
-        this.githubToken);
+        this.githubToken,
+      );
       if (commentsRes.status === 200) {
         const raw = commentsRes.data as Array<{ user: { login: string }; body: string }>;
-        comments = raw.map(c => ({ user: c.user.login, body: c.body }));
+        comments = raw.map((c) => ({ user: c.user.login, body: c.body }));
       }
-    } catch { /* ignore comment fetch failure */ }
+    } catch {
+      /* ignore comment fetch failure */
+    }
 
     return {
-      owner, repo, number: data.number,
+      owner,
+      repo,
+      number: data.number,
       title: data.title,
       body: data.body || '',
-      labels: data.labels.map(l => l.name),
+      labels: data.labels.map((l) => l.name),
       comments,
       url: data.html_url,
       state: data.state,
@@ -934,13 +1119,19 @@ export class SolveCommand {
       try {
         // Check if it's clean
         const status = execFileSync('git', ['status', '--porcelain'], {
-          cwd: repoDir, encoding: 'utf-8', timeout: 10_000,
+          cwd: repoDir,
+          encoding: 'utf-8',
+          timeout: 10_000,
         }).trim();
 
         if (status) {
           // Dirty — stash changes from previous solve attempt (recoverable via git stash list)
           try {
-            execFileSync('git', ['stash', 'push', '--include-untracked', '-m', 'codebot-solve: previous attempt auto-stashed'], { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 });
+            execFileSync(
+              'git',
+              ['stash', 'push', '--include-untracked', '-m', 'codebot-solve: previous attempt auto-stashed'],
+              { cwd: repoDir, encoding: 'utf-8', timeout: 10_000 },
+            );
           } catch {
             // Stash failed — leave working tree intact, warn but don't destroy work
             warnNonFatal('solve.ensureRepo', 'Could not stash dirty working tree — proceeding with existing state');
@@ -973,7 +1164,9 @@ export class SolveCommand {
     try {
       // Check remote HEAD
       const ref = execFileSync('git', ['symbolic-ref', 'refs/remotes/origin/HEAD'], {
-        cwd: repoDir, encoding: 'utf-8', timeout: 5_000,
+        cwd: repoDir,
+        encoding: 'utf-8',
+        timeout: 5_000,
       }).trim();
       return ref.replace('refs/remotes/origin/', '');
     } catch {
@@ -990,15 +1183,19 @@ export class SolveCommand {
   private getModifiedFiles(repoDir: string): string[] {
     try {
       const output = execFileSync('git', ['diff', '--name-only'], {
-        cwd: repoDir, encoding: 'utf-8', timeout: 10_000,
+        cwd: repoDir,
+        encoding: 'utf-8',
+        timeout: 10_000,
       }).trim();
       // Also check for new untracked files
       const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], {
-        cwd: repoDir, encoding: 'utf-8', timeout: 10_000,
+        cwd: repoDir,
+        encoding: 'utf-8',
+        timeout: 10_000,
       }).trim();
       const files = output ? output.split('\n') : [];
       if (untracked) files.push(...untracked.split('\n'));
-      return [...new Set(files.filter(f => f.trim()))];
+      return [...new Set(files.filter((f) => f.trim()))];
     } catch {
       return [];
     }
@@ -1048,7 +1245,9 @@ export class SolveCommand {
     lines.push(`| Check | Result |`);
     lines.push(`|-------|--------|`);
     lines.push(`| Tests | ${testsPassed ? '✅ PASSED' : testsOutput ? '❌ FAILED' : '⏭️ N/A'} |`);
-    lines.push(`| Self-Review | ${selfReviewVerdict === 'approve' ? '✅ APPROVED' : selfReviewVerdict === 'revise' ? '🔄 REVISED' : '⏭️ N/A'} |`);
+    lines.push(
+      `| Self-Review | ${selfReviewVerdict === 'approve' ? '✅ APPROVED' : selfReviewVerdict === 'revise' ? '🔄 REVISED' : '⏭️ N/A'} |`,
+    );
     lines.push(`| Confidence | ${confidence}% |`);
     lines.push(`| Risk | ${risk} |`);
     lines.push('');
@@ -1087,6 +1286,8 @@ export class SolveCommand {
       if (!fs.existsSync(sessionsDir)) fs.mkdirSync(sessionsDir, { recursive: true });
       const filename = `solve-${result.issue.number}-${Date.now()}.json`;
       fs.writeFileSync(path.join(sessionsDir, filename), JSON.stringify(result, null, 2), 'utf-8');
-    } catch (err) { warnNonFatal('solve.saveSession', err); }
+    } catch (err) {
+      warnNonFatal('solve.saveSession', err);
+    }
   }
 }

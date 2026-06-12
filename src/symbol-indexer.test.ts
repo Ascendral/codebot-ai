@@ -17,7 +17,11 @@ describe('SymbolIndexer', () => {
   });
 
   afterEach(() => {
-    try { fs.rmSync(tmp, { recursive: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(tmp, { recursive: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   function write(rel: string, content: string): void {
@@ -27,16 +31,19 @@ describe('SymbolIndexer', () => {
   }
 
   it('finds Python class + top-level function, distinguishes methods from functions', () => {
-    write('mod/a.py', [
-      'class RelatedFieldListFilter:',
-      '    def field_choices(self, field):',
-      '        return []',
-      '    async def async_helper(self):',
-      '        pass',
-      '',
-      'def top_level_func(x):',
-      '    return x',
-    ].join('\n'));
+    write(
+      'mod/a.py',
+      [
+        'class RelatedFieldListFilter:',
+        '    def field_choices(self, field):',
+        '        return []',
+        '    async def async_helper(self):',
+        '        pass',
+        '',
+        'def top_level_func(x):',
+        '    return x',
+      ].join('\n'),
+    );
     const idx = new SymbolIndexer(tmp);
     const hits = idx.findByName('RelatedFieldListFilter');
     assert.strictEqual(hits.length, 1);
@@ -56,17 +63,20 @@ describe('SymbolIndexer', () => {
   });
 
   it('finds TypeScript class / interface / type / function / enum', () => {
-    write('src/thing.ts', [
-      'export class MyClass {',
-      '  foo() {}',
-      '}',
-      'export interface MyIface {',
-      '  x: number;',
-      '}',
-      'export type MyType = string | number;',
-      'export enum MyEnum { A, B }',
-      'export function topLevel(x: number): number { return x; }',
-    ].join('\n'));
+    write(
+      'src/thing.ts',
+      [
+        'export class MyClass {',
+        '  foo() {}',
+        '}',
+        'export interface MyIface {',
+        '  x: number;',
+        '}',
+        'export type MyType = string | number;',
+        'export enum MyEnum { A, B }',
+        'export function topLevel(x: number): number { return x; }',
+      ].join('\n'),
+    );
     const idx = new SymbolIndexer(tmp);
     assert.strictEqual(idx.findByName('MyClass')[0].kind, 'class');
     assert.strictEqual(idx.findByName('MyIface')[0].kind, 'interface');
@@ -76,16 +86,19 @@ describe('SymbolIndexer', () => {
   });
 
   it('finds Go func + type', () => {
-    write('main.go', [
-      'package main',
-      '',
-      'type Server struct {',
-      '    addr string',
-      '}',
-      '',
-      'func (s *Server) Listen() error { return nil }',
-      'func main() {}',
-    ].join('\n'));
+    write(
+      'main.go',
+      [
+        'package main',
+        '',
+        'type Server struct {',
+        '    addr string',
+        '}',
+        '',
+        'func (s *Server) Listen() error { return nil }',
+        'func main() {}',
+      ].join('\n'),
+    );
     const idx = new SymbolIndexer(tmp);
     assert.strictEqual(idx.findByName('Server')[0].kind, 'struct');
     assert.strictEqual(idx.findByName('Listen')[0].kind, 'function');
@@ -105,11 +118,14 @@ describe('SymbolIndexer', () => {
   });
 
   it('prefix and substring search work', () => {
-    write('a.ts', [
-      'export class RelatedFieldListFilter {}',
-      'export class RelatedOnlyFieldListFilter {}',
-      'export class UnrelatedThing {}',
-    ].join('\n'));
+    write(
+      'a.ts',
+      [
+        'export class RelatedFieldListFilter {}',
+        'export class RelatedOnlyFieldListFilter {}',
+        'export class UnrelatedThing {}',
+      ].join('\n'),
+    );
     const idx = new SymbolIndexer(tmp);
     const byPrefix = idx.findByPrefix('related');
     assert.strictEqual(byPrefix.length, 2);
@@ -161,10 +177,12 @@ describe('SymbolIndexer', () => {
     const idx = new SymbolIndexer(tmp);
     const hits = idx.findByName('DeepThing');
     assert.strictEqual(hits.length, 1);
-    assert.strictEqual(hits[0].file, 'deeply/nested/folder/thing.py',
-      'file must use forward slashes regardless of os.platform()');
-    assert.ok(!hits[0].file.includes('\\'),
-      `file must contain no backslashes; got ${hits[0].file}`);
+    assert.strictEqual(
+      hits[0].file,
+      'deeply/nested/folder/thing.py',
+      'file must use forward slashes regardless of os.platform()',
+    );
+    assert.ok(!hits[0].file.includes('\\'), `file must contain no backslashes; got ${hits[0].file}`);
   });
 
   it('respects MAX_FILE_SIZE_BYTES (skips huge files)', () => {

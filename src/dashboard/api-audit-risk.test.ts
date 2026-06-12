@@ -34,7 +34,10 @@ import { AuditLogger } from '../audit';
  *  Each call constructs a fresh AuditLogger, which auto-generates a unique
  *  sessionId — so each call to this helper produces a distinct session in
  *  the same on-disk file. Returns the sessionId so the test can assert on it. */
-function appendSessionToLog(auditDir: string, entries: Array<{ tool: string; action: string; args?: Record<string, unknown>; result?: string; reason?: string }>): string {
+function appendSessionToLog(
+  auditDir: string,
+  entries: Array<{ tool: string; action: string; args?: Record<string, unknown>; result?: string; reason?: string }>,
+): string {
   const logger = new AuditLogger(auditDir);
   for (const e of entries) {
     logger.log({
@@ -72,15 +75,21 @@ function authedCall(server: DashboardServer, method: string, urlPath: string): P
     const http = require('node:http');
     const port = (server as any).server?.address()?.port;
     if (!port) return reject(new Error('server not listening'));
-    const req = http.request({ host: '127.0.0.1', port, path: urlPath, method, headers: { Authorization: `Bearer ${token}` } }, (res: any) => {
-      const chunks: Buffer[] = [];
-      res.on('data', (c: Buffer) => chunks.push(c));
-      res.on('end', () => {
-        const body = Buffer.concat(chunks).toString('utf-8');
-        try { resolve({ status: res.statusCode, body: JSON.parse(body) }); }
-        catch { resolve({ status: res.statusCode, body }); }
-      });
-    });
+    const req = http.request(
+      { host: '127.0.0.1', port, path: urlPath, method, headers: { Authorization: `Bearer ${token}` } },
+      (res: any) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => {
+          const body = Buffer.concat(chunks).toString('utf-8');
+          try {
+            resolve({ status: res.statusCode, body: JSON.parse(body) });
+          } catch {
+            resolve({ status: res.statusCode, body });
+          }
+        });
+      },
+    );
     req.on('error', reject);
     req.end();
   });
@@ -97,9 +106,7 @@ describe('Dashboard API — PR 13 regression tests', () => {
       { tool: 'read_file', action: 'execute', args: { path: 'a.ts' } },
       { tool: 'read_file', action: 'execute', args: { path: 'b.ts' } },
     ]);
-    appendSessionToLog(auditDir, [
-      { tool: 'execute', action: 'execute', args: { command: 'ls' } },
-    ]);
+    appendSessionToLog(auditDir, [{ tool: 'execute', action: 'execute', args: { command: 'ls' } }]);
     appendSessionToLog(auditDir, [
       { tool: 'app', action: 'execute', args: { action: 'github.list_prs' } },
       { tool: 'app', action: 'execute', args: { action: 'github.list_prs' } },
@@ -118,8 +125,11 @@ describe('Dashboard API — PR 13 regression tests', () => {
         assert.strictEqual(r.status, 200, `status=${r.status} body=${JSON.stringify(r.body)}`);
         assert.strictEqual(r.body.totalSessions, 3, `expected 3 sessions, saw ${r.body.totalSessions}`);
         assert.strictEqual(r.body.totalEntries, 6, `expected 6 entries, saw ${r.body.totalEntries}`);
-        assert.strictEqual(r.body.sessionsVerified, 3,
-          `all sessions should verify; saw verified=${r.body.sessionsVerified} invalid=${r.body.sessionsInvalid} legacy=${r.body.sessionsLegacy}`);
+        assert.strictEqual(
+          r.body.sessionsVerified,
+          3,
+          `all sessions should verify; saw verified=${r.body.sessionsVerified} invalid=${r.body.sessionsInvalid} legacy=${r.body.sessionsLegacy}`,
+        );
         assert.strictEqual(r.body.sessionsInvalid, 0);
         assert.strictEqual(r.body.chainIntegrity, 'verified');
       } finally {
@@ -137,9 +147,7 @@ describe('Dashboard API — PR 13 regression tests', () => {
     const auditDir = path.join(tmp, 'audit');
     fs.mkdirSync(auditDir, { recursive: true });
 
-    appendSessionToLog(auditDir, [
-      { tool: 'read_file', action: 'execute', args: { path: 'x' } },
-    ]);
+    appendSessionToLog(auditDir, [{ tool: 'read_file', action: 'execute', args: { path: 'x' } }]);
     appendCorruptSessionToLog(auditDir, 'sess-tampered');
 
     const prevHome = process.env.CODEBOT_HOME;
@@ -174,8 +182,20 @@ describe('Dashboard API — PR 13 regression tests', () => {
     // Risk rows are emitted with action='execute' and result='risk:N'.
     // Mix of orange (score 60), red (score 90), and a non-risk row.
     appendSessionToLog(auditDir, [
-      { tool: 'execute', action: 'execute', args: { command: 'rm -rf foo' }, result: 'risk:60', reason: 'cumulative=20' },
-      { tool: 'execute', action: 'execute', args: { command: 'curl bad.example' }, result: 'risk:90', reason: 'cumulative=40' },
+      {
+        tool: 'execute',
+        action: 'execute',
+        args: { command: 'rm -rf foo' },
+        result: 'risk:60',
+        reason: 'cumulative=20',
+      },
+      {
+        tool: 'execute',
+        action: 'execute',
+        args: { command: 'curl bad.example' },
+        result: 'risk:90',
+        reason: 'cumulative=40',
+      },
       { tool: 'read_file', action: 'execute', args: { path: 'safe.ts' } }, // no risk row
     ]);
 
@@ -221,8 +241,10 @@ describe('Dashboard API — PR 13 regression tests', () => {
         assert.strictEqual(r.body.total, 0);
         // Crucially: no `message: 'No risk data yet. Risk scoring activates...'`.
         // That was the dead-code branch from the orphaned _riskScorer path.
-        assert.ok(!('message' in r.body) || !/Risk scoring activates/.test(r.body.message),
-          `must not return the orphaned-scorer message; got ${JSON.stringify(r.body)}`);
+        assert.ok(
+          !('message' in r.body) || !/Risk scoring activates/.test(r.body.message),
+          `must not return the orphaned-scorer message; got ${JSON.stringify(r.body)}`,
+        );
         assert.strictEqual(r.body.source, 'audit-log');
       } finally {
         await server.stop();

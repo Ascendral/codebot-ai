@@ -1,10 +1,4 @@
-import {
-  Agent,
-  OpenAIProvider,
-  AnthropicProvider,
-  detectProvider,
-  PROVIDER_DEFAULTS,
-} from 'codebot-ai';
+import { Agent, OpenAIProvider, AnthropicProvider, detectProvider, PROVIDER_DEFAULTS } from 'codebot-ai';
 import type { AgentEvent, LLMProvider } from 'codebot-ai';
 
 export interface AgentBridgeOptions {

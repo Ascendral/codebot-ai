@@ -42,7 +42,8 @@ export interface PluginForgeResult {
 
 export class PluginForgeTool implements Tool {
   name = 'plugin_forge';
-  description = 'Create, validate, and install self-authored plugins. Actions: create (write and validate a plugin), list (show installed plugins), validate (check a plugin for safety), promote (move from staging to active), remove (delete a plugin).';
+  description =
+    'Create, validate, and install self-authored plugins. Actions: create (write and validate a plugin), list (show installed plugins), validate (check a plugin for safety), promote (move from staging to active), remove (delete a plugin).';
   permission: 'prompt' = 'prompt';
   capabilities: CapabilityLabel[] = ['write-fs'];
   parameters = {
@@ -100,8 +101,10 @@ export class PluginForgeTool implements Tool {
     const description = String(args.description || '');
     const code = String(args.code || '');
     const permission = String(args.permission || 'prompt');
-    const parameters = args.parameters as Record<string, unknown> || {
-      type: 'object', properties: {}, required: [],
+    const parameters = (args.parameters as Record<string, unknown>) || {
+      type: 'object',
+      properties: {},
+      required: [],
     };
 
     if (!name || !code) {
@@ -220,7 +223,7 @@ export class PluginForgeTool implements Tool {
       return `Plugin "${name}" passed all safety checks. Ready to promote.`;
     }
 
-    return `Validation issues for "${name}":\n${issues.map(i => `  - ${i}`).join('\n')}`;
+    return `Validation issues for "${name}":\n${issues.map((i) => `  - ${i}`).join('\n')}`;
   }
 
   private promote(name: string): string {
@@ -252,7 +255,11 @@ export class PluginForgeTool implements Tool {
     }
 
     // Clean up staging
-    try { fs.unlinkSync(stagingPlugin); } catch { /* ok */ }
+    try {
+      fs.unlinkSync(stagingPlugin);
+    } catch {
+      /* ok */
+    }
 
     return `Plugin "${name}" promoted to active plugins. It will be loaded on next agent start.`;
   }
@@ -276,9 +283,7 @@ export class PluginForgeTool implements Tool {
       removed = true;
     }
 
-    return removed
-      ? `Plugin "${name}" removed.`
-      : `Plugin "${name}" not found.`;
+    return removed ? `Plugin "${name}" removed.` : `Plugin "${name}" not found.`;
   }
 
   private wrapPluginCode(
@@ -299,7 +304,10 @@ module.exports = {
   permission: ${JSON.stringify(permission)},
   parameters: ${JSON.stringify(parameters, null, 2)},
   execute: async function(args) {
-${code.split('\n').map(line => '    ' + line).join('\n')}
+${code
+  .split('\n')
+  .map((line) => '    ' + line)
+  .join('\n')}
   }
 };
 `;
@@ -308,9 +316,12 @@ ${code.split('\n').map(line => '    ' + line).join('\n')}
   private listPluginsInDir(dir: string): string[] {
     if (!fs.existsSync(dir)) return [];
     try {
-      return fs.readdirSync(dir)
-        .filter(f => f.endsWith('.js'))
-        .map(f => f.replace('.js', ''));
-    } catch { return []; }
+      return fs
+        .readdirSync(dir)
+        .filter((f) => f.endsWith('.js'))
+        .map((f) => f.replace('.js', ''));
+    } catch {
+      return [];
+    }
   }
 }

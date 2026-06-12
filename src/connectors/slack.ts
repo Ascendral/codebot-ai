@@ -108,14 +108,14 @@ async function apiCall(
     const res = await fetch(`${BASE_URL}/${method}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${credential}`,
+        Authorization: `Bearer ${credential}`,
         'Content-Type': 'application/json; charset=utf-8',
       },
       body: params ? JSON.stringify(params) : undefined,
       signal: controller.signal,
     });
     clearTimeout(timer);
-    const data = await res.json() as Record<string, unknown>;
+    const data = (await res.json()) as Record<string, unknown>;
     return { ok: !!data.ok, data };
   } catch (err: unknown) {
     clearTimeout(timer);
@@ -316,8 +316,8 @@ const listChannels: ConnectorAction = {
       if (!ok) return `Error: Slack API: ${data.error || 'unknown error'}`;
       const channels = (data.channels as Array<{ name: string; topic: { value: string }; num_members: number }>) || [];
       if (!channels.length) return 'No channels found.';
-      const lines = channels.map(c =>
-        `  #${c.name} (${c.num_members} members)${c.topic?.value ? ` — ${c.topic.value.substring(0, 60)}` : ''}`
+      const lines = channels.map(
+        (c) => `  #${c.name} (${c.num_members} members)${c.topic?.value ? ` — ${c.topic.value.substring(0, 60)}` : ''}`,
       );
       return truncate(`Channels (${channels.length}):\n${lines.join('\n')}`);
     } catch (err: unknown) {
@@ -348,10 +348,12 @@ const searchMessages: ConnectorAction = {
       const count = Math.min((args.count as number) || 10, 50);
       const { ok, data } = await apiCallOrReauth('search.messages', cred, { query, count });
       if (!ok) return `Error: Slack API: ${data.error || 'unknown error'}`;
-      const messages = (data.messages as { matches: Array<{ text: string; username: string; channel: { name: string }; ts: string }> })?.matches || [];
+      const messages =
+        (data.messages as { matches: Array<{ text: string; username: string; channel: { name: string }; ts: string }> })
+          ?.matches || [];
       if (!messages.length) return `No messages found for "${query}".`;
-      const lines = messages.map(m =>
-        `  [#${m.channel?.name || '?'}] ${m.username || '?'}: ${(m.text || '').substring(0, 100)}`
+      const lines = messages.map(
+        (m) => `  [#${m.channel?.name || '?'}] ${m.username || '?'}: ${(m.text || '').substring(0, 100)}`,
       );
       return truncate(`Search results (${messages.length}):\n${lines.join('\n')}`);
     } catch (err: unknown) {
@@ -374,7 +376,12 @@ export class SlackConnector implements Connector {
   async validate(credential: string): Promise<boolean> {
     if (isWebhookUrl(credential)) {
       // Can't validate webhooks without sending a message
-      try { new URL(credential); return true; } catch { return false; }
+      try {
+        new URL(credential);
+        return true;
+      } catch {
+        return false;
+      }
     }
     try {
       const { ok } = await apiCall('auth.test', credential);

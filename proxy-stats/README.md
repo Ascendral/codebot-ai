@@ -4,12 +4,12 @@ Cloudflare Worker that answers the anonymous opt-in heartbeat from CodeBot insta
 
 ## What it does
 
-| Route | Purpose |
-|---|---|
+| Route            | Purpose                                                                                |
+| ---------------- | -------------------------------------------------------------------------------------- |
 | `POST /api/ping` | Accepts one heartbeat payload, validates schema strictly, stores in KV with 90-day TTL |
-| `GET /api/stats` | Returns aggregate counts as JSON (cached 5 min) |
-| `GET /` | Public HTML dashboard (no JS frameworks, no analytics, no fonts) |
-| `GET /health` | Liveness check |
+| `GET /api/stats` | Returns aggregate counts as JSON (cached 5 min)                                        |
+| `GET /`          | Public HTML dashboard (no JS frameworks, no analytics, no fonts)                       |
+| `GET /health`    | Liveness check                                                                         |
 
 ## What it does NOT do
 
@@ -23,6 +23,7 @@ Cloudflare Worker that answers the anonymous opt-in heartbeat from CodeBot insta
 ## Deploy
 
 One-time setup:
+
 ```
 npm install -g wrangler
 wrangler login
@@ -31,6 +32,7 @@ wrangler kv:namespace create "STATS"
 ```
 
 Paste the returned namespace id into `wrangler.toml` (uncomment the `[[kv_namespaces]]` block), then:
+
 ```
 wrangler deploy
 ```
@@ -44,6 +46,7 @@ wrangler dev
 ```
 
 Then in another terminal:
+
 ```bash
 # Send a fake ping
 curl -X POST http://localhost:8787/api/ping \
@@ -81,6 +84,7 @@ Extra keys → 400. This is intentional. Keeps the schema minimal and prevents f
 ## Cost
 
 Cloudflare Workers free tier:
+
 - 100k requests/day
 - KV: 100k reads/day, 1k writes/day, 1GB storage
 

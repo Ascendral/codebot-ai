@@ -94,11 +94,7 @@ const DEFAULT_CONFIG: Required<SandboxConfig> = {
  *
  * Falls back to host execution if Docker is unavailable.
  */
-export function sandboxExec(
-  command: string,
-  projectDir: string,
-  config?: SandboxConfig,
-): SandboxResult {
+export function sandboxExec(command: string, projectDir: string, config?: SandboxConfig): SandboxResult {
   const cfg = { ...DEFAULT_CONFIG, ...config };
   const resolvedProjectDir = path.resolve(projectDir);
 
@@ -116,17 +112,23 @@ export function sandboxExec(
   // thing. execFileSync bypasses the shell entirely; no quoting needed.
   const dockerArgs: string[] = [
     'run',
-    '--rm',                                 // Cleanup on exit
-    '--read-only',                          // Read-only root filesystem
-    '--tmpfs', '/tmp:size=100m',            // Writable /tmp
-    '--cpus', String(cfg.cpus),             // CPU limit (was `--cpus="2"` — bogus quoted form)
-    '--memory', `${cfg.memoryMb}m`,         // Memory limit
-    '--pids-limit', String(cfg.pidsLimit),  // PID limit
-    '--security-opt', 'no-new-privileges',  // No privilege escalation
-    '--cap-drop', 'ALL',                    // Drop all capabilities (was `--cap-drop=ALL`
-                                             //   which would have worked via shell, but
-                                             //   with execFileSync we pass it as two args
-                                             //   so the flag parser sees it cleanly)
+    '--rm', // Cleanup on exit
+    '--read-only', // Read-only root filesystem
+    '--tmpfs',
+    '/tmp:size=100m', // Writable /tmp
+    '--cpus',
+    String(cfg.cpus), // CPU limit (was `--cpus="2"` — bogus quoted form)
+    '--memory',
+    `${cfg.memoryMb}m`, // Memory limit
+    '--pids-limit',
+    String(cfg.pidsLimit), // PID limit
+    '--security-opt',
+    'no-new-privileges', // No privilege escalation
+    '--cap-drop',
+    'ALL', // Drop all capabilities (was `--cap-drop=ALL`
+    //   which would have worked via shell, but
+    //   with execFileSync we pass it as two args
+    //   so the flag parser sees it cleanly)
   ];
 
   // Network

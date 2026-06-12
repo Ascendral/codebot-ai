@@ -7,15 +7,15 @@
 
 ## Headline
 
-| | **Baseline** (2026-04-16) | **v2 with Tier 1 + Tier 2** (2026-04-17) | Delta |
-|---|:---:|:---:|:---:|
-| Tasks attempted | 50 | 50 | — |
-| Patches produced | 33 | 39 | **+6** |
-| **Resolved (tests pass)** | **17** | **24** | **+7** |
-| Unresolved | 16 | 15 | −1 |
-| **Pass rate over attempted** | **34.0 %** | **48.0 %** | **+14 pp** |
-| Pass rate over submitted | 51.5 % | 61.5 % | +10 pp |
-| Errors | 0 | 0 | 0 |
+|                              | **Baseline** (2026-04-16) | **v2 with Tier 1 + Tier 2** (2026-04-17) |   Delta    |
+| ---------------------------- | :-----------------------: | :--------------------------------------: | :--------: |
+| Tasks attempted              |            50             |                    50                    |     —      |
+| Patches produced             |            33             |                    39                    |   **+6**   |
+| **Resolved (tests pass)**    |          **17**           |                  **24**                  |   **+7**   |
+| Unresolved                   |            16             |                    15                    |     −1     |
+| **Pass rate over attempted** |        **34.0 %**         |                **48.0 %**                | **+14 pp** |
+| Pass rate over submitted     |          51.5 %           |                  61.5 %                  |   +10 pp   |
+| Errors                       |             0             |                    0                     |     0      |
 
 **Headline number: 48.0 %** over the 50-task slice. A real +14-percentage-point lift, same tasks, same model (gpt-5.4), same harness.
 
@@ -33,12 +33,12 @@ Only the CodeBot-side fixes shipped today:
 
 ## Change breakdown (what moved, and why)
 
-| | Count |
-|---|:---:|
-| **GAINED** (v2 resolved, baseline didn't) | **9** |
-| **LOST** (baseline resolved, v2 didn't — model non-determinism) | 2 |
-| STABLE PASS (both runs resolved) | 15 |
-| STABLE FAIL (neither run resolved) | 18 |
+|                                                                 | Count |
+| --------------------------------------------------------------- | :---: |
+| **GAINED** (v2 resolved, baseline didn't)                       | **9** |
+| **LOST** (baseline resolved, v2 didn't — model non-determinism) |   2   |
+| STABLE PASS (both runs resolved)                                |  15   |
+| STABLE FAIL (neither run resolved)                              |  18   |
 
 **Signal (gain − loss): +7.** Model non-determinism between runs is real (~20 % per-task variance on a 10-task sample in the earlier A/B), but on this 50-task slice the tiered fixes' lift dwarfs the noise floor by 4.5×.
 
@@ -65,19 +65,19 @@ django__django-11066   (baseline resolved; v2 unresolved)
 django__django-11451   (baseline resolved; v2 unresolved)
 ```
 
-Both are model-variance flips. Not a Tier regression — the v2 produced a *different first patch* for these tasks than the baseline did, and that first patch didn't converge.
+Both are model-variance flips. Not a Tier regression — the v2 produced a _different first patch_ for these tasks than the baseline did, and that first patch didn't converge.
 
 ## Resources used
 
-| | Value |
-|---|---|
-| Model | `gpt-5.4` (resolved to `gpt-5.4-2026-03-05`) |
-| Provider | `OpenAIResponsesProvider` → `/v1/responses` |
-| Phase 1 wall (gen with Docker test loop) | **2h 56m** |
-| Phase 2 wall (final Docker eval) | **43m** |
-| **Total wall** | **3h 39m** |
-| Docker runtime | Colima 0.10.1 + vz + Rosetta 2 |
-| CodeBot version | 2.10.1 |
+|                                          | Value                                        |
+| ---------------------------------------- | -------------------------------------------- |
+| Model                                    | `gpt-5.4` (resolved to `gpt-5.4-2026-03-05`) |
+| Provider                                 | `OpenAIResponsesProvider` → `/v1/responses`  |
+| Phase 1 wall (gen with Docker test loop) | **2h 56m**                                   |
+| Phase 2 wall (final Docker eval)         | **43m**                                      |
+| **Total wall**                           | **3h 39m**                                   |
+| Docker runtime                           | Colima 0.10.1 + vz + Rosetta 2               |
+| CodeBot version                          | 2.10.1                                       |
 
 Per-task time roughly doubled vs baseline because the Docker test loop fires an extra ~2-3 min per task when the first patch doesn't resolve. That's the cost of real signal.
 
@@ -91,7 +91,7 @@ Per-task time roughly doubled vs baseline because the Docker test loop fires an 
 - Mid open-source: ~30–45 %
 - Baseline CodeBot (2.10.0 at yesterday's run): 34 %
 
-The 48 % number is a slice, not the full 500 — but it's on the *same* alphabetical first-50 that the baseline used, so the apples-to-apples comparison is honest. Running the full 500 is the next step if a leaderboard number is wanted.
+The 48 % number is a slice, not the full 500 — but it's on the _same_ alphabetical first-50 that the baseline used, so the apples-to-apples comparison is honest. Running the full 500 is the next step if a leaderboard number is wanted.
 
 ## What this run proves
 

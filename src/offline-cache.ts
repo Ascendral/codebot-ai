@@ -41,7 +41,11 @@ export function cacheGet(key: string): string | null {
     const entry: CacheEntry = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
     if (Date.now() > entry.expiresAt) {
       // Expired — clean up
-      try { fs.unlinkSync(filePath); } catch { /* best-effort */ }
+      try {
+        fs.unlinkSync(filePath);
+      } catch {
+        /* best-effort */
+      }
       return null;
     }
     return entry.value;
@@ -61,7 +65,9 @@ export function cacheSet(key: string, value: string, ttlMs: number = DEFAULT_TTL
       key,
     };
     fs.writeFileSync(cachePath(key), JSON.stringify(entry));
-  } catch { /* best-effort — caching should never break the tool */ }
+  } catch {
+    /* best-effort — caching should never break the tool */
+  }
 }
 
 /** Check if a key exists and is not expired */
@@ -77,10 +83,17 @@ export function cacheClear(): number {
     const files = fs.readdirSync(CACHE_DIR);
     for (const file of files) {
       if (file.endsWith('.json')) {
-        try { fs.unlinkSync(path.join(CACHE_DIR, file)); cleared++; } catch { /* skip */ }
+        try {
+          fs.unlinkSync(path.join(CACHE_DIR, file));
+          cleared++;
+        } catch {
+          /* skip */
+        }
       }
     }
-  } catch { /* best-effort */ }
+  } catch {
+    /* best-effort */
+  }
   return cleared;
 }
 
@@ -99,15 +112,24 @@ export function cachePurgeExpired(): number {
           fs.unlinkSync(path.join(CACHE_DIR, file));
           purged++;
         }
-      } catch { /* corrupt entry — remove it */ try { fs.unlinkSync(path.join(CACHE_DIR, file)); purged++; } catch {} }
+      } catch {
+        /* corrupt entry — remove it */ try {
+          fs.unlinkSync(path.join(CACHE_DIR, file));
+          purged++;
+        } catch {}
+      }
     }
-  } catch { /* best-effort */ }
+  } catch {
+    /* best-effort */
+  }
   return purged;
 }
 
 /** Get cache stats */
 export function cacheStats(): { entries: number; totalBytes: number; oldestMs: number } {
-  let entries = 0, totalBytes = 0, oldestMs = Date.now();
+  let entries = 0,
+    totalBytes = 0,
+    oldestMs = Date.now();
   try {
     if (!fs.existsSync(CACHE_DIR)) return { entries: 0, totalBytes: 0, oldestMs: 0 };
     const files = fs.readdirSync(CACHE_DIR);
@@ -119,8 +141,12 @@ export function cacheStats(): { entries: number; totalBytes: number; oldestMs: n
         entries++;
         totalBytes += stat.size;
         if (stat.mtimeMs < oldestMs) oldestMs = stat.mtimeMs;
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     }
-  } catch { /* best-effort */ }
+  } catch {
+    /* best-effort */
+  }
   return { entries, totalBytes, oldestMs: entries > 0 ? oldestMs : 0 };
 }

@@ -62,9 +62,9 @@ describe('BrowserSession — connection management', () => {
   it('shouldReconnect returns true up to max attempts', () => {
     const session = BrowserSession.getInstance();
     session.resetFallback();
-    assert.strictEqual(session.shouldReconnect(), true);  // 1
-    assert.strictEqual(session.shouldReconnect(), true);  // 2
-    assert.strictEqual(session.shouldReconnect(), true);  // 3
+    assert.strictEqual(session.shouldReconnect(), true); // 1
+    assert.strictEqual(session.shouldReconnect(), true); // 2
+    assert.strictEqual(session.shouldReconnect(), true); // 3
     assert.strictEqual(session.shouldReconnect(), false); // 4 — exceeded
     session.resetFallback(); // cleanup
   });
@@ -95,62 +95,76 @@ describe('BrowserTool — input validation', () => {
 
   it('navigate returns error when url missing', async () => {
     const result = await tool.execute({ action: 'navigate' });
-    assert.ok(result.includes('Error') || result.includes('error') || result.includes('url is required'),
-      'Should error on missing URL');
+    assert.ok(
+      result.includes('Error') || result.includes('error') || result.includes('url is required'),
+      'Should error on missing URL',
+    );
   });
 
   it('click returns error when selector missing', async () => {
     const result = await tool.execute({ action: 'click' });
-    assert.ok(result.includes('Error') || result.includes('selector is required') || result.includes('Browser error'),
-      'Should error on missing selector');
+    assert.ok(
+      result.includes('Error') || result.includes('selector is required') || result.includes('Browser error'),
+      'Should error on missing selector',
+    );
   });
 
   it('type returns error when selector missing', async () => {
     const result = await tool.execute({ action: 'type', text: 'hello' });
-    assert.ok(result.includes('Error') || result.includes('selector is required') || result.includes('Browser error'),
-      'Should error on missing selector');
+    assert.ok(
+      result.includes('Error') || result.includes('selector is required') || result.includes('Browser error'),
+      'Should error on missing selector',
+    );
   });
 
   it('type returns error when text missing', async () => {
     const result = await tool.execute({ action: 'type', selector: '#input' });
-    assert.ok(result.includes('Error') || result.includes('text is required') || result.includes('Browser error'),
-      'Should error on missing text');
+    assert.ok(
+      result.includes('Error') || result.includes('text is required') || result.includes('Browser error'),
+      'Should error on missing text',
+    );
   });
 
   it('evaluate returns error when expression missing', async () => {
     const result = await tool.execute({ action: 'evaluate' });
-    assert.ok(result.includes('Error') || result.includes('expression is required') || result.includes('Browser error'),
-      'Should error on missing expression');
+    assert.ok(
+      result.includes('Error') || result.includes('expression is required') || result.includes('Browser error'),
+      'Should error on missing expression',
+    );
   });
 
   it('find_by_text returns error when text missing', async () => {
     const result = await tool.execute({ action: 'find_by_text' });
-    assert.ok(result.includes('Error') || result.includes('text is required') || result.includes('Browser error'),
-      'Should error on missing text');
+    assert.ok(
+      result.includes('Error') || result.includes('text is required') || result.includes('Browser error'),
+      'Should error on missing text',
+    );
   });
 
   it('press_key returns error when key missing', async () => {
     const result = await tool.execute({ action: 'press_key' });
-    assert.ok(result.includes('Error') || result.includes('key is required') || result.includes('Browser error'),
-      'Should error on missing key');
+    assert.ok(
+      result.includes('Error') || result.includes('key is required') || result.includes('Browser error'),
+      'Should error on missing key',
+    );
   });
 
   it('hover returns error when selector missing', async () => {
     const result = await tool.execute({ action: 'hover' });
-    assert.ok(result.includes('Error') || result.includes('selector is required') || result.includes('Browser error'),
-      'Should error on missing selector');
+    assert.ok(
+      result.includes('Error') || result.includes('selector is required') || result.includes('Browser error'),
+      'Should error on missing selector',
+    );
   });
 
   it('close returns success message', async () => {
     const result = await tool.execute({ action: 'close' });
-    assert.ok(result.includes('closed') || result.includes('Browser'),
-      'Should confirm browser closed');
+    assert.ok(result.includes('closed') || result.includes('Browser'), 'Should confirm browser closed');
   });
 
   it('wait defaults to 1000ms', async () => {
     const result = await tool.execute({ action: 'wait' });
-    assert.ok(result.includes('Waited') || result.includes('ms'),
-      'Should confirm wait completed');
+    assert.ok(result.includes('Waited') || result.includes('ms'), 'Should confirm wait completed');
   });
 });
 
@@ -164,7 +178,7 @@ describe('BrowserTool — error message quality', () => {
     const result = await tool.execute({ action: 'screenshot' });
     assert.ok(
       result.includes('fallback') || result.includes('Browser error') || result.includes('unavailable'),
-      'Should mention fallback or error state: ' + result
+      'Should mention fallback or error state: ' + result,
     );
     session.resetFallback();
   });
@@ -177,7 +191,7 @@ describe('BrowserTool — error message quality', () => {
     const result = await tool.execute({ action: 'navigate', url: 'https://httpbin.org/status/200' });
     assert.ok(
       result.includes('Fallback mode') || result.includes('Error') || result.includes('fetch'),
-      'Should use fallback fetch or report error: ' + result
+      'Should use fallback fetch or report error: ' + result,
     );
     session.resetFallback();
   });

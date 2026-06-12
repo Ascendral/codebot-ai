@@ -105,7 +105,7 @@ describe('Daemon', () => {
     // Manually trigger tick by starting and immediately stopping
     await daemon.start();
     // Give tick time to process
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 100));
     await daemon.stop();
     // Job may or may not have been processed depending on timing
     // Just verify the callback was set and daemon runs

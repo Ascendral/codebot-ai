@@ -18,12 +18,7 @@ export interface ExecStreamEvents {
  * `sandbox_required` → HTTP 501 ("transport cannot satisfy policy"), and
  * the other codes → 403 (the gate itself refused the command).
  */
-export type ExecStreamErrorCode =
-  | 'bad_args'
-  | 'blocked_pattern'
-  | 'unsafe_cwd'
-  | 'sandbox_required'
-  | 'spawn_error';
+export type ExecStreamErrorCode = 'bad_args' | 'blocked_pattern' | 'unsafe_cwd' | 'sandbox_required' | 'spawn_error';
 
 export class ExecStreamError extends Error {
   readonly code: ExecStreamErrorCode;
@@ -151,7 +146,9 @@ export const FILTERED_ENV_VARS = [
 export class ExecuteTool implements Tool {
   name = 'execute';
   private projectRoot: string;
-  constructor(projectRoot?: string) { this.projectRoot = projectRoot || process.cwd(); }
+  constructor(projectRoot?: string) {
+    this.projectRoot = projectRoot || process.cwd();
+  }
   description = 'Execute a shell command. Returns stdout and stderr. Use for running tests, builds, git commands, etc.';
   permission: Tool['permission'] = 'prompt';
   capabilities: CapabilityLabel[] = ['read-only', 'write-fs', 'run-cmd'];
@@ -203,9 +200,7 @@ export class ExecuteTool implements Tool {
 
     const enforcer = new PolicyEnforcer(undefined, this.projectRoot);
     const sandboxMode = enforcer.getSandboxMode();
-    const useSandbox =
-      sandboxMode === 'docker' ||
-      (sandboxMode === 'auto' && isDockerAvailable());
+    const useSandbox = sandboxMode === 'docker' || (sandboxMode === 'auto' && isDockerAvailable());
 
     const safeEnv = { ...process.env };
     for (const key of FILTERED_ENV_VARS) {
@@ -320,11 +315,7 @@ export class ExecuteTool implements Tool {
    * callbacks, enforces the timeout, captures 512-byte rolling tails
    * for audit forensics.
    */
-  private runStreaming(
-    plan: ExecPlan,
-    events: ExecStreamEvents,
-    timeoutMs: number,
-  ): Promise<ExecStreamResult> {
+  private runStreaming(plan: ExecPlan, events: ExecStreamEvents, timeoutMs: number): Promise<ExecStreamResult> {
     return new Promise<ExecStreamResult>((resolve, reject) => {
       let settled = false;
       const stdoutChunks: string[] = [];
@@ -355,19 +346,29 @@ export class ExecuteTool implements Tool {
       }, timeoutMs);
       let timedOut = false;
       timer.unref?.();
-      const armTimeoutFlag = setTimeout(() => { timedOut = true; }, timeoutMs);
+      const armTimeoutFlag = setTimeout(() => {
+        timedOut = true;
+      }, timeoutMs);
       armTimeoutFlag.unref?.();
 
       child.stdout.on('data', (d: Buffer) => {
         const text = d.toString('utf-8');
         stdoutLen = pushBounded(stdoutChunks, text, stdoutLen);
-        try { events.onStdout?.(text); } catch { /* consumer errors must not kill the stream */ }
+        try {
+          events.onStdout?.(text);
+        } catch {
+          /* consumer errors must not kill the stream */
+        }
       });
 
       child.stderr.on('data', (d: Buffer) => {
         const text = d.toString('utf-8');
         stderrLen = pushBounded(stderrChunks, text, stderrLen);
-        try { events.onStderr?.(text); } catch { /* ditto */ }
+        try {
+          events.onStderr?.(text);
+        } catch {
+          /* ditto */
+        }
       });
 
       child.on('error', (err: Error) => {

@@ -9,7 +9,8 @@
  * Used to adapt the system prompt persona.
  */
 export function isLikelyDeveloper(messages: Array<{ role: string; content: string | unknown }>): boolean {
-  const devPatterns = /\b(git|npm|pip|docker|ssh|api|endpoint|deploy|compile|build|debug|refactor|function|class|module|import|export|const|let|var|async|await|promise|callback|interface|type|struct|enum)\b/i;
+  const devPatterns =
+    /\b(git|npm|pip|docker|ssh|api|endpoint|deploy|compile|build|debug|refactor|function|class|module|import|export|const|let|var|async|await|promise|callback|interface|type|struct|enum)\b/i;
 
   let devSignals = 0;
   let totalUserMessages = 0;

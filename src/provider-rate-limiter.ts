@@ -16,16 +16,16 @@ export interface ProviderRateConfig {
 
 export const PROVIDER_RATE_DEFAULTS: Record<string, ProviderRateConfig> = {
   anthropic: { provider: 'anthropic', requestsPerMinute: 50, tokensPerMinute: 100_000, concurrentRequests: 5 },
-  openai:    { provider: 'openai',    requestsPerMinute: 60, tokensPerMinute: 150_000, concurrentRequests: 10 },
-  gemini:    { provider: 'gemini',    requestsPerMinute: 60, tokensPerMinute: 1_000_000, concurrentRequests: 10 },
-  deepseek:  { provider: 'deepseek',  requestsPerMinute: 30, tokensPerMinute: 60_000,  concurrentRequests: 3 },
-  groq:      { provider: 'groq',      requestsPerMinute: 30, tokensPerMinute: 50_000,  concurrentRequests: 3 },
-  mistral:   { provider: 'mistral',   requestsPerMinute: 30, tokensPerMinute: 100_000, concurrentRequests: 5 },
-  xai:       { provider: 'xai',       requestsPerMinute: 60, tokensPerMinute: 100_000, concurrentRequests: 5 },
-  local:     { provider: 'local',     requestsPerMinute: 999, tokensPerMinute: 999_999, concurrentRequests: 1 },
-  ollama:    { provider: 'ollama',    requestsPerMinute: 999, tokensPerMinute: 999_999, concurrentRequests: 1 },
-  lmstudio:  { provider: 'lmstudio',  requestsPerMinute: 999, tokensPerMinute: 999_999, concurrentRequests: 1 },
-  vllm:      { provider: 'vllm',      requestsPerMinute: 999, tokensPerMinute: 999_999, concurrentRequests: 1 },
+  openai: { provider: 'openai', requestsPerMinute: 60, tokensPerMinute: 150_000, concurrentRequests: 10 },
+  gemini: { provider: 'gemini', requestsPerMinute: 60, tokensPerMinute: 1_000_000, concurrentRequests: 10 },
+  deepseek: { provider: 'deepseek', requestsPerMinute: 30, tokensPerMinute: 60_000, concurrentRequests: 3 },
+  groq: { provider: 'groq', requestsPerMinute: 30, tokensPerMinute: 50_000, concurrentRequests: 3 },
+  mistral: { provider: 'mistral', requestsPerMinute: 30, tokensPerMinute: 100_000, concurrentRequests: 5 },
+  xai: { provider: 'xai', requestsPerMinute: 60, tokensPerMinute: 100_000, concurrentRequests: 5 },
+  local: { provider: 'local', requestsPerMinute: 999, tokensPerMinute: 999_999, concurrentRequests: 1 },
+  ollama: { provider: 'ollama', requestsPerMinute: 999, tokensPerMinute: 999_999, concurrentRequests: 1 },
+  lmstudio: { provider: 'lmstudio', requestsPerMinute: 999, tokensPerMinute: 999_999, concurrentRequests: 1 },
+  vllm: { provider: 'vllm', requestsPerMinute: 999, tokensPerMinute: 999_999, concurrentRequests: 1 },
 };
 
 const WINDOW_MS = 60_000; // 1 minute sliding window
@@ -148,11 +148,11 @@ export class ProviderRateLimiter {
   /** Remove entries older than the window. */
   private pruneWindow(): void {
     const cutoff = Date.now() - WINDOW_MS;
-    this.timestamps = this.timestamps.filter(ts => ts > cutoff);
-    this.tokenEntries = this.tokenEntries.filter(e => e.ts > cutoff);
+    this.timestamps = this.timestamps.filter((ts) => ts > cutoff);
+    this.tokenEntries = this.tokenEntries.filter((e) => e.ts > cutoff);
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

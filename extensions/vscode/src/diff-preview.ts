@@ -30,9 +30,7 @@ export class DiffPreviewProvider implements vscode.TextDocumentContentProvider {
   public setProposedContent(filePath: string, content: string): void {
     this.proposedContents.set(filePath, content);
 
-    const uri = vscode.Uri.parse(
-      `${CODEBOT_PROPOSED_SCHEME}:${filePath}`
-    );
+    const uri = vscode.Uri.parse(`${CODEBOT_PROPOSED_SCHEME}:${filePath}`);
     this._onDidChange.fire(uri);
   }
 
@@ -60,28 +58,20 @@ export class DiffPreviewProvider implements vscode.TextDocumentContentProvider {
   public static async showDiff(
     provider: DiffPreviewProvider,
     filePath: string,
-    proposedContent: string
+    proposedContent: string,
   ): Promise<void> {
     // Store the proposed content
     provider.setProposedContent(filePath, proposedContent);
 
     // Build URIs for both sides of the diff
     const originalUri = vscode.Uri.file(filePath);
-    const proposedUri = vscode.Uri.parse(
-      `${CODEBOT_PROPOSED_SCHEME}:${filePath}`
-    );
+    const proposedUri = vscode.Uri.parse(`${CODEBOT_PROPOSED_SCHEME}:${filePath}`);
 
     const fileName = path.basename(filePath);
     const title = `${fileName} (Original \u2194 CodeBot Proposed)`;
 
     // Open the diff editor
-    await vscode.commands.executeCommand(
-      'vscode.diff',
-      originalUri,
-      proposedUri,
-      title,
-      { preview: true }
-    );
+    await vscode.commands.executeCommand('vscode.diff', originalUri, proposedUri, title, { preview: true });
   }
 
   /**

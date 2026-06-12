@@ -65,10 +65,7 @@ describe('isGoogleCalendarAuthError', () => {
   });
 
   it('403 with unrecognized reason → NOT reauth (fail closed)', () => {
-    assert.strictEqual(
-      isGoogleCalendarAuthError(403, { error: { errors: [{ reason: 'mysteryProblem' }] } }),
-      false,
-    );
+    assert.strictEqual(isGoogleCalendarAuthError(403, { error: { errors: [{ reason: 'mysteryProblem' }] } }), false);
   });
 
   it('403 with no errors[] → NOT reauth', () => {
@@ -85,26 +82,31 @@ describe('GoogleCalendarConnector — §8 contract surface', () => {
   });
 
   it('exposes the 5 expected actions', () => {
-    const names = connector.actions.map(a => a.name).sort();
+    const names = connector.actions.map((a) => a.name).sort();
     assert.deepStrictEqual(names, ['create_event', 'delete_event', 'find_free_time', 'list_events', 'update_event']);
   });
 
   it('per-action capability labels match the §8 spec', () => {
-    const byName = Object.fromEntries(connector.actions.map(a => [a.name, a]));
+    const byName = Object.fromEntries(connector.actions.map((a) => [a.name, a]));
     assert.deepStrictEqual(byName.list_events.capabilities, ['read-only', 'account-access', 'net-fetch']);
     assert.deepStrictEqual(byName.find_free_time.capabilities, ['read-only', 'account-access', 'net-fetch']);
     assert.deepStrictEqual(byName.create_event.capabilities, ['account-access', 'net-fetch', 'send-on-behalf']);
     assert.deepStrictEqual(byName.update_event.capabilities, ['account-access', 'net-fetch', 'send-on-behalf']);
-    assert.deepStrictEqual(byName.delete_event.capabilities, ['account-access', 'net-fetch', 'send-on-behalf', 'delete-data']);
+    assert.deepStrictEqual(byName.delete_event.capabilities, [
+      'account-access',
+      'net-fetch',
+      'send-on-behalf',
+      'delete-data',
+    ]);
   });
 
   it('idempotency: create_event uses request_id (Calendar API supports it)', () => {
-    const a = connector.actions.find(x => x.name === 'create_event')!;
+    const a = connector.actions.find((x) => x.name === 'create_event')!;
     assert.deepStrictEqual(a.idempotency, { kind: 'arg', arg: 'request_id' });
   });
 
   it('idempotency: update_event is unsupported with ETag-vs-idempotency reason', () => {
-    const a = connector.actions.find(x => x.name === 'update_event')!;
+    const a = connector.actions.find((x) => x.name === 'update_event')!;
     assert.strictEqual(a.idempotency?.kind, 'unsupported');
     if (a.idempotency?.kind === 'unsupported') {
       assert.match(a.idempotency.reason, /ETag/);
@@ -113,7 +115,7 @@ describe('GoogleCalendarConnector — §8 contract surface', () => {
   });
 
   it('idempotency: delete_event documents HTTP-410-natural-idempotency gap', () => {
-    const a = connector.actions.find(x => x.name === 'delete_event')!;
+    const a = connector.actions.find((x) => x.name === 'delete_event')!;
     assert.strictEqual(a.idempotency?.kind, 'unsupported');
     if (a.idempotency?.kind === 'unsupported') {
       assert.match(a.idempotency.reason, /410 Gone/);
@@ -122,17 +124,20 @@ describe('GoogleCalendarConnector — §8 contract surface', () => {
   });
 
   it('preview: create_event hashes description + counts attendees, no network', async () => {
-    const a = connector.actions.find(x => x.name === 'create_event')!;
+    const a = connector.actions.find((x) => x.name === 'create_event')!;
     assert.ok(a.preview, 'preview required for send-on-behalf');
-    const p = await a.preview!({
-      title: 'Sync',
-      start: '2026-05-01T10:00:00-07:00',
-      end: '2026-05-01T11:00:00-07:00',
-      description: 'long body — secret stuff inside',
-      attendees: 'a@x.com, b@y.com, c@z.com',
-      location: 'Room 1',
-      request_id: 'idem-123',
-    }, '');
+    const p = await a.preview!(
+      {
+        title: 'Sync',
+        start: '2026-05-01T10:00:00-07:00',
+        end: '2026-05-01T11:00:00-07:00',
+        description: 'long body — secret stuff inside',
+        attendees: 'a@x.com, b@y.com, c@z.com',
+        location: 'Room 1',
+        request_id: 'idem-123',
+      },
+      '',
+    );
     assert.match(p.summary, /Would create Google Calendar event/);
     assert.match(p.summary, /Title:\s+Sync/);
     assert.match(p.summary, /Attendees:\s+3 email\(s\)/);
@@ -145,12 +150,15 @@ describe('GoogleCalendarConnector — §8 contract surface', () => {
   });
 
   it('preview: update_event lists changed fields only', async () => {
-    const a = connector.actions.find(x => x.name === 'update_event')!;
-    const p = await a.preview!({
-      event_id: 'evt-abc',
-      title: 'New title',
-      description: 'changed body',
-    }, '');
+    const a = connector.actions.find((x) => x.name === 'update_event')!;
+    const p = await a.preview!(
+      {
+        event_id: 'evt-abc',
+        title: 'New title',
+        description: 'changed body',
+      },
+      '',
+    );
     assert.match(p.summary, /Would update Google Calendar event evt-abc/);
     assert.match(p.summary, /title → New title/);
     assert.match(p.summary, /description → 12 chars \(sha256:/);
@@ -159,7 +167,7 @@ describe('GoogleCalendarConnector — §8 contract surface', () => {
   });
 
   it('preview: delete_event names the destructive scope', async () => {
-    const a = connector.actions.find(x => x.name === 'delete_event')!;
+    const a = connector.actions.find((x) => x.name === 'delete_event')!;
     const p = await a.preview!({ event_id: 'evt-zzz', calendar: 'work@x.com' }, '');
     assert.match(p.summary, /Would DELETE Google Calendar event/);
     assert.match(p.summary, /attendees' calendars/);
@@ -167,7 +175,7 @@ describe('GoogleCalendarConnector — §8 contract surface', () => {
   });
 
   it('redactArgsForAudit: create_event hashes description + redacts attendees, keeps title/start/location', () => {
-    const a = connector.actions.find(x => x.name === 'create_event')!;
+    const a = connector.actions.find((x) => x.name === 'create_event')!;
     const out = a.redactArgsForAudit!({
       title: '1:1',
       start: '2026-05-01T10:00:00Z',
@@ -186,7 +194,7 @@ describe('GoogleCalendarConnector — §8 contract surface', () => {
   });
 
   it('redactArgsForAudit: empty description / no attendees passes through cleanly', () => {
-    const a = connector.actions.find(x => x.name === 'create_event')!;
+    const a = connector.actions.find((x) => x.name === 'create_event')!;
     const out = a.redactArgsForAudit!({
       title: 'Solo block',
       start: '2026-05-01T10:00:00Z',
@@ -198,7 +206,6 @@ describe('GoogleCalendarConnector — §8 contract surface', () => {
 
   it('contract validator passes with zero violations', () => {
     const violations = validateConnectorContract(connector);
-    assert.strictEqual(violations.length, 0,
-      `expected zero violations; got: ${JSON.stringify(violations)}`);
+    assert.strictEqual(violations.length, 0, `expected zero violations; got: ${JSON.stringify(violations)}`);
   });
 });

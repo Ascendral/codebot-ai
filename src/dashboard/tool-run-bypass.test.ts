@@ -42,10 +42,12 @@ function request(
     const req = http.request(url, { method, headers }, (res) => {
       const chunks: Buffer[] = [];
       res.on('data', (chunk: Buffer) => chunks.push(chunk));
-      res.on('end', () => resolve({
-        status: res.statusCode || 0,
-        body: Buffer.concat(chunks).toString('utf-8'),
-      }));
+      res.on('end', () =>
+        resolve({
+          status: res.statusCode || 0,
+          body: Buffer.concat(chunks).toString('utf-8'),
+        }),
+      );
     });
     req.on('error', reject);
     if (body !== undefined) req.write(JSON.stringify(body));
@@ -63,7 +65,9 @@ function makeStubProvider(): LLMProvider {
 }
 
 let portCounter = 15620;
-function nextPort(): number { return portCounter++; }
+function nextPort(): number {
+  return portCounter++;
+}
 
 describe('POST /api/command/tool/run — security gate chain', () => {
   let server: DashboardServer | null = null;
@@ -74,7 +78,11 @@ describe('POST /api/command/tool/run — security gate chain', () => {
     if (server && server.isRunning()) await server.stop();
     server = null;
     if (fixtureDir && fs.existsSync(fixtureDir)) {
-      try { fs.rmSync(fixtureDir, { recursive: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(fixtureDir, { recursive: true });
+      } catch {
+        /* ignore */
+      }
     }
     fixtureDir = null;
     agent = null;
@@ -111,12 +119,10 @@ describe('POST /api/command/tool/run — security gate chain', () => {
     const { port, token } = await startServer();
     const sessionId = agent!.getAuditLogger().getSessionId();
 
-    const res = await request(
-      `http://127.0.0.1:${port}/api/command/tool/run`,
-      'POST',
-      token,
-      { tool: 'execute', args: { command: 'rm -rf /' } },
-    );
+    const res = await request(`http://127.0.0.1:${port}/api/command/tool/run`, 'POST', token, {
+      tool: 'execute',
+      args: { command: 'rm -rf /' },
+    });
 
     // Endpoint responds 200 with structured block outcome — NOT 500,
     // NOT a successful execution.
@@ -134,16 +140,17 @@ describe('POST /api/command/tool/run — security gate chain', () => {
     // deny/block action. This is the whole point of the fix — the old
     // code path wrote nothing.
     const entries = agent!.getAuditLogger().query({ sessionId });
-    const blockEntries = entries.filter(e =>
-      e.tool === 'execute' &&
-      (e.action === 'deny' ||
-       e.action === 'constitutional_block' ||
-       e.action === 'policy_block' ||
-       e.action === 'security_block'),
+    const blockEntries = entries.filter(
+      (e) =>
+        e.tool === 'execute' &&
+        (e.action === 'deny' ||
+          e.action === 'constitutional_block' ||
+          e.action === 'policy_block' ||
+          e.action === 'security_block'),
     );
     assert.ok(
       blockEntries.length > 0,
-      `expected ≥1 block audit entry for execute, got entries=${JSON.stringify(entries.map(e => ({ tool: e.tool, action: e.action })))}`,
+      `expected ≥1 block audit entry for execute, got entries=${JSON.stringify(entries.map((e) => ({ tool: e.tool, action: e.action })))}`,
     );
   });
 
@@ -151,20 +158,14 @@ describe('POST /api/command/tool/run — security gate chain', () => {
     const { port, token } = await startServer();
 
     const target = path.join(fixtureDir!, 'hello.txt');
-    const res = await request(
-      `http://127.0.0.1:${port}/api/command/tool/run`,
-      'POST',
-      token,
-      { tool: 'read_file', args: { path: target } },
-    );
+    const res = await request(`http://127.0.0.1:${port}/api/command/tool/run`, 'POST', token, {
+      tool: 'read_file',
+      args: { path: target },
+    });
 
     assert.strictEqual(res.status, 200, `expected 200, got ${res.status}: ${res.body}`);
     const body = JSON.parse(res.body);
-    assert.strictEqual(
-      body.blocked,
-      false,
-      `expected blocked: false for read_file, got body=${JSON.stringify(body)}`,
-    );
+    assert.strictEqual(body.blocked, false, `expected blocked: false for read_file, got body=${JSON.stringify(body)}`);
     assert.strictEqual(
       body.is_error,
       false,
@@ -178,12 +179,10 @@ describe('POST /api/command/tool/run — security gate chain', () => {
 
   it('returns 404 for an unknown tool (preserves pre-fix shape)', async () => {
     const { port, token } = await startServer();
-    const res = await request(
-      `http://127.0.0.1:${port}/api/command/tool/run`,
-      'POST',
-      token,
-      { tool: 'no_such_tool_exists', args: {} },
-    );
+    const res = await request(`http://127.0.0.1:${port}/api/command/tool/run`, 'POST', token, {
+      tool: 'no_such_tool_exists',
+      args: {},
+    });
     assert.strictEqual(res.status, 404, `expected 404, got ${res.status}: ${res.body}`);
   });
 
@@ -203,23 +202,14 @@ describe('POST /api/command/tool/run — security gate chain', () => {
     const { port, token } = await startServer();
     // `standup-summary` is a built-in skill, always registered.
     const toolName = 'skill_standup-summary';
-    assert.ok(
-      agent!.getToolRegistry().get(toolName),
-      'expected skill_standup-summary to be registered (built-in)',
-    );
+    assert.ok(agent!.getToolRegistry().get(toolName), 'expected skill_standup-summary to be registered (built-in)');
 
-    const res = await request(
-      `http://127.0.0.1:${port}/api/command/tool/run`,
-      'POST',
-      token,
-      { tool: toolName, args: { channel: '#test' } },
-    );
+    const res = await request(`http://127.0.0.1:${port}/api/command/tool/run`, 'POST', token, {
+      tool: toolName,
+      args: { channel: '#test' },
+    });
     assert.strictEqual(res.status, 403, `expected 403, got ${res.status}: ${res.body}`);
-    assert.match(
-      res.body,
-      /skill/i,
-      `expected error body to mention skills, got: ${res.body}`,
-    );
+    assert.match(res.body, /skill/i, `expected error body to mention skills, got: ${res.body}`);
   });
 
   it('skill inner steps replay the gate chain — each step writes an audit entry', async () => {
@@ -277,7 +267,11 @@ describe('POST /api/command/tool/run — security gate chain', () => {
       const reg = localAgent.getToolRegistry();
       assert.ok(
         reg.get('skill_test-read'),
-        `expected skill_test-read to be registered; got skills=${reg.all().map(t => t.name).filter(n => n.startsWith('skill_')).join(',')}`,
+        `expected skill_test-read to be registered; got skills=${reg
+          .all()
+          .map((t) => t.name)
+          .filter((n) => n.startsWith('skill_'))
+          .join(',')}`,
       );
 
       const outcome = await localAgent.runSingleTool(
@@ -290,10 +284,10 @@ describe('POST /api/command/tool/run — security gate chain', () => {
       // writes an audit entry for read_file. Pre-patch code wrote NONE
       // for inner steps.
       const entries = localAgent.getAuditLogger().query({ sessionId });
-      const innerReadEntries = entries.filter(e => e.tool === 'read_file');
+      const innerReadEntries = entries.filter((e) => e.tool === 'read_file');
       assert.ok(
         innerReadEntries.length > 0,
-        `expected ≥1 audit entry for inner read_file step, got entries=${JSON.stringify(entries.map(e => ({ tool: e.tool, action: e.action })))}; outcome=${JSON.stringify(outcome)}`,
+        `expected ≥1 audit entry for inner read_file step, got entries=${JSON.stringify(entries.map((e) => ({ tool: e.tool, action: e.action })))}; outcome=${JSON.stringify(outcome)}`,
       );
 
       // Sanity: the outer skill tool returned the inner result.
@@ -304,8 +298,16 @@ describe('POST /api/command/tool/run — security gate chain', () => {
     } finally {
       if (origHome === undefined) delete process.env.CODEBOT_HOME;
       else process.env.CODEBOT_HOME = origHome;
-      try { fs.rmSync(cbHome, { recursive: true }); } catch { /* ignore */ }
-      try { fs.rmSync(fixtureDirLocal, { recursive: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(cbHome, { recursive: true });
+      } catch {
+        /* ignore */
+      }
+      try {
+        fs.rmSync(fixtureDirLocal, { recursive: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 });

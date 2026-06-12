@@ -24,13 +24,7 @@ import * as fs from 'fs';
 import { AuditLogger } from '../audit';
 import { appendEvent } from './state';
 import type { CapabilityLabel } from '../types';
-import type {
-  CodingAgentProvider,
-  TaskSpec,
-  TaskHandle,
-  TaskEvent,
-  TaskStatus,
-} from './types';
+import type { CodingAgentProvider, TaskSpec, TaskHandle, TaskEvent, TaskStatus } from './types';
 
 export interface CursorCliOptions {
   /** Override the binary name/path. Defaults to `agent` on PATH. */
@@ -71,26 +65,12 @@ class CursorCliTaskHandle implements TaskHandle {
   private exitTokens = 0;
   private resultEmitted = false;
 
-  constructor(
-    spec: TaskSpec,
-    audit: AuditLogger | null,
-    binary: string,
-    model: string | undefined,
-    apiKey: string,
-  ) {
+  constructor(spec: TaskSpec, audit: AuditLogger | null, binary: string, model: string | undefined, apiKey: string) {
     this.id = spec.id!;
     this.spec = Object.freeze({ ...spec });
     this.audit = audit;
 
-    const args = [
-      '--print',
-      '--force',
-      '--approve-mcps',
-      '--output-format',
-      'stream-json',
-      '--workspace',
-      spec.cwd,
-    ];
+    const args = ['--print', '--force', '--approve-mcps', '--output-format', 'stream-json', '--workspace', spec.cwd];
     if (model) {
       args.push('--model', model);
     }
@@ -107,11 +87,7 @@ class CursorCliTaskHandle implements TaskHandle {
     if (statusUpdate) this.currentStatus = statusUpdate;
     appendEvent(this.id, event, statusUpdate);
     const action: 'task_event' | 'task_complete' | 'task_cancelled' =
-      event.type === 'result'
-        ? 'task_complete'
-        : statusUpdate === 'cancelled'
-        ? 'task_cancelled'
-        : 'task_event';
+      event.type === 'result' ? 'task_complete' : statusUpdate === 'cancelled' ? 'task_cancelled' : 'task_event';
     this.audit?.log({
       tool: 'coding-agent:cursor-cli',
       action,
@@ -152,7 +128,9 @@ class CursorCliTaskHandle implements TaskHandle {
         // file-write tools surface as file_change; everything else as command.
         if (tool === 'edit_file' || tool === 'write_file' || tool === 'create_file') {
           const p =
-            typeof line.args === 'object' && line.args !== null && typeof (line.args as Record<string, unknown>).path === 'string'
+            typeof line.args === 'object' &&
+            line.args !== null &&
+            typeof (line.args as Record<string, unknown>).path === 'string'
               ? ((line.args as Record<string, unknown>).path as string)
               : '<unknown>';
           const op: 'create' | 'modify' | 'delete' =
@@ -161,13 +139,17 @@ class CursorCliTaskHandle implements TaskHandle {
         }
         if (tool === 'delete_file') {
           const p =
-            typeof line.args === 'object' && line.args !== null && typeof (line.args as Record<string, unknown>).path === 'string'
+            typeof line.args === 'object' &&
+            line.args !== null &&
+            typeof (line.args as Record<string, unknown>).path === 'string'
               ? ((line.args as Record<string, unknown>).path as string)
               : '<unknown>';
           return { type: 'file_change', path: p, op: 'delete', at };
         }
         const cmd =
-          typeof line.args === 'object' && line.args !== null && typeof (line.args as Record<string, unknown>).command === 'string'
+          typeof line.args === 'object' &&
+          line.args !== null &&
+          typeof (line.args as Record<string, unknown>).command === 'string'
             ? ((line.args as Record<string, unknown>).command as string)
             : tool;
         return { type: 'command', command: cmd, exitCode: line.ok === false ? 1 : 0, at };
@@ -182,9 +164,7 @@ class CursorCliTaskHandle implements TaskHandle {
         return {
           type: 'result',
           ok: ok && !overBudget,
-          summary: overBudget
-            ? `${summary} [BUDGET EXCEEDED: ${this.exitTokens} > ${cap} tokens]`
-            : summary,
+          summary: overBudget ? `${summary} [BUDGET EXCEEDED: ${this.exitTokens} > ${cap} tokens]` : summary,
           at,
         };
       }
@@ -215,8 +195,7 @@ class CursorCliTaskHandle implements TaskHandle {
       }
       const ev = this.parseLine(parsed);
       if (ev) {
-        const status: TaskStatus | undefined =
-          ev.type === 'result' ? (ev.ok ? 'succeeded' : 'failed') : undefined;
+        const status: TaskStatus | undefined = ev.type === 'result' ? (ev.ok ? 'succeeded' : 'failed') : undefined;
         this.emit(ev, status);
       }
     }
@@ -256,7 +235,7 @@ class CursorCliTaskHandle implements TaskHandle {
       }
     });
 
-    child.on('error', err => {
+    child.on('error', (err) => {
       this.emit(
         {
           type: 'result',
@@ -269,7 +248,7 @@ class CursorCliTaskHandle implements TaskHandle {
       this.finish();
     });
 
-    child.on('close', code => {
+    child.on('close', (code) => {
       // If the CLI exited without ever emitting a `result` row (crash, killed,
       // signal), synthesize one so callers always see a terminal event.
       if (!this.resultEmitted && this.currentStatus !== 'cancelled') {
@@ -278,9 +257,7 @@ class CursorCliTaskHandle implements TaskHandle {
           {
             type: 'result',
             ok,
-            summary: ok
-              ? 'cursor-cli exited 0 without result row'
-              : `cursor-cli exited ${code} without result row`,
+            summary: ok ? 'cursor-cli exited 0 without result row' : `cursor-cli exited ${code} without result row`,
             at: this.now(),
           },
           ok ? 'succeeded' : 'failed',
@@ -307,7 +284,7 @@ class CursorCliTaskHandle implements TaskHandle {
             if (self.done) {
               return Promise.resolve({ value: undefined as unknown as TaskEvent, done: true });
             }
-            return new Promise<IteratorResult<TaskEvent>>(res => {
+            return new Promise<IteratorResult<TaskEvent>>((res) => {
               self.resolveNext = res;
             });
           },
@@ -317,17 +294,10 @@ class CursorCliTaskHandle implements TaskHandle {
   }
 
   async cancel(reason: string): Promise<void> {
-    if (
-      this.currentStatus === 'succeeded' ||
-      this.currentStatus === 'failed' ||
-      this.currentStatus === 'cancelled'
-    ) {
+    if (this.currentStatus === 'succeeded' || this.currentStatus === 'failed' || this.currentStatus === 'cancelled') {
       return;
     }
-    this.emit(
-      { type: 'log', level: 'warn', message: `cancelled: ${reason}`, at: this.now() },
-      'cancelled',
-    );
+    this.emit({ type: 'log', level: 'warn', message: `cancelled: ${reason}`, at: this.now() }, 'cancelled');
     if (this.child && !this.child.killed) {
       try {
         this.child.kill('SIGTERM');
@@ -353,13 +323,7 @@ class CursorCliTaskHandle implements TaskHandle {
 export class CursorCliAgentProvider implements CodingAgentProvider {
   readonly name = 'cursor-cli';
   readonly displayName = 'Cursor CLI (headless agent)';
-  readonly capabilities: CapabilityLabel[] = [
-    'read-only',
-    'write-fs',
-    'run-cmd',
-    'net-fetch',
-    'account-access',
-  ];
+  readonly capabilities: CapabilityLabel[] = ['read-only', 'write-fs', 'run-cmd', 'net-fetch', 'account-access'];
   readonly vaultKeyName = 'cursor';
 
   private binary: string;
@@ -387,9 +351,7 @@ export class CursorCliAgentProvider implements CodingAgentProvider {
 
   async start(spec: TaskSpec, credential: string | null): Promise<TaskHandle> {
     if (!credential) {
-      throw new Error(
-        'cursor-cli requires a CURSOR_API_KEY — store via `codebot vault set cursor <key>`',
-      );
+      throw new Error('cursor-cli requires a CURSOR_API_KEY — store via `codebot vault set cursor <key>`');
     }
     return new CursorCliTaskHandle(spec, this.audit, this.binary, this.model, credential);
   }

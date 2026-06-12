@@ -54,13 +54,13 @@ describe('Dashboard API', () => {
     // Create a test session
     fs.writeFileSync(
       path.join(sessionsDir, 'test-session-1.jsonl'),
-      '{"role":"user","content":"hello"}\n{"role":"assistant","content":"hi there"}\n'
+      '{"role":"user","content":"hello"}\n{"role":"assistant","content":"hi there"}\n',
     );
 
     // Create a test audit log
     fs.writeFileSync(
       path.join(auditDir, 'test-session-1.jsonl'),
-      '{"tool":"read_file","action":"execute","timestamp":"2025-01-01T00:00:00Z","hash":"abc"}\n{"tool":"write_file","action":"execute","timestamp":"2025-01-01T00:01:00Z","prevHash":"abc","hash":"def"}\n'
+      '{"tool":"read_file","action":"execute","timestamp":"2025-01-01T00:00:00Z","hash":"abc"}\n{"tool":"write_file","action":"execute","timestamp":"2025-01-01T00:01:00Z","prevHash":"abc","hash":"def"}\n',
     );
 
     return tmpDir;
@@ -219,11 +219,7 @@ describe('Dashboard API', () => {
 // `{provider: openai, model: claude-sonnet-4-6}` and every subsequent chat
 // would 404 at the OpenAI endpoint.
 // ─────────────────────────────────────────────────────────────────────────────
-function postJson(
-  url: string,
-  body: unknown,
-  token?: string,
-): Promise<{ status: number; body: string }> {
+function postJson(url: string, body: unknown, token?: string): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;

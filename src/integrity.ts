@@ -18,7 +18,8 @@ import * as os from 'os';
 /** Derive a per-session HMAC key. Deterministic for same session+machine. */
 export function deriveSessionKey(sessionId: string): Buffer {
   const machineId = os.hostname() + ':' + getUserName();
-  return crypto.createHash('sha256')
+  return crypto
+    .createHash('sha256')
     .update(sessionId + machineId)
     .digest();
 }
@@ -38,33 +39,22 @@ function getUserName(): string {
  * Compute HMAC-SHA256 signature for a message object.
  * Excludes the _sig field from the signing input.
  */
-export function signMessage(
-  message: Record<string, unknown>,
-  key: Buffer,
-): string {
+export function signMessage(message: Record<string, unknown>, key: Buffer): string {
   const payload = canonicalize(message);
-  return crypto.createHmac('sha256', key)
-    .update(payload)
-    .digest('hex');
+  return crypto.createHmac('sha256', key).update(payload).digest('hex');
 }
 
 /**
  * Verify a message's HMAC signature.
  * Returns false if no signature present or if it doesn't match.
  */
-export function verifyMessage(
-  message: Record<string, unknown>,
-  key: Buffer,
-): boolean {
+export function verifyMessage(message: Record<string, unknown>, key: Buffer): boolean {
   const sig = message._sig as string | undefined;
   if (!sig) return false;
 
   const expected = signMessage(message, key);
   try {
-    return crypto.timingSafeEqual(
-      Buffer.from(sig, 'hex'),
-      Buffer.from(expected, 'hex'),
-    );
+    return crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'));
   } catch {
     return false; // Different lengths or invalid hex
   }
@@ -96,10 +86,7 @@ export interface IntegrityResult {
  * Verify an array of signed messages.
  * Unsigned messages (pre-v1.8.0) are counted but not flagged as tampered.
  */
-export function verifyMessages(
-  messages: Array<Record<string, unknown>>,
-  key: Buffer,
-): IntegrityResult {
+export function verifyMessages(messages: Array<Record<string, unknown>>, key: Buffer): IntegrityResult {
   let valid = 0;
   let tampered = 0;
   let unsigned = 0;

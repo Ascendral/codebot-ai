@@ -51,10 +51,17 @@ const DEFAULT_CONFIG: LayoutConfig = {
 
 /** Box-drawing characters */
 const BOX = {
-  tl: '\u250c', tr: '\u2510', bl: '\u2514', br: '\u2518',
-  h: '\u2500', v: '\u2502',
-  lt: '\u251c', rt: '\u2524',
-  tt: '\u252c', bt: '\u2534', cross: '\u253c',
+  tl: '\u250c',
+  tr: '\u2510',
+  bl: '\u2514',
+  br: '\u2518',
+  h: '\u2500',
+  v: '\u2502',
+  lt: '\u251c',
+  rt: '\u2524',
+  tt: '\u252c',
+  bt: '\u2534',
+  cross: '\u253c',
 };
 
 const ANSI = {
@@ -104,7 +111,7 @@ export class LayoutEngine {
   /** Remove a panel */
   removePanel(id: string): void {
     this.panels.delete(id);
-    this.focusOrder = this.focusOrder.filter(fid => fid !== id);
+    this.focusOrder = this.focusOrder.filter((fid) => fid !== id);
     if (this.focusIndex >= this.focusOrder.length) {
       this.focusIndex = Math.max(0, this.focusOrder.length - 1);
     }
@@ -319,7 +326,7 @@ export class LayoutEngine {
     const titleVisLen = stripAnsi(titleStr).length;
     const hRepeat = Math.max(0, contentW - titleVisLen);
     out.push(
-      `${moveTo(top, left)}${borderColor}${BOX.tl}${ANSI.reset}${titleColor}${titleStr}${ANSI.reset}${borderColor}${BOX.h.repeat(hRepeat)}${BOX.tr}${ANSI.reset}`
+      `${moveTo(top, left)}${borderColor}${BOX.tl}${ANSI.reset}${titleColor}${titleStr}${ANSI.reset}${borderColor}${BOX.h.repeat(hRepeat)}${BOX.tr}${ANSI.reset}`,
     );
 
     // Content rows
@@ -329,19 +336,20 @@ export class LayoutEngine {
       const truncated = this.truncateLine(line, contentW);
       const padLen = Math.max(0, contentW - stripAnsi(truncated).length);
       out.push(
-        `${moveTo(top + 1 + i, left)}${borderColor}${BOX.v}${ANSI.reset}${truncated}${' '.repeat(padLen)}${borderColor}${BOX.v}${ANSI.reset}`
+        `${moveTo(top + 1 + i, left)}${borderColor}${BOX.v}${ANSI.reset}${truncated}${' '.repeat(padLen)}${borderColor}${BOX.v}${ANSI.reset}`,
       );
     }
 
     // Bottom border with scroll indicator
     const totalLines = panel.content.length;
-    const scrollInfo = totalLines > contentH
-      ? ` ${panel.scrollOffset + 1}-${Math.min(panel.scrollOffset + contentH, totalLines)}/${totalLines} `
-      : '';
+    const scrollInfo =
+      totalLines > contentH
+        ? ` ${panel.scrollOffset + 1}-${Math.min(panel.scrollOffset + contentH, totalLines)}/${totalLines} `
+        : '';
     const scrollLen = scrollInfo.length;
     const bottomH = Math.max(0, contentW - scrollLen);
     out.push(
-      `${moveTo(top + height - 1, left)}${borderColor}${BOX.bl}${BOX.h.repeat(bottomH)}${ANSI.dim}${scrollInfo}${borderColor}${BOX.br}${ANSI.reset}`
+      `${moveTo(top + height - 1, left)}${borderColor}${BOX.bl}${BOX.h.repeat(bottomH)}${ANSI.dim}${scrollInfo}${borderColor}${BOX.br}${ANSI.reset}`,
     );
 
     return out.join('');
@@ -350,9 +358,7 @@ export class LayoutEngine {
   private renderStatusBar(rows: number, cols: number): string {
     const barY = rows;
     const text = this.statusText || 'Tab: switch panel | ↑↓: scroll | y: approve | n: deny | q: quit';
-    const padded = stripAnsi(text).length < cols
-      ? text + ' '.repeat(cols - stripAnsi(text).length)
-      : text;
+    const padded = stripAnsi(text).length < cols ? text + ' '.repeat(cols - stripAnsi(text).length) : text;
     return `${moveTo(barY, 1)}${ANSI.inverse}${this.truncateLine(padded, cols)}${ANSI.reset}`;
   }
 

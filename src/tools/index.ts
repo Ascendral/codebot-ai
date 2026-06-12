@@ -99,8 +99,15 @@ export const TOOL_TIERS: Record<string, 'core' | 'standard' | 'labs'> = {
  * See docs/rfcs/… for the full Vault Mode spec.
  */
 const VAULT_CORE_TOOLS = new Set([
-  'read_file', 'glob', 'grep', 'find_symbol', 'think', 'memory',
-  'pdf_extract', 'image_info', 'multi_search',
+  'read_file',
+  'glob',
+  'grep',
+  'find_symbol',
+  'think',
+  'memory',
+  'pdf_extract',
+  'image_info',
+  'multi_search',
 ]);
 /** Adds when --vault-writable is passed. */
 const VAULT_WRITE_TOOLS = new Set(['write_file', 'edit_file', 'batch_edit']);
@@ -232,10 +239,10 @@ export class ToolRegistry {
     if (tool.capabilities?.includes('move-money')) {
       throw new Error(
         `Refusing to register tool "${tool.name}": carries PROHIBITED ` +
-        `move-money capability label. Per §2 of ` +
-        `docs/personal-agent-infrastructure.md, tools that move money / ` +
-        `trade / sign crypto / hold financial-instrument credentials ` +
-        `must not be loadable.`,
+          `move-money capability label. Per §2 of ` +
+          `docs/personal-agent-infrastructure.md, tools that move money / ` +
+          `trade / sign crypto / hold financial-instrument credentials ` +
+          `must not be loadable.`,
       );
     }
     this.tools.set(tool.name, tool);

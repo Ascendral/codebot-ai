@@ -52,13 +52,13 @@ describe('MetricsCollector', () => {
 
   it('records a single histogram observation', () => {
     const mc = new MetricsCollector();
-    mc.observe('tool_latency_seconds', 0.150);
+    mc.observe('tool_latency_seconds', 0.15);
     const h = mc.getHistogram('tool_latency_seconds');
     assert.ok(h);
     assert.strictEqual(h.count, 1);
-    assert.strictEqual(h.sum, 0.150);
-    assert.strictEqual(h.min, 0.150);
-    assert.strictEqual(h.max, 0.150);
+    assert.strictEqual(h.sum, 0.15);
+    assert.strictEqual(h.min, 0.15);
+    assert.strictEqual(h.max, 0.15);
   });
 
   it('records multiple histogram observations', () => {
@@ -237,7 +237,7 @@ describe('MetricsCollector', () => {
     assert.strictEqual(spans[0].status.code, 2); // ERROR
     assert.strictEqual(spans[0].status.message, 'Permission denied');
     // Should have an exception event
-    assert.ok(spans[0].events.some(e => e.name === 'exception'));
+    assert.ok(spans[0].events.some((e) => e.name === 'exception'));
   });
 
   it('getSpans only returns completed spans', () => {
@@ -285,7 +285,7 @@ describe('MetricsCollector', () => {
     mc.endSpan(parentId);
 
     const spans = mc.getSpans();
-    const child = spans.find(s => s.name === 'tool.execute');
+    const child = spans.find((s) => s.name === 'tool.execute');
     assert.ok(child);
     assert.strictEqual(child.parentSpanId, parentId);
   });

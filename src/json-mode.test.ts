@@ -37,7 +37,7 @@ describe('JSON Mode — buildToolCallSchema', () => {
     const schema = buildToolCallSchema(['read_file', 'write_file', 'execute']);
 
     assert.strictEqual(schema.type, 'json_schema');
-    const inner = (schema.json_schema as Record<string, unknown>);
+    const inner = schema.json_schema as Record<string, unknown>;
     assert.strictEqual(inner.name, 'tool_calls');
     assert.strictEqual(inner.strict, true);
 
@@ -65,9 +65,7 @@ describe('JSON Mode — parseJsonModeResponse', () => {
   it('parses a valid structured response with tool calls', () => {
     const json = JSON.stringify({
       text: 'Let me read that file.',
-      tool_calls: [
-        { name: 'read_file', arguments: { path: '/tmp/test.ts' } },
-      ],
+      tool_calls: [{ name: 'read_file', arguments: { path: '/tmp/test.ts' } }],
     });
 
     const result = parseJsonModeResponse(json);
@@ -112,10 +110,12 @@ describe('JSON Mode — parseJsonModeResponse', () => {
   });
 
   it('handles JSON embedded in other text', () => {
-    const text = 'Here is my response:\n' + JSON.stringify({
-      text: 'Reading the file.',
-      tool_calls: [{ name: 'read_file', arguments: { path: 'src/index.ts' } }],
-    });
+    const text =
+      'Here is my response:\n' +
+      JSON.stringify({
+        text: 'Reading the file.',
+        tool_calls: [{ name: 'read_file', arguments: { path: 'src/index.ts' } }],
+      });
 
     const result = parseJsonModeResponse(text);
     assert.strictEqual(result.toolCalls.length, 1);
@@ -138,9 +138,7 @@ describe('JSON Mode — parseToolCalls integration', () => {
   it('parseToolCalls picks up JSON-mode structured output as first fallback', () => {
     const json = JSON.stringify({
       text: 'Working on it.',
-      tool_calls: [
-        { name: 'execute', arguments: { command: 'npm test' } },
-      ],
+      tool_calls: [{ name: 'execute', arguments: { command: 'npm test' } }],
     });
 
     const calls = parseToolCalls(json);

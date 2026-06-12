@@ -52,11 +52,13 @@ export class DaemonLog {
   /** Format entries for display */
   format(entries?: LogEntry[]): string {
     const list = entries || this.entries;
-    return list.map(e => {
-      const ts = e.timestamp.substring(11, 19); // HH:MM:SS
-      const level = e.level.toUpperCase().padEnd(5);
-      return `[${ts}] ${level} ${e.message}`;
-    }).join('\n');
+    return list
+      .map((e) => {
+        const ts = e.timestamp.substring(11, 19); // HH:MM:SS
+        const level = e.level.toUpperCase().padEnd(5);
+        return `[${ts}] ${level} ${e.message}`;
+      })
+      .join('\n');
   }
 
   private write(level: LogLevel, message: string, context?: Record<string, unknown>): void {
@@ -94,8 +96,12 @@ export class DaemonLog {
           if (lines.length > this.maxFileEntries) {
             fs.writeFileSync(logFile, lines.slice(-this.maxFileEntries).join('\n') + '\n');
           }
-        } catch { /* rotation failed */ }
+        } catch {
+          /* rotation failed */
+        }
       }
-    } catch { /* best-effort logging */ }
+    } catch {
+      /* best-effort logging */
+    }
   }
 }

@@ -108,7 +108,8 @@ const deleteThing: ConnectorAction = {
 
 const postNoDedup: ConnectorAction = {
   name: 'post_no_dedup',
-  description: 'Post — exercises the `unsupported` arm of idempotency for services with no client-side dedup key (modeled on Slack chat.postMessage).',
+  description:
+    'Post — exercises the `unsupported` arm of idempotency for services with no client-side dedup key (modeled on Slack chat.postMessage).',
   parameters: {
     type: 'object',
     properties: {

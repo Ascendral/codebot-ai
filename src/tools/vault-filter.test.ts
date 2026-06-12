@@ -14,7 +14,7 @@ import { ToolRegistry } from './index';
 describe('ToolRegistry — Vault Mode gating', () => {
   it('default (no vault mode): all tools registered', () => {
     const r = new ToolRegistry();
-    const names = r.all().map(t => t.name);
+    const names = r.all().map((t) => t.name);
     assert.ok(names.includes('read_file'));
     assert.ok(names.includes('write_file'));
     assert.ok(names.includes('edit_file'));
@@ -30,7 +30,7 @@ describe('ToolRegistry — Vault Mode gating', () => {
     const r = new ToolRegistry(undefined, undefined, {
       vaultMode: { vaultPath: '/tmp/vault', writable: false, networkAllowed: false },
     });
-    const names = new Set(r.all().map(t => t.name));
+    const names = new Set(r.all().map((t) => t.name));
 
     // Allowed — core read/search
     for (const allowed of ['read_file', 'glob', 'grep', 'find_symbol', 'think', 'memory']) {
@@ -57,7 +57,7 @@ describe('ToolRegistry — Vault Mode gating', () => {
     const r = new ToolRegistry(undefined, undefined, {
       vaultMode: { vaultPath: '/tmp/vault', writable: true, networkAllowed: false },
     });
-    const names = new Set(r.all().map(t => t.name));
+    const names = new Set(r.all().map((t) => t.name));
     assert.ok(names.has('write_file'));
     assert.ok(names.has('edit_file'));
     assert.ok(names.has('batch_edit'));
@@ -70,7 +70,7 @@ describe('ToolRegistry — Vault Mode gating', () => {
     const r = new ToolRegistry(undefined, undefined, {
       vaultMode: { vaultPath: '/tmp/vault', writable: false, networkAllowed: true },
     });
-    const names = new Set(r.all().map(t => t.name));
+    const names = new Set(r.all().map((t) => t.name));
     assert.ok(names.has('web_fetch'));
     assert.ok(names.has('http_client'));
     assert.ok(names.has('web_search'));
@@ -83,7 +83,7 @@ describe('ToolRegistry — Vault Mode gating', () => {
     const r = new ToolRegistry(undefined, undefined, {
       vaultMode: { vaultPath: '/tmp/vault', writable: true, networkAllowed: true },
     });
-    const names = new Set(r.all().map(t => t.name));
+    const names = new Set(r.all().map((t) => t.name));
     assert.ok(names.has('write_file'));
     assert.ok(names.has('web_fetch'));
     // Shell/infra still blocked — vault mode is never a shell environment

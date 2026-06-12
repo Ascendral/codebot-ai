@@ -109,8 +109,11 @@ if (fs.existsSync(betterSqlite)) {
   try {
     const nested = execSync(
       `find "${STAGING_DIR}/node_modules" -mindepth 4 -type d -name better-sqlite3 -prune -print`,
-      { encoding: 'utf-8' }
-    ).trim().split('\n').filter(Boolean);
+      { encoding: 'utf-8' },
+    )
+      .trim()
+      .split('\n')
+      .filter(Boolean);
     for (const dup of nested) {
       console.log(`  Removing nested duplicate: ${dup.replace(STAGING_DIR + '/', '')}`);
       fs.rmSync(dup, { recursive: true, force: true });
@@ -123,8 +126,8 @@ if (fs.existsSync(betterSqlite)) {
   if (!fs.existsSync(expectedBinding)) {
     throw new Error(
       `❌ Expected native binding not found after install:\n  ${expectedBinding}\n` +
-      `This means ExperientialMemory will be silently disabled in the bundled app. ` +
-      `Refusing to ship a broken brain build.`
+        `This means ExperientialMemory will be silently disabled in the bundled app. ` +
+        `Refusing to ship a broken brain build.`,
     );
   }
 
@@ -133,13 +136,13 @@ if (fs.existsSync(betterSqlite)) {
   try {
     execSync(
       `node -e "const D = require('${betterSqlite}'); const db = new D('/tmp/.codebot-staging-abi-check.db'); db.close();"`,
-      { stdio: 'pipe', timeout: 10_000 }
+      { stdio: 'pipe', timeout: 10_000 },
     );
   } catch (err) {
     throw new Error(
       `❌ better-sqlite3 native binding ABI mismatch — refused to load:\n` +
-      `${err.stderr ? err.stderr.toString() : err.message}\n` +
-      `Refusing to ship a broken brain build.`
+        `${err.stderr ? err.stderr.toString() : err.message}\n` +
+        `Refusing to ship a broken brain build.`,
     );
   }
   console.log(`  ✅ better-sqlite3 native binding loads cleanly: ${path.relative(ELECTRON_DIR, expectedBinding)}`);
@@ -147,20 +150,44 @@ if (fs.existsSync(betterSqlite)) {
 
 // Remove unnecessary files from staging to slim down further
 const REMOVE_PATTERNS = [
-  '**/README.md', '**/CHANGELOG.md', '**/LICENSE', '**/LICENSE.md',
-  '**/.eslintrc*', '**/.prettierrc*', '**/tsconfig.json',
-  '**/*.d.ts.map', '**/*.js.map',
-  '**/test/', '**/tests/', '**/__tests__/', '**/spec/',
-  '**/docs/', '**/example/', '**/examples/',
-  '**/.github/', '**/.travis.yml', '**/.circleci/',
+  '**/README.md',
+  '**/CHANGELOG.md',
+  '**/LICENSE',
+  '**/LICENSE.md',
+  '**/.eslintrc*',
+  '**/.prettierrc*',
+  '**/tsconfig.json',
+  '**/*.d.ts.map',
+  '**/*.js.map',
+  '**/test/',
+  '**/tests/',
+  '**/__tests__/',
+  '**/spec/',
+  '**/docs/',
+  '**/example/',
+  '**/examples/',
+  '**/.github/',
+  '**/.travis.yml',
+  '**/.circleci/',
 ];
 
 function removeGlobs(dir) {
   let removed = 0;
-  for (const pattern of ['README.md', 'CHANGELOG.md', 'HISTORY.md', 'LICENSE', 'LICENSE.md', 'LICENSE.txt', '.eslintrc.json', '.prettierrc', 'tsconfig.json']) {
+  for (const pattern of [
+    'README.md',
+    'CHANGELOG.md',
+    'HISTORY.md',
+    'LICENSE',
+    'LICENSE.md',
+    'LICENSE.txt',
+    '.eslintrc.json',
+    '.prettierrc',
+    'tsconfig.json',
+  ]) {
     try {
       const output = execSync(`find "${dir}" -name "${pattern}" -type f -delete -print 2>/dev/null | wc -l`, {
-        encoding: 'utf-8', timeout: 10_000,
+        encoding: 'utf-8',
+        timeout: 10_000,
       }).trim();
       removed += parseInt(output) || 0;
     } catch {}
@@ -168,7 +195,8 @@ function removeGlobs(dir) {
   for (const dirName of ['test', 'tests', '__tests__', 'spec', 'docs', 'example', 'examples', '.github']) {
     try {
       const output = execSync(`find "${dir}" -name "${dirName}" -type d -exec rm -rf {} + -print 2>/dev/null | wc -l`, {
-        encoding: 'utf-8', timeout: 10_000,
+        encoding: 'utf-8',
+        timeout: 10_000,
       }).trim();
       removed += parseInt(output) || 0;
     } catch {}
@@ -197,7 +225,10 @@ if (fs.existsSync(bsqlite)) {
   if (fs.existsSync(buildDir)) {
     try {
       // Find and keep only .node files
-      const nodeFiles = execSync(`find "${buildDir}" -name "*.node" 2>/dev/null`, { encoding: 'utf-8' }).trim().split('\n').filter(Boolean);
+      const nodeFiles = execSync(`find "${buildDir}" -name "*.node" 2>/dev/null`, { encoding: 'utf-8' })
+        .trim()
+        .split('\n')
+        .filter(Boolean);
       if (nodeFiles.length > 0) {
         // Move .node files to a temp location, nuke build, restore
         const tmpDir = path.join(bsqlite, '_build_tmp');
@@ -212,7 +243,9 @@ if (fs.existsSync(bsqlite)) {
         }
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
   }
   // Remove prebuild-install (only needed for installation, not runtime)
   const prebuild = path.join(STAGING_DIR, 'node_modules', 'prebuild-install');
@@ -229,7 +262,9 @@ if (fs.existsSync(binDir)) {
       fs.statSync(linkPath);
     } catch {
       // Dangling symlink — remove it
-      try { fs.unlinkSync(linkPath); } catch {}
+      try {
+        fs.unlinkSync(linkPath);
+      } catch {}
     }
   }
 }
@@ -237,11 +272,15 @@ if (fs.existsSync(binDir)) {
 // Report sizes
 const stagingSize = execSync(`du -sh "${STAGING_DIR}/node_modules" 2>/dev/null || echo "unknown"`, {
   encoding: 'utf-8',
-}).trim().split('\t')[0];
+})
+  .trim()
+  .split('\t')[0];
 
 const originalSize = execSync(`du -sh "${PARENT_DIR}/node_modules" 2>/dev/null || echo "unknown"`, {
   encoding: 'utf-8',
-}).trim().split('\t')[0];
+})
+  .trim()
+  .split('\t')[0];
 
 console.log(`  ✅ Staging complete: ${stagingSize} (was ${originalSize} with devDeps)`);
 console.log(`  📁 Staging dir: ${STAGING_DIR}/node_modules`);

@@ -32,10 +32,12 @@ function request(
     const req = http.request(url, { method, headers }, (res) => {
       const chunks: Buffer[] = [];
       res.on('data', (chunk: Buffer) => chunks.push(chunk));
-      res.on('end', () => resolve({
-        status: res.statusCode || 0,
-        body: Buffer.concat(chunks).toString('utf-8'),
-      }));
+      res.on('end', () =>
+        resolve({
+          status: res.statusCode || 0,
+          body: Buffer.concat(chunks).toString('utf-8'),
+        }),
+      );
     });
     req.on('error', reject);
     if (body !== undefined) req.write(JSON.stringify(body));
@@ -58,7 +60,9 @@ function makeStubProvider(): LLMProvider {
 }
 
 let portCounter = 15220;
-function nextPort(): number { return portCounter++; }
+function nextPort(): number {
+  return portCounter++;
+}
 
 describe('POST /api/command/vault — dashboard vault control', () => {
   let server: DashboardServer | null = null;
@@ -71,9 +75,17 @@ describe('POST /api/command/vault — dashboard vault control', () => {
     // Enabling vault-mode chdir'd the process into fixtureVault; if we
     // rm it while cwd still points there, any subsequent process.cwd()
     // call throws ENOENT (uv_cwd). Return to a safe dir before deleting.
-    try { process.chdir(os.homedir()); } catch { /* best effort */ }
+    try {
+      process.chdir(os.homedir());
+    } catch {
+      /* best effort */
+    }
     if (fixtureVault && fs.existsSync(fixtureVault)) {
-      try { fs.rmSync(fixtureVault, { recursive: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(fixtureVault, { recursive: true });
+      } catch {
+        /* ignore */
+      }
     }
     fixtureVault = null;
     agent = null;
@@ -109,12 +121,11 @@ describe('POST /api/command/vault — dashboard vault control', () => {
 
   it('POST enables vault; GET then reflects the new state', async () => {
     const { port, token } = await startServer();
-    const res = await request(
-      `http://127.0.0.1:${port}/api/command/vault`,
-      'POST',
-      token,
-      { vaultPath: fixtureVault!, writable: false, networkAllowed: false },
-    );
+    const res = await request(`http://127.0.0.1:${port}/api/command/vault`, 'POST', token, {
+      vaultPath: fixtureVault!,
+      writable: false,
+      networkAllowed: false,
+    });
     assert.strictEqual(res.status, 200);
     const body = JSON.parse(res.body);
     assert.strictEqual(body.enabled, true);
@@ -122,8 +133,7 @@ describe('POST /api/command/vault — dashboard vault control', () => {
     assert.strictEqual(body.vault.networkAllowed, false);
     // Resolved path should match fixture (realpath may add /private prefix on macOS)
     assert.ok(
-      body.vault.vaultPath === fixtureVault ||
-      body.vault.vaultPath === fs.realpathSync(fixtureVault!),
+      body.vault.vaultPath === fixtureVault || body.vault.vaultPath === fs.realpathSync(fixtureVault!),
       `expected vault path to match fixture, got ${body.vault.vaultPath}`,
     );
 
@@ -138,12 +148,11 @@ describe('POST /api/command/vault — dashboard vault control', () => {
 
   it('POST with writable=true + networkAllowed=true passes flags through', async () => {
     const { port, token } = await startServer();
-    const res = await request(
-      `http://127.0.0.1:${port}/api/command/vault`,
-      'POST',
-      token,
-      { vaultPath: fixtureVault!, writable: true, networkAllowed: true },
-    );
+    const res = await request(`http://127.0.0.1:${port}/api/command/vault`, 'POST', token, {
+      vaultPath: fixtureVault!,
+      writable: true,
+      networkAllowed: true,
+    });
     const body = JSON.parse(res.body);
     assert.strictEqual(body.vault.writable, true);
     assert.strictEqual(body.vault.networkAllowed, true);
@@ -152,19 +161,9 @@ describe('POST /api/command/vault — dashboard vault control', () => {
   it('POST with empty path disables vault mode', async () => {
     const { port, token } = await startServer();
     // Enable first
-    await request(
-      `http://127.0.0.1:${port}/api/command/vault`,
-      'POST',
-      token,
-      { vaultPath: fixtureVault! },
-    );
+    await request(`http://127.0.0.1:${port}/api/command/vault`, 'POST', token, { vaultPath: fixtureVault! });
     // Then disable
-    const res = await request(
-      `http://127.0.0.1:${port}/api/command/vault`,
-      'POST',
-      token,
-      { vaultPath: '' },
-    );
+    const res = await request(`http://127.0.0.1:${port}/api/command/vault`, 'POST', token, { vaultPath: '' });
     const body = JSON.parse(res.body);
     assert.strictEqual(body.disabled, true);
     assert.strictEqual(body.vault, null);
@@ -173,12 +172,9 @@ describe('POST /api/command/vault — dashboard vault control', () => {
 
   it('POST with non-existent path returns 400', async () => {
     const { port, token } = await startServer();
-    const res = await request(
-      `http://127.0.0.1:${port}/api/command/vault`,
-      'POST',
-      token,
-      { vaultPath: '/this/path/definitely/does/not/exist/anywhere' },
-    );
+    const res = await request(`http://127.0.0.1:${port}/api/command/vault`, 'POST', token, {
+      vaultPath: '/this/path/definitely/does/not/exist/anywhere',
+    });
     assert.strictEqual(res.status, 400);
     assert.match(res.body, /does not exist/);
   });
@@ -186,12 +182,7 @@ describe('POST /api/command/vault — dashboard vault control', () => {
   it('POST with a file (not directory) returns 400', async () => {
     const { port, token } = await startServer();
     const file = path.join(fixtureVault!, 'note.md');
-    const res = await request(
-      `http://127.0.0.1:${port}/api/command/vault`,
-      'POST',
-      token,
-      { vaultPath: file },
-    );
+    const res = await request(`http://127.0.0.1:${port}/api/command/vault`, 'POST', token, { vaultPath: file });
     assert.strictEqual(res.status, 400);
     assert.match(res.body, /not a directory/);
   });
@@ -200,24 +191,13 @@ describe('POST /api/command/vault — dashboard vault control', () => {
     const { port, token } = await startServer();
     // fixtureVault is already under homedir — compute its ~-relative form
     const rel = fixtureVault!.replace(os.homedir(), '~');
-    const res = await request(
-      `http://127.0.0.1:${port}/api/command/vault`,
-      'POST',
-      token,
-      { vaultPath: rel },
-    );
+    const res = await request(`http://127.0.0.1:${port}/api/command/vault`, 'POST', token, { vaultPath: rel });
     assert.strictEqual(res.status, 200);
     const body = JSON.parse(res.body);
     // Issue #11: previously asserted .startsWith('/'), which is wrong on
     // Windows where absolute paths look like `C:\Users\…`. The actual
     // contract is "the path is absolute and the ~ token is gone".
-    assert.ok(
-      path.isAbsolute(body.vault.vaultPath),
-      `expanded path should be absolute, got ${body.vault.vaultPath}`,
-    );
-    assert.ok(
-      !body.vault.vaultPath.includes('~'),
-      'expanded path should not contain ~',
-    );
+    assert.ok(path.isAbsolute(body.vault.vaultPath), `expanded path should be absolute, got ${body.vault.vaultPath}`);
+    assert.ok(!body.vault.vaultPath.includes('~'), 'expanded path should not contain ~');
   });
 });

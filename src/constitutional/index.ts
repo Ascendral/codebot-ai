@@ -22,12 +22,7 @@ export {
 } from './types';
 
 import { CordAdapter } from './adapter';
-import {
-  ConstitutionalResult,
-  ConstitutionalConfig,
-  ConstitutionalMetrics,
-  ToolAction,
-} from './types';
+import { ConstitutionalResult, ConstitutionalConfig, ConstitutionalMetrics, ToolAction } from './types';
 
 /** Default config — both CORD and VIGIL enabled */
 const DEFAULT_CONFIG: ConstitutionalConfig = {

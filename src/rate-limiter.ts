@@ -33,7 +33,7 @@ export class RateLimiter {
     const elapsed = Date.now() - last;
 
     if (elapsed < limit) {
-      await new Promise(resolve => setTimeout(resolve, limit - elapsed));
+      await new Promise((resolve) => setTimeout(resolve, limit - elapsed));
     }
 
     this.lastCall.set(toolName, Date.now());

@@ -112,9 +112,9 @@ describe('matchesCron', () => {
   });
 
   it('should handle step values (*/5)', () => {
-    const date0 = new Date(2025, 0, 1, 0, 0, 0);  // minute=0
-    const date5 = new Date(2025, 0, 1, 0, 5, 0);  // minute=5
-    const date3 = new Date(2025, 0, 1, 0, 3, 0);  // minute=3
+    const date0 = new Date(2025, 0, 1, 0, 0, 0); // minute=0
+    const date5 = new Date(2025, 0, 1, 0, 5, 0); // minute=5
+    const date3 = new Date(2025, 0, 1, 0, 3, 0); // minute=3
 
     assert.strictEqual(matchesCron('*/5 * * * *', date0), true);
     assert.strictEqual(matchesCron('*/5 * * * *', date5), true);
@@ -122,17 +122,17 @@ describe('matchesCron', () => {
   });
 
   it('should handle range values (1-5 for weekdays)', () => {
-    const monday = new Date(2025, 0, 13, 9, 0, 0);    // Monday = 1
-    const saturday = new Date(2025, 0, 18, 9, 0, 0);  // Saturday = 6
+    const monday = new Date(2025, 0, 13, 9, 0, 0); // Monday = 1
+    const saturday = new Date(2025, 0, 18, 9, 0, 0); // Saturday = 6
 
     assert.strictEqual(matchesCron('0 9 * * 1-5', monday), true);
     assert.strictEqual(matchesCron('0 9 * * 1-5', saturday), false);
   });
 
   it('should handle list values (1,3,5)', () => {
-    const mon = new Date(2025, 0, 13, 9, 0, 0);  // Monday = 1
-    const tue = new Date(2025, 0, 14, 9, 0, 0);  // Tuesday = 2
-    const wed = new Date(2025, 0, 15, 9, 0, 0);  // Wednesday = 3
+    const mon = new Date(2025, 0, 13, 9, 0, 0); // Monday = 1
+    const tue = new Date(2025, 0, 14, 9, 0, 0); // Tuesday = 2
+    const wed = new Date(2025, 0, 15, 9, 0, 0); // Wednesday = 3
 
     assert.strictEqual(matchesCron('0 9 * * 1,3,5', mon), true);
     assert.strictEqual(matchesCron('0 9 * * 1,3,5', tue), false);

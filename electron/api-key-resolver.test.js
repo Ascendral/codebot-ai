@@ -27,27 +27,27 @@ const { resolveKey, resolveAll, looksLike } = require('./api-key-resolver');
 describe('api-key-resolver — looksLike', () => {
   it('classifies anthropic, openai, gemini key shapes', () => {
     assert.strictEqual(looksLike('anthropic', 'sk-ant-api03-abc'), true);
-    assert.strictEqual(looksLike('anthropic', 'sk-proj-abc'),       false);
-    assert.strictEqual(looksLike('anthropic', 'AIzaSy123'),         false);
-    assert.strictEqual(looksLike('openai', 'sk-proj-abc'),          true);
-    assert.strictEqual(looksLike('openai', 'sk-abc'),               true);
-    assert.strictEqual(looksLike('openai', 'sk-ant-api03-abc'),     false);
-    assert.strictEqual(looksLike('gemini', 'AIzaSy123'),            true);
-    assert.strictEqual(looksLike('gemini', 'sk-ant-api03'),         false);
+    assert.strictEqual(looksLike('anthropic', 'sk-proj-abc'), false);
+    assert.strictEqual(looksLike('anthropic', 'AIzaSy123'), false);
+    assert.strictEqual(looksLike('openai', 'sk-proj-abc'), true);
+    assert.strictEqual(looksLike('openai', 'sk-abc'), true);
+    assert.strictEqual(looksLike('openai', 'sk-ant-api03-abc'), false);
+    assert.strictEqual(looksLike('gemini', 'AIzaSy123'), true);
+    assert.strictEqual(looksLike('gemini', 'sk-ant-api03'), false);
   });
 
   it('rejects empty / non-string inputs', () => {
-    assert.strictEqual(looksLike('anthropic', ''),        false);
-    assert.strictEqual(looksLike('anthropic', null),      false);
+    assert.strictEqual(looksLike('anthropic', ''), false);
+    assert.strictEqual(looksLike('anthropic', null), false);
     assert.strictEqual(looksLike('anthropic', undefined), false);
-    assert.strictEqual(looksLike('anthropic', 12345),     false);
+    assert.strictEqual(looksLike('anthropic', 12345), false);
   });
 });
 
 describe('api-key-resolver — resolveKey priority order', () => {
   it('process.env beats config beats .env file beats legacy apiKey', () => {
-    const env      = { ANTHROPIC_API_KEY: 'env-key' };
-    const config   = { provider: 'anthropic', anthropicApiKey: 'config-key', apiKey: 'sk-ant-legacy' };
+    const env = { ANTHROPIC_API_KEY: 'env-key' };
+    const config = { provider: 'anthropic', anthropicApiKey: 'config-key', apiKey: 'sk-ant-legacy' };
     const envFiles = { ANTHROPIC_API_KEY: 'envfile-key' };
     const r = resolveKey('anthropic', { env, config, envFiles });
     assert.strictEqual(r.key, 'env-key');
@@ -56,8 +56,8 @@ describe('api-key-resolver — resolveKey priority order', () => {
 
   it('config wins when env empty', () => {
     const r = resolveKey('anthropic', {
-      env:      { ANTHROPIC_API_KEY: '' },
-      config:   { provider: 'anthropic', anthropicApiKey: 'config-key', apiKey: 'sk-ant-legacy' },
+      env: { ANTHROPIC_API_KEY: '' },
+      config: { provider: 'anthropic', anthropicApiKey: 'config-key', apiKey: 'sk-ant-legacy' },
       envFiles: { ANTHROPIC_API_KEY: 'envfile-key' },
     });
     assert.strictEqual(r.key, 'config-key');
@@ -66,8 +66,8 @@ describe('api-key-resolver — resolveKey priority order', () => {
 
   it('env file wins when env + config empty', () => {
     const r = resolveKey('anthropic', {
-      env:      {},
-      config:   {},
+      env: {},
+      config: {},
       envFiles: { ANTHROPIC_API_KEY: 'envfile-key' },
     });
     assert.strictEqual(r.key, 'envfile-key');
@@ -78,8 +78,8 @@ describe('api-key-resolver — resolveKey priority order', () => {
 describe('api-key-resolver — legacy apiKey slot is GUARDED', () => {
   it('THE BUG: provider=anthropic + apiKey holds OpenAI key → resolver ignores it', () => {
     const config = {
-      provider:        'anthropic',
-      apiKey:          'sk-proj-this-is-an-openai-key', // wrong shape
+      provider: 'anthropic',
+      apiKey: 'sk-proj-this-is-an-openai-key', // wrong shape
       anthropicApiKey: 'sk-ant-api03-real-anthropic',
     };
     const r = resolveKey('anthropic', { env: {}, config, envFiles: {} });
@@ -99,27 +99,25 @@ describe('api-key-resolver — legacy apiKey slot is GUARDED', () => {
     // Same bug as above but without the provider-specific slot present.
     const config = { provider: 'anthropic', apiKey: 'sk-proj-openai-key-no-anthropic-slot' };
     const r = resolveKey('anthropic', { env: {}, config, envFiles: {} });
-    assert.strictEqual(r.key, null,
-      'should refuse a non-anthropic-shaped key from the legacy slot');
+    assert.strictEqual(r.key, null, 'should refuse a non-anthropic-shaped key from the legacy slot');
   });
 
   it('legacy apiKey REJECTED when provider does not match', () => {
     const config = { provider: 'openai', apiKey: 'sk-ant-api03-anthropic-key' };
     const r = resolveKey('anthropic', { env: {}, config, envFiles: {} });
-    assert.strictEqual(r.key, null,
-      'should refuse legacy slot when config.provider !== requested provider');
+    assert.strictEqual(r.key, null, 'should refuse legacy slot when config.provider !== requested provider');
   });
 });
 
 describe('api-key-resolver — resolveAll', () => {
   it('resolves all three providers from a single config', () => {
-    const env      = {};
-    const config   = {
-      provider:        'anthropic',
-      apiKey:          'sk-proj-openai-key',     // OpenAI key in legacy slot
+    const env = {};
+    const config = {
+      provider: 'anthropic',
+      apiKey: 'sk-proj-openai-key', // OpenAI key in legacy slot
       anthropicApiKey: 'sk-ant-api03-anthropic',
-      openaiApiKey:    'sk-proj-real-openai',
-      geminiApiKey:    'AIzaSyGemini',
+      openaiApiKey: 'sk-proj-real-openai',
+      geminiApiKey: 'AIzaSyGemini',
     };
     const r = resolveAll({ env, config, envFiles: {} });
     assert.strictEqual(r.anthropic.key, 'sk-ant-api03-anthropic');
@@ -138,20 +136,22 @@ describe('api-key-resolver — resolveAll', () => {
     assert.strictEqual(r.gemini.key, null);
   });
 
-  it('regression: exact bug repro from Alex\'s ~/.codebot/config.json', () => {
+  it("regression: exact bug repro from Alex's ~/.codebot/config.json", () => {
     // Exact shape that triggered the "API key is invalid or expired" banner.
     const config = {
-      provider:        'anthropic',
-      model:           'claude-sonnet-4-6',
-      apiKey:          'sk-proj-6yxVWuDzFqGA9kNzZVaAx_yHHxJdn5Rwxkfbh7JX',
-      openaiApiKey:    'sk-proj-6yxVWuDzFqGA9kNzZVaAx_yHHxJdn5Rwxkfbh7JX',
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      apiKey: 'sk-proj-6yxVWuDzFqGA9kNzZVaAx_yHHxJdn5Rwxkfbh7JX',
+      openaiApiKey: 'sk-proj-6yxVWuDzFqGA9kNzZVaAx_yHHxJdn5Rwxkfbh7JX',
       anthropicApiKey: 'sk-ant-api03-qaKV5ts5N25Johrdw45_eSK0CzFfDz',
-      geminiApiKey:    'AIzaSyCHyM_Kq6ao0PAwfgBrTKEO2TZ0ENT38H4',
+      geminiApiKey: 'AIzaSyCHyM_Kq6ao0PAwfgBrTKEO2TZ0ENT38H4',
     };
     const r = resolveAll({ env: {}, config, envFiles: {} });
     // Anthropic MUST come from the anthropic slot, not the legacy slot.
-    assert.ok(r.anthropic.key.startsWith('sk-ant-'),
-      `anthropic key should start with sk-ant-, got ${r.anthropic.key.slice(0, 10)}…`);
+    assert.ok(
+      r.anthropic.key.startsWith('sk-ant-'),
+      `anthropic key should start with sk-ant-, got ${r.anthropic.key.slice(0, 10)}…`,
+    );
     assert.strictEqual(r.anthropic.source, 'config:anthropicApiKey');
   });
 });

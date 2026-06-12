@@ -15,20 +15,22 @@ describe('GrepTool', () => {
 
     // Create test files
     fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'src', 'main.ts'), [
-      'import { readFile } from "fs";',
-      'export function hello() {',
-      '  console.log("Hello World");',
-      '}',
-      'export function goodbye() {',
-      '  console.log("Goodbye World");',
-      '}',
-    ].join('\n'));
-    fs.writeFileSync(path.join(tmpDir, 'src', 'util.ts'), [
-      'export function add(a: number, b: number) {',
-      '  return a + b;',
-      '}',
-    ].join('\n'));
+    fs.writeFileSync(
+      path.join(tmpDir, 'src', 'main.ts'),
+      [
+        'import { readFile } from "fs";',
+        'export function hello() {',
+        '  console.log("Hello World");',
+        '}',
+        'export function goodbye() {',
+        '  console.log("Goodbye World");',
+        '}',
+      ].join('\n'),
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, 'src', 'util.ts'),
+      ['export function add(a: number, b: number) {', '  return a + b;', '}'].join('\n'),
+    );
     fs.writeFileSync(path.join(tmpDir, 'data.txt'), 'some plain text\nwith hello in it\n');
   });
 

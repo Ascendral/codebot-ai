@@ -64,7 +64,9 @@ function readBudgetAudits(auditDir: string): Array<Record<string, unknown>> {
       try {
         const e = JSON.parse(line);
         if (e.tool === 'budget') entries.push(e);
-      } catch { /* skip malformed */ }
+      } catch {
+        /* skip malformed */
+      }
     }
   }
   return entries;
@@ -90,16 +92,18 @@ describe('Agent budget — default (no cap configured)', () => {
   it('budgetConfig undefined and no policy cap → no cost limit, no audits', async () => {
     const { agent, auditDir } = makeAgent({});
     const tt = agent.getTokenTracker();
-    assert.strictEqual(agent.getEffectiveBudgetCapUsd(), 0,
-      'no source set → effective cap must be 0 (no cap)');
+    assert.strictEqual(agent.getEffectiveBudgetCapUsd(), 0, 'no source set → effective cap must be 0 (no cap)');
     assert.strictEqual(tt.isOverBudget(), false);
     assert.strictEqual(tt.getRemainingBudget(), Infinity);
 
     await runOneTurn(agent, 'hello');
 
     const entries = readBudgetAudits(auditDir);
-    assert.deepStrictEqual(entries, [],
-      `no cap set → must emit zero budget audit entries; got ${JSON.stringify(entries)}`);
+    assert.deepStrictEqual(
+      entries,
+      [],
+      `no cap set → must emit zero budget audit entries; got ${JSON.stringify(entries)}`,
+    );
   });
 });
 
@@ -181,15 +185,19 @@ describe('Agent budget — block at cap', () => {
 
     assert.ok(sawError, 'expected agent.run to yield an error event');
     assert.match(errorMessage, /Cost limit exceeded/);
-    assert.match(errorMessage, /budget\.perSessionCapUsd/,
-      'error must point user at the config key to raise the cap');
+    assert.match(errorMessage, /budget\.perSessionCapUsd/, 'error must point user at the config key to raise the cap');
 
     const entries = readBudgetAudits(auditDir);
     const blocks = entries.filter((e) => e.action === 'budget_block');
     assert.ok(blocks.length >= 1, `expected at least 1 budget_block audit; got ${entries.length} entries`);
 
     const block = blocks[0];
-    const args = block.args as { effectiveCapUsd: number; userCapUsd: number; policyCapUsd: number; totalCostUsd: number };
+    const args = block.args as {
+      effectiveCapUsd: number;
+      userCapUsd: number;
+      policyCapUsd: number;
+      totalCostUsd: number;
+    };
     assert.strictEqual(args.effectiveCapUsd, 1.0, 'audit must report effective cap');
     assert.strictEqual(args.userCapUsd, 1.0, 'audit must report user-config source');
     assert.strictEqual(args.policyCapUsd, 0, 'audit must report policy source (0 = unset)');
@@ -224,7 +232,6 @@ describe('Agent budget — strictness rules (user vs policy)', () => {
     });
     // Internal field — read via the same cast hatch.
     const thresholds = (agent as unknown as { budgetThresholds: number[] }).budgetThresholds;
-    assert.deepStrictEqual(thresholds, [0.5, 0.7, 0.9],
-      'thresholds outside (0,1] dropped, remaining sorted ascending');
+    assert.deepStrictEqual(thresholds, [0.5, 0.7, 0.9], 'thresholds outside (0,1] dropped, remaining sorted ascending');
   });
 });

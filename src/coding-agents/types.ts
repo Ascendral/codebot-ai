@@ -24,12 +24,12 @@ import type { CapabilityLabel } from '../types';
 
 /** Lifecycle state of a coding-agent task. */
 export type TaskStatus =
-  | 'queued'      // spec accepted, provider not yet started
-  | 'running'     // provider is actively working
+  | 'queued' // spec accepted, provider not yet started
+  | 'running' // provider is actively working
   | 'awaiting_approval' // paused on a permission prompt the provider raised
-  | 'succeeded'   // terminal: provider reported done with success
-  | 'failed'      // terminal: provider errored or returned non-zero
-  | 'cancelled';  // terminal: caller cancelled mid-run
+  | 'succeeded' // terminal: provider reported done with success
+  | 'failed' // terminal: provider errored or returned non-zero
+  | 'cancelled'; // terminal: caller cancelled mid-run
 
 /** Per-task permission envelope. Subset of the session capability allowlist. */
 export interface PermissionProfile {

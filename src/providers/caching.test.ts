@@ -4,8 +4,7 @@ import { getModelInfo, MODEL_REGISTRY } from './registry';
 
 describe('Prompt Caching — registry supportsCaching (v2.1.6)', () => {
   it('all Anthropic models support caching', () => {
-    const anthropicModels = Object.entries(MODEL_REGISTRY)
-      .filter(([, info]) => info.provider === 'anthropic');
+    const anthropicModels = Object.entries(MODEL_REGISTRY).filter(([, info]) => info.provider === 'anthropic');
     assert.ok(anthropicModels.length > 0, 'should have Anthropic models');
     for (const [name, info] of anthropicModels) {
       assert.strictEqual(info.supportsCaching, true, `${name} should support caching`);
@@ -13,8 +12,7 @@ describe('Prompt Caching — registry supportsCaching (v2.1.6)', () => {
   });
 
   it('all Gemini models support caching', () => {
-    const geminiModels = Object.entries(MODEL_REGISTRY)
-      .filter(([, info]) => info.provider === 'gemini');
+    const geminiModels = Object.entries(MODEL_REGISTRY).filter(([, info]) => info.provider === 'gemini');
     assert.ok(geminiModels.length > 0, 'should have Gemini models');
     for (const [name, info] of geminiModels) {
       assert.strictEqual(info.supportsCaching, true, `${name} should support caching`);
@@ -53,11 +51,13 @@ describe('Prompt Caching — Anthropic provider cache_control injection', () => 
     const body: Record<string, unknown> = {};
     if (systemPrompt) {
       if (cachingEnabled) {
-        body.system = [{
-          type: 'text',
-          text: systemPrompt,
-          cache_control: { type: 'ephemeral' },
-        }];
+        body.system = [
+          {
+            type: 'text',
+            text: systemPrompt,
+            cache_control: { type: 'ephemeral' },
+          },
+        ];
       } else {
         body.system = systemPrompt;
       }
@@ -95,7 +95,7 @@ describe('Prompt Caching — Anthropic provider cache_control injection', () => 
       { function: { name: 'execute', description: 'Run command', parameters: {} } },
     ];
 
-    const toolDefs = tools.map(t => ({
+    const toolDefs = tools.map((t) => ({
       name: t.function.name,
       description: t.function.description,
       input_schema: t.function.parameters,

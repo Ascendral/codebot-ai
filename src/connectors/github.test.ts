@@ -36,7 +36,7 @@ describe('GitHubConnector', () => {
 
   it('has all expected actions', () => {
     const gh = new GitHubConnector();
-    const names = gh.actions.map(a => a.name);
+    const names = gh.actions.map((a) => a.name);
     assert.ok(names.includes('list_repos'));
     assert.ok(names.includes('create_issue'));
     assert.ok(names.includes('list_issues'));
@@ -49,14 +49,14 @@ describe('GitHubConnector', () => {
 
   it('create_issue requires owner, repo, and title', async () => {
     const gh = new GitHubConnector();
-    const action = gh.actions.find(a => a.name === 'create_issue')!;
+    const action = gh.actions.find((a) => a.name === 'create_issue')!;
     const result = await action.execute({ owner: '', repo: '', title: '' }, 'fake-token');
     assert.ok(result.includes('Error:'));
   });
 
   it('list_issues requires owner and repo', async () => {
     const gh = new GitHubConnector();
-    const action = gh.actions.find(a => a.name === 'list_issues')!;
+    const action = gh.actions.find((a) => a.name === 'list_issues')!;
     const result = await action.execute({}, 'fake-token');
     assert.ok(result.includes('Error:'));
   });
@@ -84,8 +84,13 @@ describe('GitHubConnector — §8 contract compliance (PR 9)', () => {
     const gh = new GitHubConnector();
     const names = gh.actions.map((a) => a.name).sort();
     assert.deepStrictEqual(names, [
-      'create_issue', 'create_pr', 'get_issue', 'get_repo_info',
-      'list_issues', 'list_prs', 'list_repos',
+      'create_issue',
+      'create_pr',
+      'get_issue',
+      'get_repo_info',
+      'list_issues',
+      'list_prs',
+      'list_repos',
     ]);
   });
 
@@ -104,52 +109,59 @@ describe('GitHubConnector — per-verb capability labels', () => {
   }
 
   it('list_repos: read-only + account-access + net-fetch', () => {
-    assert.deepStrictEqual(
-      getAction('list_repos').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'read-only'],
-    );
+    assert.deepStrictEqual(getAction('list_repos').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'read-only',
+    ]);
   });
 
   it('list_issues: read-only + account-access + net-fetch', () => {
-    assert.deepStrictEqual(
-      getAction('list_issues').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'read-only'],
-    );
+    assert.deepStrictEqual(getAction('list_issues').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'read-only',
+    ]);
   });
 
   it('list_prs: read-only + account-access + net-fetch', () => {
-    assert.deepStrictEqual(
-      getAction('list_prs').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'read-only'],
-    );
+    assert.deepStrictEqual(getAction('list_prs').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'read-only',
+    ]);
   });
 
   it('get_issue: read-only + account-access + net-fetch', () => {
-    assert.deepStrictEqual(
-      getAction('get_issue').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'read-only'],
-    );
+    assert.deepStrictEqual(getAction('get_issue').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'read-only',
+    ]);
   });
 
   it('get_repo_info: read-only + account-access + net-fetch', () => {
-    assert.deepStrictEqual(
-      getAction('get_repo_info').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'read-only'],
-    );
+    assert.deepStrictEqual(getAction('get_repo_info').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'read-only',
+    ]);
   });
 
   it('create_issue: account-access + net-fetch + send-on-behalf', () => {
-    assert.deepStrictEqual(
-      getAction('create_issue').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'send-on-behalf'],
-    );
+    assert.deepStrictEqual(getAction('create_issue').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'send-on-behalf',
+    ]);
   });
 
   it('create_pr: account-access + net-fetch + send-on-behalf', () => {
-    assert.deepStrictEqual(
-      getAction('create_pr').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'send-on-behalf'],
-    );
+    assert.deepStrictEqual(getAction('create_pr').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'send-on-behalf',
+    ]);
   });
 
   it('all 5 read-only verbs omit preview/idempotency/redact', () => {
@@ -157,7 +169,11 @@ describe('GitHubConnector — per-verb capability labels', () => {
       const a = getAction(name);
       assert.strictEqual(a.preview, undefined, `${name}.preview must be undefined for read-only verb`);
       assert.strictEqual(a.idempotency, undefined, `${name}.idempotency must be undefined for read-only verb`);
-      assert.strictEqual(a.redactArgsForAudit, undefined, `${name}.redactArgsForAudit must be undefined for read-only verb`);
+      assert.strictEqual(
+        a.redactArgsForAudit,
+        undefined,
+        `${name}.redactArgsForAudit must be undefined for read-only verb`,
+      );
     }
   });
 });
@@ -179,22 +195,26 @@ describe('GitHubConnector — create_issue preview', () => {
 
   it('summary names repo + title + body length+hash + labels + assignees', async () => {
     const result = await getCreate().preview!(
-      { owner: 'octo', repo: 'demo', title: 'Bug Report', body: 'hello world', labels: 'bug,urgent', assignees: 'alice' },
+      {
+        owner: 'octo',
+        repo: 'demo',
+        title: 'Bug Report',
+        body: 'hello world',
+        labels: 'bug,urgent',
+        assignees: 'alice',
+      },
       'fake-cred',
     );
     assert.match(result.summary, /octo\/demo/);
     assert.match(result.summary, /Bug Report/);
-    assert.match(result.summary, /11 chars/);   // 'hello world' length
+    assert.match(result.summary, /11 chars/); // 'hello world' length
     assert.match(result.summary, /sha256:[a-f0-9]+/);
     assert.match(result.summary, /bug,urgent/);
     assert.match(result.summary, /alice/);
   });
 
   it('summary shows "(none)" for missing labels and assignees', async () => {
-    const result = await getCreate().preview!(
-      { owner: 'octo', repo: 'demo', title: 'Bug', body: '' },
-      'fake-cred',
-    );
+    const result = await getCreate().preview!({ owner: 'octo', repo: 'demo', title: 'Bug', body: '' }, 'fake-cred');
     assert.match(result.summary, /Labels:\s+\(none\)/);
     assert.match(result.summary, /Assignees:\s+\(none\)/);
   });
@@ -241,7 +261,7 @@ describe('GitHubConnector — create_pr preview', () => {
     assert.match(result.summary, /Add feature/);
     assert.match(result.summary, /From:\s+feat\/x/);
     assert.match(result.summary, /Into:\s+develop/);
-    assert.match(result.summary, /15 chars/);  // 'PR body content' length
+    assert.match(result.summary, /15 chars/); // 'PR body content' length
     assert.match(result.summary, /sha256:[a-f0-9]+/);
   });
 
@@ -343,10 +363,12 @@ describe('GitHubConnector — idempotency declarations (unsupported arm)', () =>
       // Per the PR 9 review tweak: the reason must make the (head, base)
       // distinction unmistakable — call it rejection, NOT idempotency.
       assert.match(reason, /head, base/i, 'reason must mention head/base uniqueness');
-      assert.match(reason, /not.*idempotency key|not a client-supplied idempotency/i,
-        'reason must explicitly state this is NOT idempotency');
-      assert.match(reason, /not.*safe retry/i,
-        'reason must explicitly state this is NOT safe retry semantics');
+      assert.match(
+        reason,
+        /not.*idempotency key|not a client-supplied idempotency/i,
+        'reason must explicitly state this is NOT idempotency',
+      );
+      assert.match(reason, /not.*safe retry/i, 'reason must explicitly state this is NOT safe retry semantics');
     }
   });
 });
@@ -388,7 +410,9 @@ describe('GitHubConnector — auth-error classifier (no fetch mock)', () => {
 
   it('403 + "abuse detection mechanism" → NOT reauth', () => {
     assert.strictEqual(
-      isGithubAuthError(403, { message: 'You have triggered an abuse detection mechanism. Please wait a few minutes before trying again.' }),
+      isGithubAuthError(403, {
+        message: 'You have triggered an abuse detection mechanism. Please wait a few minutes before trying again.',
+      }),
       false,
     );
   });
@@ -420,7 +444,7 @@ describe('GitHubConnector — auth-error classifier (no fetch mock)', () => {
   it('handles missing/malformed data without crashing', () => {
     assert.strictEqual(isGithubAuthError(200, undefined), false);
     assert.strictEqual(isGithubAuthError(401, undefined), true);
-    assert.strictEqual(isGithubAuthError(403, undefined), false);  // no message → not auth
+    assert.strictEqual(isGithubAuthError(403, undefined), false); // no message → not auth
     assert.strictEqual(isGithubAuthError(403, null), false);
     assert.strictEqual(isGithubAuthError(403, 'not an object'), false);
   });

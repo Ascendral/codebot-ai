@@ -13,6 +13,7 @@
 **Why:** Tools are inconsistent — some throw, some return error strings. This makes agent.ts fragile and debugging hard.
 
 **Files:**
+
 - `src/tools/read.ts` — Change thrown errors to returned error strings (match write.ts pattern)
 - `src/tools/edit.ts` — Same: return error strings instead of throwing
 - `src/tools/batch-edit.ts` — Audit and standardize
@@ -35,6 +36,7 @@
 **Why:** Magic numbers scattered everywhere, regex recompiled on every call, newer provider keys not filtered.
 
 **Files:**
+
 - `src/context/manager.ts` — Extract `RESERVED_FOR_OUTPUT = 2048`, `RESERVED_FOR_SYSTEM = 1500`, `RESERVED_FOR_TOOLS = 2000`, `TOKENS_PER_IMAGE = 1000`, `CHARS_PER_TOKEN = 3.5` as named constants
 - `src/orchestrator.ts` — Extract defaults as named constants
 - `src/router.ts` — Same for word count thresholds
@@ -55,6 +57,7 @@
 **Why:** 22+ tools have no dedicated tests. These 6 are highest risk.
 
 **New test files:**
+
 - `src/tools/batch-edit.test.ts` — Multi-file atomic edits, partial failure rollback, path validation
 - `src/tools/database.test.ts` — SELECT allowed, DROP/DELETE blocked, SQL injection prevention
 - `src/tools/docker.test.ts` — Container commands, image validation, socket access control
@@ -71,6 +74,7 @@
 **Why:** Get to comprehensive test coverage for all 28 tools.
 
 **New test files:**
+
 - `src/tools/code-analysis.test.ts` — Symbol extraction, import tracing
 - `src/tools/code-review.test.ts` — Security scanning, complexity scoring
 - `src/tools/diff-viewer.test.ts` — File comparison, git diff parsing
@@ -108,6 +112,7 @@
 2. **Move Supported Models table** up to right after Quick Start (before Usage section)
 
 3. **Add "Quick Local Start" block** after Quick Start:
+
    ```
    ## Quick Local Start (Ollama)
    ollama pull qwen2.5-coder
@@ -147,6 +152,7 @@
 **Why:** ROADMAP.md is stale (still says v2.1.0 is "next"), need to update for current state and create enhancement issues for visibility.
 
 **Files:**
+
 - `ROADMAP.md` — Update:
   - Mark v2.1.0 through v2.1.6 as SHIPPED with actual dates/test counts
   - Mark multi-agent orchestration as SHIPPED
@@ -175,6 +181,7 @@
 **Why:** Users need to know what a run will cost before committing. No one wants surprise $20 bills.
 
 **Files:**
+
 - `src/telemetry.ts` — Add `estimateRunCost(taskDescription, model)` using average tokens-per-tool-call heuristics
 - `src/cli.ts` — Add `--dry-run` flag: runs planning phase only, shows estimated tokens/tools/cost
 - `src/cli.ts` — Add `--estimate` flag: alias for --dry-run
@@ -193,6 +200,7 @@
 **Why:** CDP is powerful but fragile. Chrome version mismatches, headless issues, and page crashes cause silent failures.
 
 **Files:**
+
 - `src/browser/cdp.ts` — Add auto-reconnect on WebSocket close/error (3 retries with backoff)
 - `src/tools/browser.ts` — Add fallback to fetch-only mode when Chrome unavailable
 - `src/tools/browser.ts` — Better error messages: "Chrome not found at path X — install Chrome or set CHROME_PATH env var"
@@ -211,6 +219,7 @@
 **Why:** Extension exists but needs better documentation and screenshot in README.
 
 **Files:**
+
 - `README.md` — Add VS Code section with:
   - Screenshot placeholder comment (user adds actual screenshot)
   - Feature list: sidebar chat, inline diff, status bar, theme integration
@@ -228,12 +237,14 @@
 ### Build 10: Ship v2.2.0
 
 **Files:**
+
 - `package.json` — Bump to 2.2.0
 - `src/index.ts` — Update VERSION
 - `src/cli.ts` — Update version string
 - `CHANGELOG.md` — Full v2.2.0 entry covering all 9 builds
 
 **Release:**
+
 - `git tag v2.2.0 && git push --tags`
 - `npm publish`
 - Verify on npmjs.com
@@ -244,18 +255,18 @@
 
 ## Build Order & Version Plan
 
-| Build | Name | Version | Test Target | Focus |
-|-------|------|---------|-------------|-------|
-| 1 | Standardize Error Handling | 2.2.0-alpha.1 | 600+ | Code quality |
-| 2 | Constants, Perf & Secrets | 2.2.0-alpha.2 | 615+ | Code quality |
-| 3 | High-Priority Tool Tests | 2.2.0-alpha.3 | 660+ | Test coverage |
-| 4 | Remaining Tool Tests | 2.2.0-alpha.4 | 720+ | Test coverage |
-| 5 | README Overhaul | 2.2.0-beta.1 | 720+ | Discoverability |
-| 6 | ROADMAP & GitHub Polish | 2.2.0-beta.2 | 720+ | Discoverability |
-| 7 | Cost Transparency | 2.2.0-rc.1 | 740+ | UX |
-| 8 | Browser Resilience | 2.2.0-rc.2 | 760+ | Reliability |
-| 9 | VS Code Section | 2.2.0-rc.3 | 760+ | Discoverability |
-| 10 | Ship v2.2.0 | 2.2.0 | 760+ | Release |
+| Build | Name                       | Version       | Test Target | Focus           |
+| ----- | -------------------------- | ------------- | ----------- | --------------- |
+| 1     | Standardize Error Handling | 2.2.0-alpha.1 | 600+        | Code quality    |
+| 2     | Constants, Perf & Secrets  | 2.2.0-alpha.2 | 615+        | Code quality    |
+| 3     | High-Priority Tool Tests   | 2.2.0-alpha.3 | 660+        | Test coverage   |
+| 4     | Remaining Tool Tests       | 2.2.0-alpha.4 | 720+        | Test coverage   |
+| 5     | README Overhaul            | 2.2.0-beta.1  | 720+        | Discoverability |
+| 6     | ROADMAP & GitHub Polish    | 2.2.0-beta.2  | 720+        | Discoverability |
+| 7     | Cost Transparency          | 2.2.0-rc.1    | 740+        | UX              |
+| 8     | Browser Resilience         | 2.2.0-rc.2    | 760+        | Reliability     |
+| 9     | VS Code Section            | 2.2.0-rc.3    | 760+        | Discoverability |
+| 10    | Ship v2.2.0                | 2.2.0         | 760+        | Release         |
 
 ## Post-Release: Community & Marketing (Manual Steps)
 

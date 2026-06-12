@@ -4,7 +4,8 @@ import { Tool, CapabilityLabel } from '../types';
 
 export class CodeAnalysisTool implements Tool {
   name = 'code_analysis';
-  description = 'Analyze code structure. Actions: symbols (list classes/functions/exports), imports (list imports), outline (file structure), references (find where a symbol is used).';
+  description =
+    'Analyze code structure. Actions: symbols (list classes/functions/exports), imports (list imports), outline (file structure), references (find where a symbol is used).';
   permission: Tool['permission'] = 'auto';
   capabilities: CapabilityLabel[] = ['read-only'];
   cacheable = true;
@@ -30,9 +31,12 @@ export class CodeAnalysisTool implements Tool {
     }
 
     switch (action) {
-      case 'symbols': return this.extractSymbols(targetPath);
-      case 'imports': return this.extractImports(targetPath);
-      case 'outline': return this.buildOutline(targetPath);
+      case 'symbols':
+        return this.extractSymbols(targetPath);
+      case 'imports':
+        return this.extractImports(targetPath);
+      case 'outline':
+        return this.buildOutline(targetPath);
       case 'references': {
         const symbol = args.symbol as string;
         if (!symbol) return 'Error: symbol is required for references action';
@@ -94,11 +98,17 @@ export class CodeAnalysisTool implements Tool {
     for (const line of lines) {
       // ES imports
       const esMatch = line.match(/^import\s+.*from\s+['"]([^'"]+)['"]/);
-      if (esMatch) { imports.push(`  ${esMatch[1]}`); continue; }
+      if (esMatch) {
+        imports.push(`  ${esMatch[1]}`);
+        continue;
+      }
 
       // Require
       const reqMatch = line.match(/require\s*\(\s*['"]([^'"]+)['"]\s*\)/);
-      if (reqMatch) { imports.push(`  ${reqMatch[1]}`); continue; }
+      if (reqMatch) {
+        imports.push(`  ${reqMatch[1]}`);
+        continue;
+      }
 
       // Python imports
       const pyMatch = line.match(/^(?:from\s+(\S+)\s+)?import\s+(\S+)/);
@@ -129,10 +139,14 @@ export class CodeAnalysisTool implements Tool {
     const skip = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '__pycache__', '.next']);
 
     let entries: fs.Dirent[];
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
 
-    const dirs = entries.filter(e => e.isDirectory() && !e.name.startsWith('.') && !skip.has(e.name));
-    const files = entries.filter(e => e.isFile() && !e.name.startsWith('.'));
+    const dirs = entries.filter((e) => e.isDirectory() && !e.name.startsWith('.') && !skip.has(e.name));
+    const files = entries.filter((e) => e.isFile() && !e.name.startsWith('.'));
 
     for (const d of dirs.sort((a, b) => a.name.localeCompare(b.name))) {
       lines.push(`${prefix}${d.name}/`);
@@ -160,7 +174,11 @@ export class CodeAnalysisTool implements Tool {
     const skip = new Set(['node_modules', '.git', 'dist', 'build', 'coverage']);
 
     let entries: fs.Dirent[];
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
 
     for (const entry of entries) {
       if (results.length >= max) break;
@@ -171,7 +189,8 @@ export class CodeAnalysisTool implements Tool {
         this.searchRefs(full, regex, results, max);
       } else {
         const ext = path.extname(entry.name);
-        if (!['.ts', '.js', '.tsx', '.jsx', '.py', '.go', '.rs', '.java', '.rb', '.c', '.cpp', '.h'].includes(ext)) continue;
+        if (!['.ts', '.js', '.tsx', '.jsx', '.py', '.go', '.rs', '.java', '.rb', '.c', '.cpp', '.h'].includes(ext))
+          continue;
         try {
           const content = fs.readFileSync(full, 'utf-8');
           const lines = content.split('\n');
@@ -181,7 +200,9 @@ export class CodeAnalysisTool implements Tool {
               results.push(`  ${full}:${i + 1}: ${lines[i].trimEnd()}`);
             }
           }
-        } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
       }
     }
   }
@@ -189,6 +210,8 @@ export class CodeAnalysisTool implements Tool {
   private readFile(filePath: string): string | null {
     try {
       return fs.readFileSync(filePath, 'utf-8');
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 }

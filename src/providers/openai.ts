@@ -13,13 +13,13 @@ function sanitizeForJSON(obj: unknown): unknown {
     let out = '';
     for (let i = 0; i < obj.length; i++) {
       const c = obj.charCodeAt(i);
-      if (c >= 0xD800 && c <= 0xDBFF) {
+      if (c >= 0xd800 && c <= 0xdbff) {
         const next = i + 1 < obj.length ? obj.charCodeAt(i + 1) : 0;
-        if (next >= 0xDC00 && next <= 0xDFFF) {
+        if (next >= 0xdc00 && next <= 0xdfff) {
           out += obj[i] + obj[i + 1];
           i++;
         }
-      } else if (c >= 0xDC00 && c <= 0xDFFF) {
+      } else if (c >= 0xdc00 && c <= 0xdfff) {
         // Lone low surrogate — drop
       } else {
         out += obj[i];
@@ -65,7 +65,7 @@ export class OpenAIProvider implements LLMProvider {
 
     const body: Record<string, unknown> = {
       model: this.config.model,
-      messages: messages.map(m => this.formatMessage(m)),
+      messages: messages.map((m) => this.formatMessage(m)),
       stream: true,
       stream_options: { include_usage: true },
     };
@@ -78,7 +78,7 @@ export class OpenAIProvider implements LLMProvider {
       body.tools = tools;
     } else if (tools?.length && !this.supportsTools && this.supportsJsonMode) {
       // JSON mode fallback: use structured output for models without native tool calling (v2.1.6)
-      const toolNames = tools.map(t => t.function.name);
+      const toolNames = tools.map((t) => t.function.name);
       body.response_format = buildToolCallSchema(toolNames);
     }
 
@@ -127,7 +127,10 @@ export class OpenAIProvider implements LLMProvider {
           await sleep(delay);
           continue;
         }
-        yield { type: 'error', error: `Connection failed after ${attempt + 1} attempts: ${lastError}. Is your LLM server running?` };
+        yield {
+          type: 'error',
+          error: `Connection failed after ${attempt + 1} attempts: ${lastError}. Is your LLM server running?`,
+        };
         return;
       }
     }
@@ -319,8 +322,8 @@ export class OpenAIProvider implements LLMProvider {
         signal: AbortSignal.timeout(5000),
       });
       if (!res.ok) return [];
-      const data = await res.json() as { data?: Array<{ id: string }> };
-      return (data.data || []).map(m => m.id);
+      const data = (await res.json()) as { data?: Array<{ id: string }> };
+      return (data.data || []).map((m) => m.id);
     } catch {
       return [];
     }
@@ -333,7 +336,8 @@ export class OpenAIProvider implements LLMProvider {
     if (url.includes('deepseek')) return 'Set DEEPSEEK_API_KEY or run: codebot --setup';
     if (url.includes('groq')) return 'Set GROQ_API_KEY or run: codebot --setup';
     if (url.includes('mistral')) return 'Set MISTRAL_API_KEY or run: codebot --setup';
-    if (url.includes('generativelanguage.googleapis') || url.includes('gemini')) return 'Set GEMINI_API_KEY or run: codebot --setup';
+    if (url.includes('generativelanguage.googleapis') || url.includes('gemini'))
+      return 'Set GEMINI_API_KEY or run: codebot --setup';
     if (url.includes('x.ai') || url.includes('grok')) return 'Set XAI_API_KEY or run: codebot --setup';
     return 'Set your API key or run: codebot --setup';
   }

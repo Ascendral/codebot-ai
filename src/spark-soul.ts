@@ -78,7 +78,9 @@ export class AgentStateEngine {
     }
   }
 
-  get isActive(): boolean { return this.initialized; }
+  get isActive(): boolean {
+    return this.initialized;
+  }
 
   getPromptBlock(currentQuery?: string): string {
     if (!this.initialized) return '';
@@ -126,7 +128,13 @@ export class AgentStateEngine {
     }
   }
 
-  recordOutcome(tool: string, args: Record<string, unknown>, success: boolean, output: string, durationMs: number): void {
+  recordOutcome(
+    tool: string,
+    args: Record<string, unknown>,
+    success: boolean,
+    output: string,
+    durationMs: number,
+  ): void {
     if (!this.initialized) return;
     try {
       const category = resolveToolCategory(tool, args);
@@ -135,9 +143,11 @@ export class AgentStateEngine {
       if (prediction) this.predictions.delete(predKey);
       if (!prediction) {
         const operation = resolveToolOperation(tool, args);
-        prediction = tryCall(() => this.orchestrator.predictor.predict(`${tool}-${Date.now()}`, this.sessionId, tool, operation));
+        prediction = tryCall(() =>
+          this.orchestrator.predictor.predict(`${tool}-${Date.now()}`, this.sessionId, tool, operation),
+        );
       }
-      const failureInfo = (!success && output) ? failureToOutcome(classifyFailure(output)) : undefined;
+      const failureInfo = !success && output ? failureToOutcome(classifyFailure(output)) : undefined;
       if (prediction) {
         const outcome = buildOutcomeSignal(prediction, this.sessionId, success, output, durationMs, failureInfo);
         this.orchestrator.learn(prediction, outcome);
@@ -147,8 +157,18 @@ export class AgentStateEngine {
       else this.failureCount++;
       const hasSentinel = category === 'destructive' || category === 'financial';
       tryCall(() => updateEmotionalState(this.orchestrator, this.store, success, failureInfo, tool, category));
-      tryCall(() => evolvePersonality(this.orchestrator, this.store, this.toolHistory, hasSentinel, success ? 'execute' : 'diagnose'));
-    } catch { /* learning failed — non-fatal */ }
+      tryCall(() =>
+        evolvePersonality(
+          this.orchestrator,
+          this.store,
+          this.toolHistory,
+          hasSentinel,
+          success ? 'execute' : 'diagnose',
+        ),
+      );
+    } catch {
+      /* learning failed — non-fatal */
+    }
   }
 
   finalizeSession(): { reflection?: any } {
@@ -156,7 +176,9 @@ export class AgentStateEngine {
     try {
       const reflection = tryCall(() => this.orchestrator.reflection.reflect());
       if (reflection && this.store.saveReflection) {
-        tryCall(() => this.store.saveReflection({ sessionId: this.sessionId, reflection, timestamp: new Date().toISOString() }));
+        tryCall(() =>
+          this.store.saveReflection({ sessionId: this.sessionId, reflection, timestamp: new Date().toISOString() }),
+        );
       }
       tryCall(() => evolvePersonality(this.orchestrator, this.store, this.toolHistory, false, 'reflect'));
       tryCall(() => persistEngines(this.orchestrator, this.store));
@@ -168,37 +190,55 @@ export class AgentStateEngine {
 
   getEmotionalState(): EmotionalSnapshot | null {
     if (!this.initialized) return null;
-    return tryCall(() => {
-      const summary = this.orchestrator.emotionalState.getSummary();
-      const state = this.orchestrator.emotionalState.getState();
-      return { summary, valence: state?.valence ?? 0, momentum: state?.momentum ?? 0 };
-    }) || null;
+    return (
+      tryCall(() => {
+        const summary = this.orchestrator.emotionalState.getSummary();
+        const state = this.orchestrator.emotionalState.getState();
+        return { summary, valence: state?.valence ?? 0, momentum: state?.momentum ?? 0 };
+      }) || null
+    );
   }
 
   getPersonality(): PersonalitySnapshot | null {
     if (!this.initialized) return null;
-    return tryCall(() => {
-      const summary = this.orchestrator.personality.getSummary();
-      const profile = this.orchestrator.personality.getProfile();
-      return { summary, traits: profile ? { ...profile } : {} };
-    }) || null;
+    return (
+      tryCall(() => {
+        const summary = this.orchestrator.personality.getSummary();
+        const profile = this.orchestrator.personality.getProfile();
+        return { summary, traits: profile ? { ...profile } : {} };
+      }) || null
+    );
   }
 
   getWeights(): Record<string, any> | null {
     if (!this.initialized) return null;
-    return tryCall(() => {
-      const weights: Record<string, any> = {};
-      for (const cat of ALL_CATEGORIES) {
-        const w = tryCall(() => this.store.getWeight(cat));
-        if (w) {
-          weights[cat] = { current: w.currentWeight, base: w.baseWeight, lower: w.lowerBound, upper: w.upperBound, episodes: w.episodeCount };
+    return (
+      tryCall(() => {
+        const weights: Record<string, any> = {};
+        for (const cat of ALL_CATEGORIES) {
+          const w = tryCall(() => this.store.getWeight(cat));
+          if (w) {
+            weights[cat] = {
+              current: w.currentWeight,
+              base: w.baseWeight,
+              lower: w.lowerBound,
+              upper: w.upperBound,
+              episodes: w.episodeCount,
+            };
+          }
         }
-      }
-      return weights;
-    }) || null;
+        return weights;
+      }) || null
+    );
   }
 
-  getLearningStats(): { totalEpisodes: number; predictions: number; successCount: number; failureCount: number; successRate: number } {
+  getLearningStats(): {
+    totalEpisodes: number;
+    predictions: number;
+    successCount: number;
+    failureCount: number;
+    successRate: number;
+  } {
     const total = this.successCount + this.failureCount;
     return {
       totalEpisodes: total,

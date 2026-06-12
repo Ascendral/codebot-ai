@@ -17,7 +17,7 @@ updated: 2026-04-17
 ## Designed, not built
 
 - **RFC 001 Part B** — repo structure summary in system prompt.
-  Top-2-level package tree + first-line-of-each-__init__ docstring.
+  Top-2-level package tree + first-line-of-each-**init** docstring.
   Expected +3-5pp on SWE-bench. ~1 day.
 - **RFC 001 Part C** — call-graph awareness via tree-sitter. When
   agent edits `foo()`, surface "functions that call foo" automatically.

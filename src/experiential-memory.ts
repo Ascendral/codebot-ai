@@ -136,10 +136,14 @@ export class ExperientialMemory {
   // cross-pollute outcomes.
   private retrievedThisTask: Set<string> = new Set();
 
-  get isActive(): boolean { return this._active; }
+  get isActive(): boolean {
+    return this._active;
+  }
 
   /** For tests: read the current retrieved-this-task set. */
-  _retrievedThisTaskForTest(): string[] { return [...this.retrievedThisTask]; }
+  _retrievedThisTaskForTest(): string[] {
+    return [...this.retrievedThisTask];
+  }
 
   constructor(dbPath?: string) {
     if (!Database) return;
@@ -175,47 +179,57 @@ export class ExperientialMemory {
     try {
       // Check for supersession: same tool + same error pattern → supersede old lesson
       if (lesson.outcome === 'failure' && lesson.errorMessage) {
-        const existing = this.db.prepare(
-          `SELECT id FROM lessons WHERE toolName = ? AND errorMessage = ? AND outcome = 'failure' AND supersededBy IS NULL AND challenged = 0 ORDER BY timestamp DESC LIMIT 1`
-        ).get(lesson.toolName, lesson.errorMessage);
+        const existing = this.db
+          .prepare(
+            `SELECT id FROM lessons WHERE toolName = ? AND errorMessage = ? AND outcome = 'failure' AND supersededBy IS NULL AND challenged = 0 ORDER BY timestamp DESC LIMIT 1`,
+          )
+          .get(lesson.toolName, lesson.errorMessage);
 
         if (existing) {
           this.db.prepare('UPDATE lessons SET supersededBy = ? WHERE id = ?').run(id, existing.id);
         }
       }
 
-      this.db.prepare(`
+      this.db
+        .prepare(
+          `
         INSERT INTO lessons (id, timestamp, project, scope, toolName, taskDescription, approach, errorMessage, outcome, lesson, avoidance, tags, confidence, accessCount, lastAccessed, decayScore, challenged, supersededBy)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        id,
-        lesson.timestamp || now,
-        lesson.project || '',
-        lesson.scope || 'global',
-        lesson.toolName,
-        lesson.taskDescription || '',
-        lesson.approach || '',
-        lesson.errorMessage || '',
-        lesson.outcome,
-        lesson.lesson,
-        lesson.avoidance || '',
-        lesson.tags || '',
-        lesson.confidence ?? 0.6,
-        0,
-        now,
-        1.0,
-        0,
-        null,
-      );
+      `,
+        )
+        .run(
+          id,
+          lesson.timestamp || now,
+          lesson.project || '',
+          lesson.scope || 'global',
+          lesson.toolName,
+          lesson.taskDescription || '',
+          lesson.approach || '',
+          lesson.errorMessage || '',
+          lesson.outcome,
+          lesson.lesson,
+          lesson.avoidance || '',
+          lesson.tags || '',
+          lesson.confidence ?? 0.6,
+          0,
+          now,
+          1.0,
+          0,
+          null,
+        );
 
       // Enforce max lessons cap
       const count = this.db.prepare('SELECT COUNT(*) as cnt FROM lessons').get().cnt;
       if (count > MAX_LESSONS) {
-        this.db.prepare(`
+        this.db
+          .prepare(
+            `
           DELETE FROM lessons WHERE id IN (
             SELECT id FROM lessons ORDER BY decayScore ASC, accessCount ASC LIMIT ?
           )
-        `).run(count - MAX_LESSONS);
+        `,
+          )
+          .run(count - MAX_LESSONS);
       }
 
       return id;
@@ -254,18 +268,22 @@ export class ExperientialMemory {
           const ftsQuery = query.taskContext
             .replace(/[^\w\s]/g, ' ')
             .split(/\s+/)
-            .filter(w => w.length > 2)
+            .filter((w) => w.length > 2)
             .slice(0, 5)
             .join(' OR ');
 
           if (ftsQuery) {
-            const ftsResults = this.db.prepare(`
+            const ftsResults = this.db
+              .prepare(
+                `
               SELECT l.* FROM lessons l
               JOIN lessons_fts f ON l.id = f.id
               WHERE lessons_fts MATCH ? AND ${conditions.join(' AND ')}
               ORDER BY l.confidence DESC, l.accessCount DESC
               LIMIT ?
-            `).all(ftsQuery, ...params, limit);
+            `,
+              )
+              .all(ftsQuery, ...params, limit);
 
             if (ftsResults.length > 0) {
               this.markAccessed(ftsResults.map((r: any) => r.id));
@@ -284,11 +302,15 @@ export class ExperientialMemory {
       }
 
       params.push(limit);
-      const results = this.db.prepare(`
+      const results = this.db
+        .prepare(
+          `
         SELECT * FROM lessons WHERE ${conditions.join(' AND ')}
         ORDER BY confidence DESC, accessCount DESC
         LIMIT ?
-      `).all(...params);
+      `,
+        )
+        .all(...params);
 
       if (results.length > 0) {
         this.markAccessed(results.map((r: any) => r.id));
@@ -360,9 +382,13 @@ export class ExperientialMemory {
   challengeLesson(id: string, _reason: string): boolean {
     if (!this._active) return false;
     try {
-      this.db.prepare(`
+      this.db
+        .prepare(
+          `
         UPDATE lessons SET challenged = 1, confidence = confidence * 0.5 WHERE id = ?
-      `).run(id);
+      `,
+        )
+        .run(id);
       return true;
     } catch {
       return false;
@@ -373,9 +399,13 @@ export class ExperientialMemory {
   reinforceLesson(id: string): void {
     if (!this._active) return;
     try {
-      this.db.prepare(`
+      this.db
+        .prepare(
+          `
         UPDATE lessons SET confidence = MIN(1.0, confidence + 0.05) WHERE id = ?
-      `).run(id);
+      `,
+        )
+        .run(id);
     } catch {}
   }
 
@@ -383,9 +413,13 @@ export class ExperientialMemory {
   weakenLesson(id: string): void {
     if (!this._active) return;
     try {
-      this.db.prepare(`
+      this.db
+        .prepare(
+          `
         UPDATE lessons SET confidence = MAX(0.0, confidence - 0.1) WHERE id = ?
-      `).run(id);
+      `,
+        )
+        .run(id);
     } catch {}
   }
 
@@ -402,8 +436,13 @@ export class ExperientialMemory {
     let reinforced = 0;
     let weakened = 0;
     for (const id of this.retrievedThisTask) {
-      if (success) { this.reinforceLesson(id); reinforced++; }
-      else { this.weakenLesson(id); weakened++; }
+      if (success) {
+        this.reinforceLesson(id);
+        reinforced++;
+      } else {
+        this.weakenLesson(id);
+        weakened++;
+      }
     }
     this.retrievedThisTask.clear();
     return { reinforced, weakened };
@@ -432,10 +471,14 @@ export class ExperientialMemory {
 
       // Prune: low decay + low access + old
       const cutoffDate = new Date(now - PRUNE_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
-      this.db.prepare(`
+      this.db
+        .prepare(
+          `
         DELETE FROM lessons
         WHERE decayScore < ? AND accessCount < ? AND timestamp < ?
-      `).run(PRUNE_DECAY_THRESHOLD, PRUNE_ACCESS_THRESHOLD, cutoffDate);
+      `,
+        )
+        .run(PRUNE_DECAY_THRESHOLD, PRUNE_ACCESS_THRESHOLD, cutoffDate);
     } catch {}
   }
 
@@ -467,7 +510,9 @@ export class ExperientialMemory {
   /** Close the database connection */
   close(): void {
     if (this.db) {
-      try { this.db.close(); } catch {}
+      try {
+        this.db.close();
+      } catch {}
     }
   }
 

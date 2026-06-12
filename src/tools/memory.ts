@@ -3,7 +3,8 @@ import { MemoryManager } from '../memory';
 
 export class MemoryTool implements Tool {
   name = 'memory';
-  description = 'Read or write persistent memory. Memory survives across sessions and is always available to you. Use this to remember important context, user preferences, project patterns, or anything worth keeping.';
+  description =
+    'Read or write persistent memory. Memory survives across sessions and is always available to you. Use this to remember important context, user preferences, project patterns, or anything worth keeping.';
   permission: Tool['permission'] = 'auto';
   capabilities: CapabilityLabel[] = ['write-fs'];
   parameters = {
@@ -48,9 +49,7 @@ export class MemoryTool implements Tool {
         if (file) {
           return this.memory.readFile(this.toScope(scope), file);
         }
-        const result = scope === 'global'
-          ? this.memory.readGlobal()
-          : this.memory.readProject();
+        const result = scope === 'global' ? this.memory.readGlobal() : this.memory.readProject();
         return result || '(empty — no memory saved yet)';
       }
 
@@ -70,9 +69,7 @@ export class MemoryTool implements Tool {
       case 'list': {
         const files = this.memory.list();
         if (files.length === 0) return 'No memory files yet.';
-        return files
-          .map(f => `[${f.scope}] ${f.file} (${f.size} bytes)`)
-          .join('\n');
+        return files.map((f) => `[${f.scope}] ${f.file} (${f.size} bytes)`).join('\n');
       }
 
       default:

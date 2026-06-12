@@ -29,7 +29,11 @@ after(() => {
   } else {
     process.env.CODEBOT_HOME = prevHome;
   }
-  try { fs.rmSync(codebotHome, { recursive: true, force: true }); } catch { /* best effort */ }
+  try {
+    fs.rmSync(codebotHome, { recursive: true, force: true });
+  } catch {
+    /* best effort */
+  }
 });
 
 function makeSpec(overrides: Partial<TaskSpec> = {}): TaskSpec {
@@ -53,30 +57,21 @@ describe('CodingAgentRegistry — boundary contract', () => {
   it('rejects unknown provider', async () => {
     const vault = new VaultManager({ vaultPath: makeTestVaultPath() });
     const reg = new CodingAgentRegistry(vault);
-    await assert.rejects(
-      () => reg.submit(makeSpec({ provider: 'does-not-exist' })),
-      /unknown coding-agent provider/,
-    );
+    await assert.rejects(() => reg.submit(makeSpec({ provider: 'does-not-exist' })), /unknown coding-agent provider/);
   });
 
   it('forwards validateSpec failures with provider message', async () => {
     const vault = new VaultManager({ vaultPath: makeTestVaultPath() });
     const reg = new CodingAgentRegistry(vault);
     reg.register(new EchoCodingAgentProvider());
-    await assert.rejects(
-      () => reg.submit(makeSpec({ title: '' })),
-      /invalid task spec.*title is required/,
-    );
+    await assert.rejects(() => reg.submit(makeSpec({ title: '' })), /invalid task spec.*title is required/);
   });
 
   it('rejects double registration', () => {
     const vault = new VaultManager({ vaultPath: makeTestVaultPath() });
     const reg = new CodingAgentRegistry(vault);
     reg.register(new EchoCodingAgentProvider());
-    assert.throws(
-      () => reg.register(new EchoCodingAgentProvider()),
-      /already registered: echo/,
-    );
+    assert.throws(() => reg.register(new EchoCodingAgentProvider()), /already registered: echo/);
   });
 
   it('persists task state and writes task_start audit row on submit', async () => {
@@ -113,7 +108,7 @@ describe('EchoCodingAgentProvider — end-to-end stream', () => {
 
     assert.strictEqual(events.length, 3, `expected 3 events, got ${events.length}`);
     assert.deepStrictEqual(
-      events.map(e => e.type),
+      events.map((e) => e.type),
       ['status', 'log', 'result'],
     );
     const result = events[2];
@@ -137,7 +132,7 @@ describe('EchoCodingAgentProvider — end-to-end stream', () => {
     await drain(handle.events());
 
     const all = listTasks();
-    const found = all.find(t => t.id === handle.id);
+    const found = all.find((t) => t.id === handle.id);
     assert.ok(found, 'task should appear in listTasks()');
     assert.strictEqual(found!.spec.title, 'listed');
     assert.strictEqual(found!.status, 'succeeded');
@@ -161,7 +156,7 @@ describe('EchoCodingAgentProvider — end-to-end stream', () => {
     // The events iterator must terminate cleanly.
     const events = await drain(handle.events());
     // After cancel, the only event seen is the cancellation log.
-    assert.ok(events.some(e => e.type === 'log' && e.message.includes('cancelled')));
+    assert.ok(events.some((e) => e.type === 'log' && e.message.includes('cancelled')));
   });
 
   it('validateSpec returns null on a clean spec', () => {

@@ -12,9 +12,7 @@ type ProviderName = 'anthropic' | 'openai';
 function validateTask(taskInput: string): Task {
   const normalized = taskInput.trim().toLowerCase();
   if (normalized !== 'review' && normalized !== 'fix' && normalized !== 'scan') {
-    throw new Error(
-      `Invalid task: "${taskInput}". Supported tasks are: review, fix, scan.`
-    );
+    throw new Error(`Invalid task: "${taskInput}". Supported tasks are: review, fix, scan.`);
   }
   return normalized;
 }
@@ -22,9 +20,7 @@ function validateTask(taskInput: string): Task {
 function validateProvider(providerInput: string): ProviderName {
   const normalized = providerInput.trim().toLowerCase();
   if (normalized !== 'anthropic' && normalized !== 'openai') {
-    throw new Error(
-      `Invalid provider: "${providerInput}". Supported providers are: anthropic, openai.`
-    );
+    throw new Error(`Invalid provider: "${providerInput}". Supported providers are: anthropic, openai.`);
   }
   return normalized;
 }

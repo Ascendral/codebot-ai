@@ -77,7 +77,7 @@ export function repairToolCallMessages(messages: Message[]): Message[] {
 
   // Phase 2: Remove orphaned tool messages and duplicates
   const seenToolResponseIds = new Set<string>();
-  const filtered = messages.filter(msg => {
+  const filtered = messages.filter((msg) => {
     if (msg.role !== 'tool') return true;
     const tcId = msg.tool_call_id;
     if (!tcId) return false;

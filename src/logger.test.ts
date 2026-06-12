@@ -18,8 +18,12 @@ describe('logger', () => {
   beforeEach(() => {
     origEnv = process.env.CODEBOT_LOG_LEVEL;
     calls = [];
-    console.warn = (...args: unknown[]) => { calls.push({ stream: 'stderr', args }); };
-    console.error = (...args: unknown[]) => { calls.push({ stream: 'stderr', args }); };
+    console.warn = (...args: unknown[]) => {
+      calls.push({ stream: 'stderr', args });
+    };
+    console.error = (...args: unknown[]) => {
+      calls.push({ stream: 'stderr', args });
+    };
   });
 
   afterEach(() => {
@@ -36,7 +40,7 @@ describe('logger', () => {
     log.error('E');
     log.info('I');
     log.debug('D');
-    const msgs = calls.map(c => c.args[0]);
+    const msgs = calls.map((c) => c.args[0]);
     assert.ok(msgs.includes('W'), 'warn should emit at warn level');
     assert.ok(msgs.includes('E'), 'error should emit at warn level');
     assert.ok(!msgs.includes('I'), 'info should NOT emit at warn level');
@@ -56,15 +60,18 @@ describe('logger', () => {
     setLogLevel('error');
     log.error('E');
     log.warn('W');
-    const msgs = calls.map(c => c.args[0]);
+    const msgs = calls.map((c) => c.args[0]);
     assert.ok(msgs.includes('E'));
     assert.ok(!msgs.includes('W'));
   });
 
   it('debug level is the firehose — all 4 emit', () => {
     setLogLevel('debug');
-    log.error('E'); log.warn('W'); log.info('I'); log.debug('D');
-    const msgs = calls.flatMap(c => c.args);
+    log.error('E');
+    log.warn('W');
+    log.info('I');
+    log.debug('D');
+    const msgs = calls.flatMap((c) => c.args);
     assert.ok(msgs.includes('E'));
     assert.ok(msgs.includes('W'));
     assert.ok(msgs.includes('I'));

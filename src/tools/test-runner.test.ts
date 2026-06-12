@@ -36,27 +36,18 @@ describe('TestRunnerTool — cwd containment', () => {
     // Use the real filesystem root — guaranteed outside process.cwd().
     const escapeTarget = process.platform === 'win32' ? 'C:\\' : '/etc';
     const result = await tool.execute({ action: 'detect', cwd: escapeTarget });
-    assert.ok(
-      result.startsWith('Error: cwd escapes project root'),
-      `expected rejection, got: ${result}`,
-    );
+    assert.ok(result.startsWith('Error: cwd escapes project root'), `expected rejection, got: ${result}`);
   });
 
   it('rejects parent-traversal cwd via ../', async () => {
     const result = await tool.execute({ action: 'detect', cwd: '../..' });
-    assert.ok(
-      result.startsWith('Error: cwd escapes project root'),
-      `expected rejection, got: ${result}`,
-    );
+    assert.ok(result.startsWith('Error: cwd escapes project root'), `expected rejection, got: ${result}`);
   });
 
   it('accepts cwd that resolves inside the process root', async () => {
     // process.cwd() itself is trivially inside process.cwd().
     const result = await tool.execute({ action: 'detect', cwd: process.cwd() });
-    assert.ok(
-      !result.startsWith('Error: cwd escapes project root'),
-      `expected accept, got: ${result}`,
-    );
+    assert.ok(!result.startsWith('Error: cwd escapes project root'), `expected accept, got: ${result}`);
   });
 });
 
@@ -84,7 +75,11 @@ describe('TestRunnerTool — Issue #17: projectRoot as policy boundary', () => {
         `expected rejection (projectRoot=${isolated}, cwd=${process.cwd()}), got: ${result}`,
       );
     } finally {
-      try { fs.rmSync(isolated, { recursive: true, force: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(isolated, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 
@@ -100,7 +95,11 @@ describe('TestRunnerTool — Issue #17: projectRoot as policy boundary', () => {
         `expected accept (projectRoot=${isolated}, cwd=${sub}), got: ${result}`,
       );
     } finally {
-      try { fs.rmSync(isolated, { recursive: true, force: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(isolated, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 });
@@ -139,7 +138,11 @@ describe('TestRunnerTool — shell-injection canary (real exec)', () => {
   after(() => {
     process.chdir(originalCwd);
     // Best-effort cleanup.
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('does not execute shell metacharacters in filter (the Row 10 bug)', async () => {
@@ -198,7 +201,11 @@ describe('TestRunnerTool — argv shape (via buildCommand)', () => {
   });
 
   after(() => {
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('passes filter as a single argv element, never interpolated', () => {
@@ -260,10 +267,14 @@ describe('TestRunnerTool — argv shape (via buildCommand)', () => {
     try {
       fs.writeFileSync(
         path.join(malWorkDir, 'package.json'),
-        JSON.stringify({
-          name: 'row10-malicious',
-          scripts: { test: 'node --test && rm -rf ~' },
-        }, null, 2),
+        JSON.stringify(
+          {
+            name: 'row10-malicious',
+            scripts: { test: 'node --test && rm -rf ~' },
+          },
+          null,
+          2,
+        ),
       );
 
       const tool = new TestRunnerTool();
@@ -281,7 +292,11 @@ describe('TestRunnerTool — argv shape (via buildCommand)', () => {
       assert.strictEqual(plan.command, 'npm');
       assert.deepStrictEqual(plan.argv, ['test']);
     } finally {
-      try { fs.rmSync(malWorkDir, { recursive: true, force: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(malWorkDir, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 });

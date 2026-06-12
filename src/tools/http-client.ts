@@ -62,7 +62,12 @@ export class HttpClientTool implements Tool {
     // Auto-set content type for body
     const body = args.body as string | undefined;
     if (body && !headers['Content-Type'] && !headers['content-type']) {
-      try { JSON.parse(body); headers['Content-Type'] = 'application/json'; } catch { /* leave as-is */ }
+      try {
+        JSON.parse(body);
+        headers['Content-Type'] = 'application/json';
+      } catch {
+        /* leave as-is */
+      }
     }
 
     const controller = new AbortController();
@@ -90,7 +95,9 @@ export class HttpClientTool implements Tool {
         try {
           const parsed = JSON.parse(responseBody);
           responseBody = JSON.stringify(parsed, null, 2);
-        } catch { /* keep raw */ }
+        } catch {
+          /* keep raw */
+        }
       }
 
       // Truncate huge responses

@@ -14,7 +14,11 @@ describe('VaultManager', () => {
   });
 
   after(() => {
-    try { fs.rmSync(path.dirname(vaultPath), { recursive: true, force: true }); } catch { /* best-effort */ }
+    try {
+      fs.rmSync(path.dirname(vaultPath), { recursive: true, force: true });
+    } catch {
+      /* best-effort */
+    }
     delete process.env.CODEBOT_VAULT_KEY;
   });
 
@@ -133,8 +137,16 @@ describe('VaultManager isolation regression', () => {
   });
 
   after(() => {
-    try { fs.rmSync(path.dirname(prodVaultPath), { recursive: true, force: true }); } catch { /* best-effort */ }
-    try { fs.rmSync(path.dirname(testVaultPath), { recursive: true, force: true }); } catch { /* best-effort */ }
+    try {
+      fs.rmSync(path.dirname(prodVaultPath), { recursive: true, force: true });
+    } catch {
+      /* best-effort */
+    }
+    try {
+      fs.rmSync(path.dirname(testVaultPath), { recursive: true, force: true });
+    } catch {
+      /* best-effort */
+    }
     if (origKey === undefined) delete process.env.CODEBOT_VAULT_KEY;
     else process.env.CODEBOT_VAULT_KEY = origKey;
   });

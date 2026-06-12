@@ -93,11 +93,14 @@ describe('AnthropicProvider truncated-tool_use guard', () => {
         model: 'claude-3-5-sonnet-20241022',
       });
       const events = await collect(provider);
-      const toolCallEnds = events.filter(e => e.type === 'tool_call_end');
-      const errors = events.filter(e => e.type === 'error');
-      assert.strictEqual(toolCallEnds.length, 0,
+      const toolCallEnds = events.filter((e) => e.type === 'tool_call_end');
+      const errors = events.filter((e) => e.type === 'error');
+      assert.strictEqual(
+        toolCallEnds.length,
+        0,
         `Expected no tool_call_end for a truncated stream; got ${toolCallEnds.length}. ` +
-        `Events: ${JSON.stringify(events.map(e => e.type))}`);
+          `Events: ${JSON.stringify(events.map((e) => e.type))}`,
+      );
       assert.ok(errors.length >= 1, `Expected an error event; got ${errors.length}`);
       const errMsg = errors[0].error || '';
       assert.match(errMsg, /incomplete tool_use/, `Error message: ${errMsg}`);
@@ -128,8 +131,8 @@ describe('AnthropicProvider truncated-tool_use guard', () => {
         model: 'claude-3-5-sonnet-20241022',
       });
       const events = await collect(provider);
-      const toolCallEnds = events.filter(e => e.type === 'tool_call_end');
-      const errors = events.filter(e => e.type === 'error');
+      const toolCallEnds = events.filter((e) => e.type === 'tool_call_end');
+      const errors = events.filter((e) => e.type === 'error');
       assert.strictEqual(errors.length, 0, `Expected no errors; got ${JSON.stringify(errors)}`);
       assert.strictEqual(toolCallEnds.length, 1, 'Expected exactly one tool_call_end');
       const tc = toolCallEnds[0].toolCall as { function: { name: string; arguments: string } };
@@ -159,11 +162,15 @@ describe('AnthropicProvider truncated-tool_use guard', () => {
         model: 'claude-3-5-sonnet-20241022',
       });
       const events = await collect(provider);
-      const toolCallEnds = events.filter(e => e.type === 'tool_call_end');
-      const errors = events.filter(e => e.type === 'error');
-      assert.strictEqual(toolCallEnds.length, 0, `Expected no tool_call_end on aborted stream; got ${toolCallEnds.length}`);
+      const toolCallEnds = events.filter((e) => e.type === 'tool_call_end');
+      const errors = events.filter((e) => e.type === 'error');
+      assert.strictEqual(
+        toolCallEnds.length,
+        0,
+        `Expected no tool_call_end on aborted stream; got ${toolCallEnds.length}`,
+      );
       assert.ok(errors.length >= 1, 'Expected an error event on aborted stream');
-      const msgs = errors.map(e => e.error || '').join(' | ');
+      const msgs = errors.map((e) => e.error || '').join(' | ');
       assert.match(msgs, /incomplete tool_use/, `Error chain: ${msgs}`);
     } finally {
       globalThis.fetch = originalFetch;
@@ -200,7 +207,8 @@ describe('AnthropicProvider chunk-boundary event scoping', () => {
     ];
     // The split chunk: event line in chunk A, data line in chunk B.
     const splitA = 'event: content_block_delta\nd';
-    const splitB = 'ata: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"head[1"}}\n\n';
+    const splitB =
+      'ata: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"head[1"}}\n\n';
     const tail = [
       'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"] <"}}\n\n',
       'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":" END\\"}"}}\n\n',
@@ -217,19 +225,25 @@ describe('AnthropicProvider chunk-boundary event scoping', () => {
         model: 'claude-3-5-sonnet-20241022',
       });
       const events = await collect(provider);
-      const toolCallEnds = events.filter(e => e.type === 'tool_call_end');
-      const errors = events.filter(e => e.type === 'error');
+      const toolCallEnds = events.filter((e) => e.type === 'tool_call_end');
+      const errors = events.filter((e) => e.type === 'error');
       assert.strictEqual(errors.length, 0, `Expected no errors; got ${JSON.stringify(errors)}`);
-      assert.strictEqual(toolCallEnds.length, 1,
-        `Expected exactly one tool_call_end; got ${toolCallEnds.length}. events: ${JSON.stringify(events.map(e => e.type))}`);
+      assert.strictEqual(
+        toolCallEnds.length,
+        1,
+        `Expected exactly one tool_call_end; got ${toolCallEnds.length}. events: ${JSON.stringify(events.map((e) => e.type))}`,
+      );
       const tc = toolCallEnds[0].toolCall as { function: { name: string; arguments: string } };
       const parsed = JSON.parse(tc.function.arguments);
       // Deltas concatenate to: "new_" + "head[1" + "] <" + " END"
       //                      = "new_head[1] < END"
       // With the bug: "head[1" vanishes → "new_] < END" (missing 6 chars).
       // With the fix: all deltas land → "new_head[1] < END".
-      assert.strictEqual(parsed.content, 'new_head[1] < END',
-        `Expected all 4 deltas concatenated; got "${parsed.content}". The "head[1" delta after the split-chunk boundary was dropped.`);
+      assert.strictEqual(
+        parsed.content,
+        'new_head[1] < END',
+        `Expected all 4 deltas concatenated; got "${parsed.content}". The "head[1" delta after the split-chunk boundary was dropped.`,
+      );
     } finally {
       globalThis.fetch = originalFetch;
     }

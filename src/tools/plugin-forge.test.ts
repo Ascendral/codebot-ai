@@ -94,9 +94,7 @@ describe('PluginForgeTool', () => {
 
     it('generates manifest with hash', async () => {
       await forge.execute({ action: 'create', name: 'hashed', code: 'return 42;' });
-      const manifest = JSON.parse(
-        fs.readFileSync(path.join(tmpDir, 'plugins', 'staging', 'plugin.json'), 'utf-8'),
-      );
+      const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, 'plugins', 'staging', 'plugin.json'), 'utf-8'));
       assert.match(manifest.hash, /^sha256:[a-f0-9]{64}$/);
     });
   });
@@ -127,7 +125,10 @@ describe('PluginForgeTool', () => {
       const result = await forge.execute({ action: 'promote', name: 'promote_me' });
       assert.ok(result.includes('promoted'), 'should confirm promotion');
       assert.ok(fs.existsSync(path.join(tmpDir, 'plugins', 'promote_me.js')), 'active file should exist');
-      assert.ok(!fs.existsSync(path.join(tmpDir, 'plugins', 'staging', 'promote_me.js')), 'staging file should be removed');
+      assert.ok(
+        !fs.existsSync(path.join(tmpDir, 'plugins', 'staging', 'promote_me.js')),
+        'staging file should be removed',
+      );
     });
   });
 

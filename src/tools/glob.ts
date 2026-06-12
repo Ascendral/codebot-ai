@@ -5,7 +5,9 @@ import { Tool, CapabilityLabel } from '../types';
 export class GlobTool implements Tool {
   name = 'glob';
   private projectRoot: string;
-  constructor(projectRoot?: string) { this.projectRoot = projectRoot || process.cwd(); }
+  constructor(projectRoot?: string) {
+    this.projectRoot = projectRoot || process.cwd();
+  }
   description = 'Find files matching a glob pattern. Returns matching file paths relative to the search directory.';
   permission: Tool['permission'] = 'auto';
   capabilities: CapabilityLabel[] = ['read-only'];

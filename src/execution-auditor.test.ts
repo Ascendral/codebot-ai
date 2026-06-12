@@ -27,7 +27,7 @@ describe('ExecutionAuditor', () => {
       auditor.record(makeExec({ success: false, errorMessage: 'ECONNREFUSED' }));
     }
     const anomalies = auditor.detect();
-    const failure = anomalies.find(a => a.type === 'repeated_failure');
+    const failure = anomalies.find((a) => a.type === 'repeated_failure');
     assert.ok(failure, 'Should detect repeated failure');
     assert.strictEqual(failure!.severity, 'critical');
     assert.ok(failure!.fixAction);
@@ -39,7 +39,7 @@ describe('ExecutionAuditor', () => {
     auditor.record(makeExec({ success: false }));
     // Only 2 failures, threshold is 3
     const anomalies = auditor.detect();
-    const failure = anomalies.find(a => a.type === 'repeated_failure');
+    const failure = anomalies.find((a) => a.type === 'repeated_failure');
     assert.ok(!failure);
   });
 
@@ -49,7 +49,7 @@ describe('ExecutionAuditor', () => {
       auditor.record(makeExec({ toolName: 'grep', success: true }));
     }
     const anomalies = auditor.detect();
-    const loop = anomalies.find(a => a.type === 'loop_detected');
+    const loop = anomalies.find((a) => a.type === 'loop_detected');
     assert.ok(loop, 'Should detect loop');
     assert.ok(loop!.fixAction);
   });
@@ -62,22 +62,24 @@ describe('ExecutionAuditor', () => {
     auditor.record(makeExec({ toolName: 'edit_file' }));
     auditor.record(makeExec({ toolName: 'grep' }));
     const anomalies = auditor.detect();
-    const loop = anomalies.find(a => a.type === 'loop_detected');
+    const loop = anomalies.find((a) => a.type === 'loop_detected');
     assert.ok(!loop);
   });
 
   it('does not flag loop when the same tool runs different commands', () => {
     const auditor = new ExecutionAuditor();
     for (let i = 0; i < 5; i++) {
-      auditor.record(makeExec({
-        toolName: 'execute',
-        success: true,
-        signature: `execute:{"command":"echo ${i}"}`,
-      }));
+      auditor.record(
+        makeExec({
+          toolName: 'execute',
+          success: true,
+          signature: `execute:{"command":"echo ${i}"}`,
+        }),
+      );
     }
 
     const anomalies = auditor.detect();
-    const loop = anomalies.find(a => a.type === 'loop_detected');
+    const loop = anomalies.find((a) => a.type === 'loop_detected');
     assert.ok(!loop);
   });
 
@@ -85,7 +87,7 @@ describe('ExecutionAuditor', () => {
     const auditor = new ExecutionAuditor();
     auditor.record(makeExec({ durationMs: 45_000 }));
     const anomalies = auditor.detect();
-    const slow = anomalies.find(a => a.type === 'slow_execution');
+    const slow = anomalies.find((a) => a.type === 'slow_execution');
     assert.ok(slow, 'Should detect slow execution');
     assert.strictEqual(slow!.severity, 'warning');
   });
@@ -94,7 +96,7 @@ describe('ExecutionAuditor', () => {
     const auditor = new ExecutionAuditor();
     auditor.record(makeExec({ durationMs: 500 }));
     const anomalies = auditor.detect();
-    const slow = anomalies.find(a => a.type === 'slow_execution');
+    const slow = anomalies.find((a) => a.type === 'slow_execution');
     assert.ok(!slow);
   });
 
@@ -102,11 +104,13 @@ describe('ExecutionAuditor', () => {
     const auditor = new ExecutionAuditor();
     // Mix of failing tools
     for (let i = 0; i < 4; i++) {
-      auditor.record(makeExec({
-        toolName: i % 2 === 0 ? 'grep' : 'execute',
-        success: false,
-        errorMessage: 'failed',
-      }));
+      auditor.record(
+        makeExec({
+          toolName: i % 2 === 0 ? 'grep' : 'execute',
+          success: false,
+          errorMessage: 'failed',
+        }),
+      );
     }
     // Add some successful calls to reach window of 10
     for (let i = 0; i < 6; i++) {
@@ -118,14 +122,16 @@ describe('ExecutionAuditor', () => {
       auditor2.record(makeExec({ success: true }));
     }
     for (let i = 0; i < 4; i++) {
-      auditor2.record(makeExec({
-        toolName: i % 2 === 0 ? 'grep' : 'execute',
-        success: false,
-        errorMessage: 'failed',
-      }));
+      auditor2.record(
+        makeExec({
+          toolName: i % 2 === 0 ? 'grep' : 'execute',
+          success: false,
+          errorMessage: 'failed',
+        }),
+      );
     }
     const anomalies = auditor2.detect();
-    const cascade = anomalies.find(a => a.type === 'error_cascade');
+    const cascade = anomalies.find((a) => a.type === 'error_cascade');
     assert.ok(cascade, 'Should detect error cascade');
     assert.strictEqual(cascade!.severity, 'critical');
   });

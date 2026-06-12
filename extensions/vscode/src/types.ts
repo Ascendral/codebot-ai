@@ -22,11 +22,7 @@ export interface ErrorMessage {
   message: string;
 }
 
-export type ExtensionToWebviewMessage =
-  | AgentEventMessage
-  | SessionStartedMessage
-  | SessionEndedMessage
-  | ErrorMessage;
+export type ExtensionToWebviewMessage = AgentEventMessage | SessionStartedMessage | SessionEndedMessage | ErrorMessage;
 
 // ── Messages from Webview (frontend) to Extension (backend) ─────────────
 
@@ -43,7 +39,4 @@ export interface ClearHistoryRequest {
   type: 'clearHistory';
 }
 
-export type WebviewToExtensionMessage =
-  | SendMessageRequest
-  | CancelSessionRequest
-  | ClearHistoryRequest;
+export type WebviewToExtensionMessage = SendMessageRequest | CancelSessionRequest | ClearHistoryRequest;

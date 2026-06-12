@@ -1,36 +1,49 @@
 import { describe, it } from 'node:test';
 import * as assert from 'node:assert';
-import { box, riskBar, progressStep, diffPreview, sessionHeader, summaryBox, budgetBar, streamingIndicator, costBadge, timedStep, collapsibleSection, UI } from './ui';
+import {
+  box,
+  riskBar,
+  progressStep,
+  diffPreview,
+  sessionHeader,
+  summaryBox,
+  budgetBar,
+  streamingIndicator,
+  costBadge,
+  timedStep,
+  collapsibleSection,
+  UI,
+} from './ui';
 
 describe('budgetBar', () => {
   it('renders a progress bar with cost info', () => {
-    const result = budgetBar(0.12, 1.00);
+    const result = budgetBar(0.12, 1.0);
     assert.ok(result.includes('$0.12'), 'Should include spent amount');
     assert.ok(result.includes('$1.00'), 'Should include limit');
   });
 
   it('uses green color for low utilization', () => {
-    const result = budgetBar(0.10, 1.00);
+    const result = budgetBar(0.1, 1.0);
     assert.ok(result.includes('\x1b[32m'), 'Should use green ANSI for 10%');
   });
 
   it('uses red color for high utilization', () => {
-    const result = budgetBar(0.95, 1.00);
+    const result = budgetBar(0.95, 1.0);
     assert.ok(result.includes('\x1b[31m'), 'Should use red ANSI for 95%');
   });
 
   it('clamps at 100%', () => {
-    const result = budgetBar(2.00, 1.00);
+    const result = budgetBar(2.0, 1.0);
     assert.ok(result.includes('$2.00'), 'Should show overspend amount');
   });
 
   it('handles zero limit gracefully', () => {
-    const result = budgetBar(0.50, 0);
+    const result = budgetBar(0.5, 0);
     assert.ok(typeof result === 'string');
   });
 
   it('respects custom width', () => {
-    const result = budgetBar(0.50, 1.00, 20);
+    const result = budgetBar(0.5, 1.0, 20);
     assert.ok(result.length > 0);
   });
 });
@@ -61,7 +74,7 @@ describe('costBadge', () => {
   });
 
   it('renders cost with limit', () => {
-    const result = costBadge(0.12, 1.00);
+    const result = costBadge(0.12, 1.0);
     assert.ok(result.includes('$0.12'));
     assert.ok(result.includes('$1.00'));
   });
@@ -107,7 +120,6 @@ describe('collapsibleSection', () => {
   });
 });
 
-
 // ── providerCard tests ──
 
 import { providerCard, guidedPrompts } from './ui';
@@ -115,8 +127,23 @@ import type { ProviderCardItem } from './ui';
 
 describe('providerCard', () => {
   const items: ProviderCardItem[] = [
-    { key: '1', icon: '\u{1F5A5}', name: 'Local (Ollama)', detail: 'free, private', subtext: 'Ollama detected (3 models)', recommended: true, available: true },
-    { key: '2', icon: '\u{1F7E3}', name: 'Claude', detail: 'best for code', subtext: 'Needs: ANTHROPIC_API_KEY', available: false },
+    {
+      key: '1',
+      icon: '\u{1F5A5}',
+      name: 'Local (Ollama)',
+      detail: 'free, private',
+      subtext: 'Ollama detected (3 models)',
+      recommended: true,
+      available: true,
+    },
+    {
+      key: '2',
+      icon: '\u{1F7E3}',
+      name: 'Claude',
+      detail: 'best for code',
+      subtext: 'Needs: ANTHROPIC_API_KEY',
+      available: false,
+    },
     { key: '3', icon: '\u{1F7E2}', name: 'GPT', detail: 'widely used' },
   ];
 

@@ -44,7 +44,7 @@ export interface SymbolEntry {
    * can rely on this without re-normalizing.
    */
   file: string;
-  line: number;       // 1-based
+  line: number; // 1-based
   lang: 'python' | 'typescript' | 'javascript' | 'go' | 'rust' | 'ruby' | 'java';
 }
 
@@ -136,17 +136,39 @@ const LANGS: LangSpec[] = [
     lang: 'java',
     extensions: ['.java'],
     patterns: [
-      { re: /^\s*(?:public\s+|private\s+|protected\s+)?(?:abstract\s+|final\s+)?class\s+(?<name>[A-Za-z_$][A-Za-z0-9_$]*)\b/, kind: 'class' },
-      { re: /^\s*(?:public\s+|private\s+|protected\s+)?interface\s+(?<name>[A-Za-z_$][A-Za-z0-9_$]*)\b/, kind: 'interface' },
+      {
+        re: /^\s*(?:public\s+|private\s+|protected\s+)?(?:abstract\s+|final\s+)?class\s+(?<name>[A-Za-z_$][A-Za-z0-9_$]*)\b/,
+        kind: 'class',
+      },
+      {
+        re: /^\s*(?:public\s+|private\s+|protected\s+)?interface\s+(?<name>[A-Za-z_$][A-Za-z0-9_$]*)\b/,
+        kind: 'interface',
+      },
     ],
   },
 ];
 
 /** Directories we never descend into. */
 const SKIP_DIRS = new Set([
-  'node_modules', '.git', '.hg', '.svn', 'dist', 'build', 'out',
-  'target', '__pycache__', '.venv', 'venv', '.tox', '.mypy_cache',
-  '.pytest_cache', '.next', '.nuxt', 'coverage', '.idea', '.vscode',
+  'node_modules',
+  '.git',
+  '.hg',
+  '.svn',
+  'dist',
+  'build',
+  'out',
+  'target',
+  '__pycache__',
+  '.venv',
+  'venv',
+  '.tox',
+  '.mypy_cache',
+  '.pytest_cache',
+  '.next',
+  '.nuxt',
+  'coverage',
+  '.idea',
+  '.vscode',
 ]);
 
 /** Hard cap so a rogue giant repo can't OOM the agent. */
@@ -188,12 +210,7 @@ function scanFile(absPath: string, relPath: string, spec: LangSpec, out: SymbolE
   }
 }
 
-function walkDir(
-  root: string,
-  current: string,
-  out: SymbolEntry[],
-  counter: { files: number },
-): void {
+function walkDir(root: string, current: string, out: SymbolEntry[], counter: { files: number }): void {
   if (counter.files >= MAX_FILES) return;
   let entries: fs.Dirent[];
   try {

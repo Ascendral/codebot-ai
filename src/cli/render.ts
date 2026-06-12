@@ -9,7 +9,9 @@ import { UI, budgetBar } from '../ui';
 import { SolveEvent, SolveResult } from '../solve';
 
 export let verbose = false;
-export function setVerbose(v: boolean) { verbose = v; }
+export function setVerbose(v: boolean) {
+  verbose = v;
+}
 
 let isThinking = false;
 
@@ -41,8 +43,17 @@ function renderToolCall(event: AgentEvent) {
     isThinking = false;
   }
   const risk = event.risk || { score: 0, level: 'green' };
-  const riskColor = risk.level === 'red' ? UI.red : risk.level === 'orange' ? UI.orange : risk.level === 'yellow' ? UI.yellow : UI.green;
-  console.log(`\n${UI.bold}${riskColor}⚡${UI.reset} ${UI.bold}${event.toolCall?.name}${UI.reset} ${riskColor}[${risk.score}]${UI.reset}`);
+  const riskColor =
+    risk.level === 'red'
+      ? UI.red
+      : risk.level === 'orange'
+        ? UI.orange
+        : risk.level === 'yellow'
+          ? UI.yellow
+          : UI.green;
+  console.log(
+    `\n${UI.bold}${riskColor}⚡${UI.reset} ${UI.bold}${event.toolCall?.name}${UI.reset} ${riskColor}[${risk.score}]${UI.reset}`,
+  );
   if (event.toolCall?.args) {
     for (const [k, v] of Object.entries(event.toolCall.args)) {
       const val = typeof v === 'string' ? (v.length > 80 ? v.substring(0, 80) + '...' : v) : JSON.stringify(v);
@@ -196,7 +207,9 @@ export function renderSolveResult(r: SolveResult): void {
     }
   }
 
-  lines.push(`  Tests:      ${r.testsPassed ? sc('PASSED', 'green') : r.testsOutput ? sc('FAILED', 'red') : sc('N/A', 'cyan')}`);
+  lines.push(
+    `  Tests:      ${r.testsPassed ? sc('PASSED', 'green') : r.testsOutput ? sc('FAILED', 'red') : sc('N/A', 'cyan')}`,
+  );
   lines.push(`  Confidence: ${r.confidence}%`);
   lines.push(`  Risk:       ${r.risk}`);
   lines.push(`  Duration:   ${(r.durationMs / 1000).toFixed(1)}s`);
@@ -218,7 +231,9 @@ export function renderSolveResult(r: SolveResult): void {
         const entryCount = (solveAudit.entries || []).length;
         lines.push(`  Audit:      ${sc(`${entryCount} actions recorded`, 'green')} — ${r.auditPath}`);
       }
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
 
     // Verify the main AuditLogger chain for this session.
     try {
@@ -229,7 +244,9 @@ export function renderSolveResult(r: SolveResult): void {
       } else if (!verify.legacy) {
         lines.push(`  Chain:      ${sc(`⚠ ${verify.reason}`, 'dim')}`);
       }
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
   }
 
   lines.push(sc('  ═══════════════════════════════════════════', 'cyan'));

@@ -126,7 +126,7 @@ export class GoalDecomposer {
   private expandNode(tree: GoalTree, node: GoalNode): void {
     if (node.depth >= this.maxDepth) return;
 
-    const strategy = this.strategies.find(s => s.match(node.description));
+    const strategy = this.strategies.find((s) => s.match(node.description));
     if (!strategy) return;
 
     const drafts = strategy.decompose(node.description);
@@ -287,7 +287,12 @@ export class GoalDecomposer {
    */
   summarize(tree: GoalTree): string {
     const counts: Record<GoalStatus, number> = {
-      pending: 0, ready: 0, in_progress: 0, completed: 0, failed: 0, skipped: 0,
+      pending: 0,
+      ready: 0,
+      in_progress: 0,
+      completed: 0,
+      failed: 0,
+      skipped: 0,
     };
     for (const node of tree.nodes.values()) {
       counts[node.status]++;
@@ -351,7 +356,7 @@ export class GoalDecomposer {
       if (node.status !== 'pending') continue;
 
       // A node is ready if all its dependencies are completed
-      const depsReady = node.dependencies.every(d => completedIds.has(d));
+      const depsReady = node.dependencies.every((d) => completedIds.has(d));
       if (depsReady) {
         // If it has subtasks, don't mark ready — its children run instead
         if (node.subtasks.length === 0) {
@@ -369,14 +374,14 @@ export class GoalDecomposer {
     if (!parent) return;
 
     const terminalStatuses = new Set(['completed', 'skipped', 'failed']);
-    const allTerminal = parent.subtasks.every(id => {
+    const allTerminal = parent.subtasks.every((id) => {
       const child = tree.nodes.get(id);
       return child && terminalStatuses.has(child.status);
     });
 
     if (!allTerminal) return; // Wait for all children to finish
 
-    const anyFailed = parent.subtasks.some(id => {
+    const anyFailed = parent.subtasks.some((id) => {
       const child = tree.nodes.get(id);
       return child?.status === 'failed';
     });
@@ -390,9 +395,9 @@ export class GoalDecomposer {
       parent.completedAt = new Date().toISOString();
       // Collect subtask outputs
       const outputs = parent.subtasks
-        .map(id => tree.nodes.get(id))
-        .filter(n => n?.output)
-        .map(n => n!.output);
+        .map((id) => tree.nodes.get(id))
+        .filter((n) => n?.output)
+        .map((n) => n!.output);
       if (outputs.length > 0) {
         parent.output = outputs.join('\n---\n');
       }
@@ -432,12 +437,18 @@ export class GoalDecomposer {
 
 function statusIcon(status: GoalStatus): string {
   switch (status) {
-    case 'completed': return '[x]';
-    case 'ready': return '[ ]';
-    case 'in_progress': return '[~]';
-    case 'failed': return '[!]';
-    case 'skipped': return '[-]';
-    default: return '[ ]';
+    case 'completed':
+      return '[x]';
+    case 'ready':
+      return '[ ]';
+    case 'in_progress':
+      return '[~]';
+    case 'failed':
+      return '[!]';
+    case 'skipped':
+      return '[-]';
+    default:
+      return '[ ]';
   }
 }
 

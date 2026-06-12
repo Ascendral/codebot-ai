@@ -97,7 +97,7 @@ describe('estimateRunCost', () => {
     const complex = estimateRunCost(
       'refactor the entire authentication system to use JWT tokens instead of session cookies and update all middleware and add comprehensive tests for each endpoint including edge cases and error handling',
       'gpt-4o',
-      'openai'
+      'openai',
     );
     assert.ok(complex.estimatedCost > simple.estimatedCost, 'Complex should cost more');
     assert.ok(complex.estimatedIterations > simple.estimatedIterations);
@@ -108,7 +108,7 @@ describe('estimateRunCost', () => {
     const est = estimateRunCost(
       'refactor the authentication module to use JSON Web Tokens instead of session cookies and then update the middleware layer to properly validate incoming tokens on every request',
       'gpt-4o',
-      'openai'
+      'openai',
     );
     assert.strictEqual(est.confidence, 'medium');
     assert.strictEqual(est.estimatedIterations, 8);

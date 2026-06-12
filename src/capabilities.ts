@@ -21,11 +21,11 @@ import * as path from 'path';
 // ── Capability Schema ──
 
 export interface ToolCapabilities {
-  fs_read?: string[];        // glob patterns of readable paths
-  fs_write?: string[];       // glob patterns of writable paths
-  net_access?: string[];     // allowed domains (empty array = no network)
+  fs_read?: string[]; // glob patterns of readable paths
+  fs_write?: string[]; // glob patterns of writable paths
+  net_access?: string[]; // allowed domains (empty array = no network)
   shell_commands?: string[]; // allowed command prefixes
-  max_output_kb?: number;    // output size cap in KB
+  max_output_kb?: number; // output size cap in KB
 }
 
 export type CapabilityConfig = Record<string, ToolCapabilities>;
@@ -182,12 +182,12 @@ export class CapabilityChecker {
     if (pattern.includes('*')) {
       const regex = new RegExp(
         '^' +
-        cleanPattern
-          .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-          .replace(/\*\*/g, '<<GLOBSTAR>>')
-          .replace(/\*/g, '[^/]*')
-          .replace(/<<GLOBSTAR>>/g, '.*') +
-        '$',
+          cleanPattern
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+            .replace(/\*\*/g, '<<GLOBSTAR>>')
+            .replace(/\*/g, '[^/]*')
+            .replace(/<<GLOBSTAR>>/g, '.*') +
+          '$',
       );
       return regex.test(cleanPath);
     }

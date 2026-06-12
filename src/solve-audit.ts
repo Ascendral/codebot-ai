@@ -136,11 +136,11 @@ export class SolveAuditTrail {
     const lines: string[] = [];
     lines.push(`Audit Trail: ${this.audit.entries.length} entries`);
 
-    const phases = [...new Set(this.audit.entries.map(e => e.phase))];
+    const phases = [...new Set(this.audit.entries.map((e) => e.phase))];
     for (const phase of phases) {
-      const phaseEntries = this.audit.entries.filter(e => e.phase === phase);
-      const endEntry = phaseEntries.find(e => e.action === 'phase_end');
-      const errors = phaseEntries.filter(e => e.action === 'error');
+      const phaseEntries = this.audit.entries.filter((e) => e.phase === phase);
+      const endEntry = phaseEntries.find((e) => e.action === 'phase_end');
+      const errors = phaseEntries.filter((e) => e.action === 'error');
       const duration = endEntry?.durationMs ? ` (${(endEntry.durationMs / 1000).toFixed(1)}s)` : '';
       const status = errors.length > 0 ? '⚠️' : endEntry?.success !== false ? '✅' : '❌';
       lines.push(`  ${status} ${phase}${duration}`);

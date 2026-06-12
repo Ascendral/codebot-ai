@@ -18,10 +18,7 @@ export class StatusBarManager {
 
   constructor() {
     // Model indicator (leftmost)
-    this.modelItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Left,
-      100
-    );
+    this.modelItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     this.modelItem.name = 'CodeBot Model';
     this.modelItem.tooltip = 'CodeBot AI - Current Model';
     this.modelItem.command = 'codebot.showUsage';
@@ -29,20 +26,14 @@ export class StatusBarManager {
     this.modelItem.show();
 
     // Token / cost counter
-    this.tokensItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Left,
-      99
-    );
+    this.tokensItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
     this.tokensItem.name = 'CodeBot Tokens';
     this.tokensItem.tooltip = 'Token usage and estimated cost';
     this.tokensItem.command = 'codebot.showUsage';
     this.tokensItem.hide(); // Hidden until first usage event
 
     // Risk level indicator
-    this.riskItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Left,
-      98
-    );
+    this.riskItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 98);
     this.riskItem.name = 'CodeBot Risk';
     this.riskItem.tooltip = 'Latest tool call risk level';
     this.riskItem.hide(); // Hidden until first tool call with risk
@@ -67,9 +58,7 @@ export class StatusBarManager {
 
       case 'error':
         this.riskItem.text = '$(warning) Error';
-        this.riskItem.backgroundColor = new vscode.ThemeColor(
-          'statusBarItem.errorBackground'
-        );
+        this.riskItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
         this.riskItem.show();
         break;
     }

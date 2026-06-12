@@ -63,18 +63,23 @@ CodeBot AI is a zero-dependency autonomous AI agent that works with any LLM prov
 ## Key Components
 
 ### Agent (`src/agent.ts`)
+
 The core orchestration loop. Manages the LLM conversation, dispatches tool calls, enforces policies, and handles errors. Exposes an `AsyncGenerator<AgentEvent>` interface for streaming.
 
 ### Providers (`src/providers/`)
+
 Adapters for LLM APIs. OpenAI-compatible (covers Ollama, LM Studio, vLLM, GPT, Gemini, DeepSeek, Groq, Mistral, Grok) and native Anthropic. All implement the `LLMProvider` interface with streaming.
 
 ### Tool Registry (`src/tools/`)
+
 28 built-in tools covering file operations, shell execution, git, web browsing, search, code analysis, testing, and more. Extensible via plugins and MCP servers.
 
 ### Policy Engine (`src/policy.ts`)
+
 Declarative JSON policies controlling every aspect of agent behavior. Merge order: project > global > defaults.
 
 ### Audit System (`src/audit.ts`)
+
 Append-only JSONL logs with SHA-256 hash chains. Supports verification, querying, and SARIF export.
 
 ## Extension Points

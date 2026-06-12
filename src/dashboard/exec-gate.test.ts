@@ -61,7 +61,11 @@ function sseRequest(
           for (const block of raw.split('\n\n')) {
             const dataLine = block.split('\n').find((l) => l.startsWith('data: '));
             if (!dataLine) continue;
-            try { events.push(JSON.parse(dataLine.slice(6))); } catch { /* skip */ }
+            try {
+              events.push(JSON.parse(dataLine.slice(6)));
+            } catch {
+              /* skip */
+            }
           }
         }
         resolve({ status: res.statusCode || 0, events, raw });
@@ -83,7 +87,9 @@ function makeStubProvider(): LLMProvider {
 }
 
 let portCounter = 15720;
-function nextPort(): number { return portCounter++; }
+function nextPort(): number {
+  return portCounter++;
+}
 
 describe('POST /api/command/exec — gate chain', () => {
   let server: DashboardServer | null = null;
@@ -94,7 +100,11 @@ describe('POST /api/command/exec — gate chain', () => {
     if (server && server.isRunning()) await server.stop();
     server = null;
     if (fixtureDir && fs.existsSync(fixtureDir)) {
-      try { fs.rmSync(fixtureDir, { recursive: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(fixtureDir, { recursive: true });
+      } catch {
+        /* ignore */
+      }
     }
     fixtureDir = null;
     agent = null;
@@ -108,16 +118,11 @@ describe('POST /api/command/exec — gate chain', () => {
     // *realpath* of a cwd to the *non-realpath* projectRoot. If we
     // don't resolve the symlink here, ExecuteTool rejects its own
     // default cwd as unsafe.
-    fixtureDir = fs.realpathSync(
-      fs.mkdtempSync(path.join(os.tmpdir(), 'cb-test-exec-gate-')),
-    );
+    fixtureDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'cb-test-exec-gate-')));
 
     if (overrides.policy) {
       fs.mkdirSync(path.join(fixtureDir, '.codebot'), { recursive: true });
-      fs.writeFileSync(
-        path.join(fixtureDir, '.codebot', 'policy.json'),
-        JSON.stringify(overrides.policy, null, 2),
-      );
+      fs.writeFileSync(path.join(fixtureDir, '.codebot', 'policy.json'), JSON.stringify(overrides.policy, null, 2));
     }
 
     let sessionId: string | null = null;
@@ -153,21 +158,13 @@ describe('POST /api/command/exec — gate chain', () => {
   it('blocks a dangerous command and writes a deny/block audit entry', async () => {
     const { port, token, sessionId } = await startServer();
 
-    const res = await sseRequest(
-      `http://127.0.0.1:${port}/api/command/exec`,
-      token,
-      { command: 'rm -rf /' },
-    );
+    const res = await sseRequest(`http://127.0.0.1:${port}/api/command/exec`, token, { command: 'rm -rf /' });
 
     // The inline regex pre-check returns a 403 JSON error before SSE
     // headers go out. That is the belt-and-suspenders layer: even if
     // the gate chain somehow allowed it, this wall catches it first.
     assert.strictEqual(res.status, 403, `expected 403, got ${res.status}: ${res.raw}`);
-    assert.match(
-      res.raw,
-      /blocked|dangerous/i,
-      `expected block message, got: ${res.raw}`,
-    );
+    assert.match(res.raw, /blocked|dangerous/i, `expected block message, got: ${res.raw}`);
     // No stdout streamed under any circumstances.
     assert.ok(
       !res.events.some((e) => e.type === 'stdout'),
@@ -180,9 +177,7 @@ describe('POST /api/command/exec — gate chain', () => {
     // lie on the inline-wall code path. The entry must carry the
     // command so forensics can reconstruct what was attempted.
     const earlyEntries = agent!.getAuditLogger().query({ sessionId: sessionId! });
-    const earlyBlocks = earlyEntries.filter(
-      (e) => e.tool === 'execute' && e.action === 'policy_block',
-    );
+    const earlyBlocks = earlyEntries.filter((e) => e.tool === 'execute' && e.action === 'policy_block');
     assert.ok(
       earlyBlocks.length >= 1,
       `expected ≥1 policy_block audit entry for inline-regex 403, got entries=${JSON.stringify(earlyEntries.map((e) => ({ tool: e.tool, action: e.action })))}`,
@@ -196,11 +191,9 @@ describe('POST /api/command/exec — gate chain', () => {
     // Gate-chain allow path: send a benign command that the inline
     // regex does NOT match, prove it reaches the tool and produces the
     // `exec_start` allow-evidence entry.
-    const res2 = await sseRequest(
-      `http://127.0.0.1:${port}/api/command/exec`,
-      token,
-      { command: 'echo via-gate-chain' },
-    );
+    const res2 = await sseRequest(`http://127.0.0.1:${port}/api/command/exec`, token, {
+      command: 'echo via-gate-chain',
+    });
     assert.strictEqual(res2.status, 200, `expected 200 on allowed command, got ${res2.status}`);
     const entries = agent!.getAuditLogger().query({ sessionId: sessionId! });
     const execEntries = entries.filter((e) => e.tool === 'execute');
@@ -214,11 +207,9 @@ describe('POST /api/command/exec — gate chain', () => {
   it('streams a safe command, exits 0, writes exec_start + exec_complete', async () => {
     const { port, token, sessionId } = await startServer();
 
-    const res = await sseRequest(
-      `http://127.0.0.1:${port}/api/command/exec`,
-      token,
-      { command: 'echo hello-from-exec-stream' },
-    );
+    const res = await sseRequest(`http://127.0.0.1:${port}/api/command/exec`, token, {
+      command: 'echo hello-from-exec-stream',
+    });
 
     assert.strictEqual(res.status, 200, `expected 200, got ${res.status}: ${res.raw}`);
 
@@ -227,7 +218,10 @@ describe('POST /api/command/exec — gate chain', () => {
     assert.strictEqual(init!.mode, 'agent');
     assert.strictEqual(init!.guarded, true);
 
-    const stdout = res.events.filter((e) => e.type === 'stdout').map((e) => e.text).join('');
+    const stdout = res.events
+      .filter((e) => e.type === 'stdout')
+      .map((e) => e.text)
+      .join('');
     assert.ok(
       stdout.includes('hello-from-exec-stream'),
       `expected stdout to contain fixture marker, got stdout=${JSON.stringify(stdout)}, all events=${JSON.stringify(res.events)}, raw=${JSON.stringify(res.raw.slice(0, 500))}`,
@@ -269,11 +263,10 @@ describe('POST /api/command/exec — gate chain', () => {
   it('blocks a command whose cwd escapes the project root', async () => {
     const { port, token, sessionId } = await startServer();
 
-    const res = await sseRequest(
-      `http://127.0.0.1:${port}/api/command/exec`,
-      token,
-      { command: 'echo hi', cwd: '/etc' },
-    );
+    const res = await sseRequest(`http://127.0.0.1:${port}/api/command/exec`, token, {
+      command: 'echo hi',
+      cwd: '/etc',
+    });
 
     // Gate chain lets a policy-allowed command through; the tool's own
     // preflight catches the cwd escape and throws with code 'unsafe_cwd'.
@@ -282,14 +275,8 @@ describe('POST /api/command/exec — gate chain', () => {
     const err = res.events.find((e) => e.type === 'error');
     assert.ok(err, `expected an error event for unsafe_cwd, got events=${JSON.stringify(res.events)}`);
     assert.strictEqual(err!.errorCode, 'unsafe_cwd');
-    assert.ok(
-      !res.events.some((e) => e.type === 'stdout'),
-      'must not stream any stdout when cwd is unsafe',
-    );
-    assert.ok(
-      !res.events.some((e) => e.type === 'exit'),
-      'must not emit an exit event — process never spawned',
-    );
+    assert.ok(!res.events.some((e) => e.type === 'stdout'), 'must not stream any stdout when cwd is unsafe');
+    assert.ok(!res.events.some((e) => e.type === 'exit'), 'must not emit an exit event — process never spawned');
 
     const entries = agent!.getAuditLogger().query({ sessionId: sessionId! });
     const execError = entries.filter((e) => e.tool === 'execute' && e.action === 'exec_error');
@@ -315,37 +302,25 @@ describe('POST /api/command/exec — gate chain', () => {
       },
     });
 
-    const res = await sseRequest(
-      `http://127.0.0.1:${port}/api/command/exec`,
-      token,
-      { command: 'echo must-not-reach-host' },
-    );
+    const res = await sseRequest(`http://127.0.0.1:${port}/api/command/exec`, token, {
+      command: 'echo must-not-reach-host',
+    });
 
     assert.strictEqual(res.status, 200, `expected 200 SSE framing, got ${res.status}: ${res.raw}`);
     const err = res.events.find((e) => e.type === 'error');
     assert.ok(err, `expected error event, got events=${JSON.stringify(res.events)}`);
     assert.strictEqual(err!.code, 501, `expected HTTP-mapped code 501, got ${err!.code}`);
     assert.strictEqual(err!.errorCode, 'sandbox_required');
-    assert.match(
-      String(err!.reason),
-      /sandbox/i,
-      `expected sandbox mention in reason, got: ${err!.reason}`,
-    );
+    assert.match(String(err!.reason), /sandbox/i, `expected sandbox mention in reason, got: ${err!.reason}`);
     assert.ok(
       !res.events.some((e) => e.type === 'stdout'),
       'must not stream any stdout — no host spawn allowed when sandbox required',
     );
-    assert.ok(
-      !res.events.some((e) => e.type === 'exit'),
-      'must not emit exit — process never spawned',
-    );
+    assert.ok(!res.events.some((e) => e.type === 'exit'), 'must not emit exit — process never spawned');
 
     const entries = agent!.getAuditLogger().query({ sessionId: sessionId! });
     const execError = entries.filter((e) => e.tool === 'execute' && e.action === 'exec_error');
-    assert.ok(
-      execError.length > 0,
-      'expected exec_error audit entry for sandbox_required refusal',
-    );
+    assert.ok(execError.length > 0, 'expected exec_error audit entry for sandbox_required refusal');
     assert.match(
       String(execError[0].reason),
       /sandbox_required/,
@@ -358,30 +333,24 @@ describe('POST /api/command/exec — gate chain', () => {
     const { port, token } = await startServer({ agentless: true });
 
     // Safe command still streams end-to-end.
-    const okRes = await sseRequest(
-      `http://127.0.0.1:${port}/api/command/exec`,
-      token,
-      { command: 'echo standalone-path' },
-    );
+    const okRes = await sseRequest(`http://127.0.0.1:${port}/api/command/exec`, token, {
+      command: 'echo standalone-path',
+    });
     assert.strictEqual(okRes.status, 200, `expected 200, got ${okRes.status}: ${okRes.raw}`);
     const init = okRes.events.find((e) => e.type === 'init');
     assert.ok(init, `expected init event, got events=${JSON.stringify(okRes.events)}`);
     assert.strictEqual(init!.mode, 'standalone');
     assert.strictEqual(init!.guarded, false);
-    const stdout = okRes.events.filter((e) => e.type === 'stdout').map((e) => e.text).join('');
-    assert.ok(
-      stdout.includes('standalone-path'),
-      `expected stdout to contain fixture marker, got: ${stdout}`,
-    );
+    const stdout = okRes.events
+      .filter((e) => e.type === 'stdout')
+      .map((e) => e.text)
+      .join('');
+    assert.ok(stdout.includes('standalone-path'), `expected stdout to contain fixture marker, got: ${stdout}`);
 
     // Dangerous command still blocked by the inline regex — standalone
     // mode has no gate chain to fall back to, so this wall is the only
     // defense and must not be removed.
-    const badRes = await sseRequest(
-      `http://127.0.0.1:${port}/api/command/exec`,
-      token,
-      { command: 'rm -rf /' },
-    );
+    const badRes = await sseRequest(`http://127.0.0.1:${port}/api/command/exec`, token, { command: 'rm -rf /' });
     assert.strictEqual(badRes.status, 403, `expected 403, got ${badRes.status}: ${badRes.raw}`);
     assert.ok(
       !badRes.events.some((e) => e.type === 'stdout'),
@@ -393,17 +362,12 @@ describe('POST /api/command/exec — gate chain', () => {
   it('ExecuteTool.preflight produces the same accept/reject decisions as execute()', async () => {
     // See startServer() comment on realpath — macOS tmpdir is a symlink
     // and isCwdSafe fails without resolving.
-    const root = fs.realpathSync(
-      fs.mkdtempSync(path.join(os.tmpdir(), 'cb-test-preflight-')),
-    );
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'cb-test-preflight-')));
     try {
       const tool = new ExecuteTool(root);
 
       // Accepted — execute() must produce output; preflight must produce an ok:true plan.
-      const okCases = [
-        { command: 'echo parity-ok' },
-        { command: 'true' },
-      ];
+      const okCases = [{ command: 'echo parity-ok' }, { command: 'true' }];
       for (const args of okCases) {
         const pre = tool.preflight(args);
         assert.strictEqual(pre.ok, true, `preflight should accept: ${JSON.stringify(args)}`);
@@ -445,7 +409,11 @@ describe('POST /api/command/exec — gate chain', () => {
       const cwdOut = await tool.execute({ command: 'echo x', cwd: '/etc' });
       assert.match(cwdOut, /^Error:/, 'execute() must return Error: string for unsafe cwd');
     } finally {
-      try { fs.rmSync(root, { recursive: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(root, { recursive: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 
@@ -479,11 +447,9 @@ describe('POST /api/command/exec — gate chain', () => {
     });
 
     // Allowed prefix — must reach the tool and stream.
-    const okRes = await sseRequest(
-      `http://127.0.0.1:${port}/api/command/exec`,
-      token,
-      { command: 'echo capability-allowed' },
-    );
+    const okRes = await sseRequest(`http://127.0.0.1:${port}/api/command/exec`, token, {
+      command: 'echo capability-allowed',
+    });
     assert.strictEqual(okRes.status, 200, `expected 200, got ${okRes.status}: ${okRes.raw}`);
     const okExit = okRes.events.find((e) => e.type === 'exit');
     assert.ok(okExit, `expected exit event for allowed prefix, got: ${JSON.stringify(okRes.events)}`);
@@ -492,11 +458,7 @@ describe('POST /api/command/exec — gate chain', () => {
     // Disallowed prefix — `ls` is not in shell_commands. Must be
     // blocked at the agent layer, must emit a blocked SSE event, must
     // NOT stream stdout, must NOT emit an exit event.
-    const badRes = await sseRequest(
-      `http://127.0.0.1:${port}/api/command/exec`,
-      token,
-      { command: 'ls /tmp' },
-    );
+    const badRes = await sseRequest(`http://127.0.0.1:${port}/api/command/exec`, token, { command: 'ls /tmp' });
     assert.strictEqual(badRes.status, 200, `expected 200 SSE, got ${badRes.status}: ${badRes.raw}`);
     const blocked = badRes.events.find((e) => e.type === 'blocked');
     assert.ok(
@@ -508,10 +470,7 @@ describe('POST /api/command/exec — gate chain', () => {
       /shell_commands|cannot run|capability/i,
       `expected capability-shaped reason, got: ${blocked!.reason}`,
     );
-    assert.ok(
-      !badRes.events.some((e) => e.type === 'stdout'),
-      'capability-blocked command must not stream any stdout',
-    );
+    assert.ok(!badRes.events.some((e) => e.type === 'stdout'), 'capability-blocked command must not stream any stdout');
     assert.ok(
       !badRes.events.some((e) => e.type === 'exit'),
       'capability-blocked command must not spawn a process — no exit event',
@@ -522,16 +481,12 @@ describe('POST /api/command/exec — gate chain', () => {
     // would mean the block happened AFTER allow evidence was written,
     // which is wrong).
     const entries = agent!.getAuditLogger().query({ sessionId: sessionId! });
-    const capBlocks = entries.filter(
-      (e) => e.tool === 'execute' && e.action === 'capability_block',
-    );
+    const capBlocks = entries.filter((e) => e.tool === 'execute' && e.action === 'capability_block');
     assert.ok(
       capBlocks.length >= 1,
       `expected ≥1 capability_block audit entry, got ${JSON.stringify(entries.map((e) => ({ tool: e.tool, action: e.action })))}`,
     );
-    const capBlock = capBlocks.find(
-      (e) => (e.args as { command?: string }).command === 'ls /tmp',
-    );
+    const capBlock = capBlocks.find((e) => (e.args as { command?: string }).command === 'ls /tmp');
     assert.ok(
       capBlock,
       `expected capability_block entry for 'ls /tmp', got: ${JSON.stringify(capBlocks.map((e) => e.args))}`,
@@ -541,9 +496,7 @@ describe('POST /api/command/exec — gate chain', () => {
     // precede a block.
     const starts = entries.filter(
       (e) =>
-        e.tool === 'execute' &&
-        e.action === 'exec_start' &&
-        (e.args as { command?: string }).command === 'ls /tmp',
+        e.tool === 'execute' && e.action === 'exec_start' && (e.args as { command?: string }).command === 'ls /tmp',
     );
     assert.strictEqual(
       starts.length,

@@ -225,10 +225,7 @@ describe('SkillForge — shared metadata compatibility', () => {
       created_at: '2026-03-15T10:00:00Z',
       updated_at: '2026-03-15T10:00:00Z',
     };
-    fs.writeFileSync(
-      path.join(skillsDir, 'codeagi_search_logs.json'),
-      JSON.stringify(codeagiSkill, null, 2),
-    );
+    fs.writeFileSync(path.join(skillsDir, 'codeagi_search_logs.json'), JSON.stringify(codeagiSkill, null, 2));
   });
 
   after(() => {

@@ -1,10 +1,5 @@
 import * as core from '@actions/core';
-import {
-  Agent,
-  AnthropicProvider,
-  OpenAIProvider,
-  PROVIDER_DEFAULTS,
-} from 'codebot-ai';
+import { Agent, AnthropicProvider, OpenAIProvider, PROVIDER_DEFAULTS } from 'codebot-ai';
 import type { LLMProvider } from 'codebot-ai';
 import { reviewPR, getReviewContext } from './review';
 import { autoFix, getFixContext } from './fix';
@@ -34,9 +29,7 @@ function createProvider(providerName: ProviderName, apiKey: string): LLMProvider
     case 'openai':
       return new OpenAIProvider({ apiKey });
     default:
-      throw new Error(
-        `Unsupported provider: "${providerName}". Use "anthropic" or "openai".`
-      );
+      throw new Error(`Unsupported provider: "${providerName}". Use "anthropic" or "openai".`);
   }
 }
 
@@ -49,9 +42,7 @@ function createProvider(providerName: ProviderName, apiKey: string): LLMProvider
 function validateTask(taskInput: string): Task {
   const normalized = taskInput.trim().toLowerCase();
   if (normalized !== 'review' && normalized !== 'fix' && normalized !== 'scan') {
-    throw new Error(
-      `Invalid task: "${taskInput}". Supported tasks are: review, fix, scan.`
-    );
+    throw new Error(`Invalid task: "${taskInput}". Supported tasks are: review, fix, scan.`);
   }
   return normalized;
 }
@@ -65,9 +56,7 @@ function validateTask(taskInput: string): Task {
 function validateProvider(providerInput: string): ProviderName {
   const normalized = providerInput.trim().toLowerCase();
   if (normalized !== 'anthropic' && normalized !== 'openai') {
-    throw new Error(
-      `Invalid provider: "${providerInput}". Supported providers are: anthropic, openai.`
-    );
+    throw new Error(`Invalid provider: "${providerInput}". Supported providers are: anthropic, openai.`);
   }
   return normalized;
 }

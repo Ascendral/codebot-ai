@@ -5,6 +5,7 @@ Production hardening checklist for CodeBot AI deployments.
 ## Essential Hardening
 
 ### 1. Enable Docker Sandbox
+
 ```json
 {
   "execution": {
@@ -17,7 +18,9 @@ Production hardening checklist for CodeBot AI deployments.
 ```
 
 ### 2. Restrict Tool Access
+
 Disable tools you don't need:
+
 ```json
 {
   "tools": {
@@ -32,7 +35,9 @@ Disable tools you don't need:
 ```
 
 ### 3. Lock Down Shell Commands
+
 Only allow specific command prefixes:
+
 ```json
 {
   "tools": {
@@ -46,6 +51,7 @@ Only allow specific command prefixes:
 ```
 
 ### 4. Restrict File Access
+
 ```json
 {
   "filesystem": {
@@ -57,6 +63,7 @@ Only allow specific command prefixes:
 ```
 
 ### 5. Enable Secret Blocking
+
 ```json
 {
   "secrets": {
@@ -67,10 +74,11 @@ Only allow specific command prefixes:
 ```
 
 ### 6. Set Cost Limits
+
 ```json
 {
   "limits": {
-    "cost_limit_usd": 10.00,
+    "cost_limit_usd": 10.0,
     "max_iterations": 25,
     "max_file_size_kb": 200
   }
@@ -78,6 +86,7 @@ Only allow specific command prefixes:
 ```
 
 ### 7. Enforce Branch Workflow
+
 ```json
 {
   "git": {
@@ -91,6 +100,7 @@ Only allow specific command prefixes:
 ## Monitoring
 
 ### Audit Log Verification
+
 ```bash
 # Verify all audit chains
 codebot --verify-audit
@@ -103,9 +113,11 @@ codebot --export-audit sarif > results.sarif
 ```
 
 ### Metrics
+
 Use the `/metrics` interactive command or set `OTEL_EXPORTER_OTLP_ENDPOINT` for continuous monitoring.
 
 ### Risk Monitoring
+
 Use the `/risk` interactive command to review risk assessment history.
 
 ## CI/CD Hardening

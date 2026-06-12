@@ -11,8 +11,8 @@ critic, this becomes architecture-for-architecture's-sake.
 
 Current CodeBot uses a single agent loop: the model sees a problem,
 makes tool calls in sequence, eventually stops or runs out of iterations.
-There is no separation between *planning*, *execution*, *validation*,
-and *self-review*. Failures cascade — a bad plan produces bad edits which
+There is no separation between _planning_, _execution_, _validation_,
+and _self-review_. Failures cascade — a bad plan produces bad edits which
 the same agent then has to debug while still in plan-execute mode.
 
 Top SWE-bench leaders (Cognition / Devin, OpenHands, AutoCodeRover) all
@@ -40,12 +40,13 @@ Three roles, sequential, with explicit handoff contracts:
 
 Input: problem statement, repo structure summary, symbol index lookups.
 Output: a structured plan markdown:
+
 ```yaml
 files_to_modify: [django/db/models/fields/related.py, ...]
 files_to_read_first: [django/db/models/fields/related.py:1247-1340, ...]
 acceptance_criteria:
-  - "RelatedFieldListFilter respects Model.ordering when no Meta.ordering set"
-  - "test_get_choices_default_ordering passes"
+  - 'RelatedFieldListFilter respects Model.ordering when no Meta.ordering set'
+  - 'test_get_choices_default_ordering passes'
 risk: medium
 ```
 
@@ -93,17 +94,20 @@ nothing except the artifact files (`plan.md`, `patch.diff`,
 ## Concrete implementation plan
 
 Phase 1 — add a `--plan` mode to the CLI (1 week)
+
 - New flag: `codebot --plan "fix the bug"` — runs planner only,
   outputs plan.md, doesn't touch code.
 - Verify the planner produces parseable plans on 5-10 tasks.
 
 Phase 2 — wire the orchestrator (2 weeks)
+
 - New entry point `bench/swe/run-multi-agent.sh` that does:
   `codebot --plan` → save plan → `codebot --plan-file=plan.md` (existing
   Agent reads this as additional context) → after diff captured, invoke
   `codebot --review --diff=patch.diff` → if revise, loop once.
 
 Phase 3 — measure (1 week)
+
 - Re-run the 50-task SWE-bench slice with multi-agent vs single.
 - A/B comparison. Cost/wall comparison.
 
@@ -134,6 +138,7 @@ real test signal in the inner loop, the reviewer has nothing to react to
 and the architecture is theater.
 
 Order of work:
+
 1. Tier 2.1 v2 (Docker-based test loop) — 1 week
 2. RFC 001 (better localization) — 1-2 weeks
 3. THIS RFC (multi-agent) — 4-8 weeks

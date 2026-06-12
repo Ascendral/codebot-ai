@@ -174,11 +174,7 @@ describe('handleRequest', () => {
     globalThis.fetch = originalFetch;
   });
 
-  function makeRequest(
-    method: string,
-    headers: Record<string, string> = {},
-    body?: string,
-  ): Request {
+  function makeRequest(method: string, headers: Record<string, string> = {}, body?: string): Request {
     return new Request('https://proxy.codebot.dev/v1/messages', {
       method,
       headers: { 'Content-Type': 'application/json', ...headers },
@@ -203,7 +199,7 @@ describe('handleRequest', () => {
     const req = makeRequest('POST');
     const res = await handleRequest(req, env);
     assert.strictEqual(res.status, 401);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     assert.ok(body.error.includes('Missing'));
   });
 
@@ -233,7 +229,7 @@ describe('handleRequest', () => {
     const req = makeRequest('POST', { 'x-codebot-license': VALID_KEY });
     const res = await handleRequest(req, env);
     assert.strictEqual(res.status, 429);
-    const body = await res.json() as { error: string; retryAfterSeconds: number };
+    const body = (await res.json()) as { error: string; retryAfterSeconds: number };
     assert.ok(body.retryAfterSeconds > 0);
 
     globalThis.fetch = originalFetch;
@@ -275,7 +271,7 @@ describe('handleRequest', () => {
     const req = makeRequest('POST', { 'x-codebot-license': VALID_KEY });
     const res = await handleRequest(req, env);
     assert.strictEqual(res.status, 502);
-    const body = await res.json() as { error: string; detail: string };
+    const body = (await res.json()) as { error: string; detail: string };
     assert.ok(body.detail.includes('timeout'));
 
     globalThis.fetch = originalFetch;

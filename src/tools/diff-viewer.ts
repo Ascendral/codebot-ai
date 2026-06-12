@@ -4,7 +4,8 @@ import { Tool, CapabilityLabel } from '../types';
 
 export class DiffViewerTool implements Tool {
   name = 'diff_viewer';
-  description = 'View diffs. Actions: files (compare two files), git_diff (working tree changes), staged (staged changes), commit (show a commit diff).';
+  description =
+    'View diffs. Actions: files (compare two files), git_diff (working tree changes), staged (staged changes), commit (show a commit diff).';
   permission: Tool['permission'] = 'auto';
   capabilities: CapabilityLabel[] = ['read-only', 'run-cmd'];
   parameters = {
@@ -24,11 +25,16 @@ export class DiffViewerTool implements Tool {
     if (!action) return 'Error: action is required';
 
     switch (action) {
-      case 'files': return this.diffFiles(args);
-      case 'git_diff': return this.gitDiff(args);
-      case 'staged': return this.gitStaged(args);
-      case 'commit': return this.gitCommitDiff(args);
-      default: return `Error: unknown action "${action}". Use: files, git_diff, staged, commit`;
+      case 'files':
+        return this.diffFiles(args);
+      case 'git_diff':
+        return this.gitDiff(args);
+      case 'staged':
+        return this.gitStaged(args);
+      case 'commit':
+        return this.gitCommitDiff(args);
+      default:
+        return `Error: unknown action "${action}". Use: files, git_diff, staged, commit`;
     }
   }
 
@@ -38,8 +44,16 @@ export class DiffViewerTool implements Tool {
     if (!fileA || !fileB) return 'Error: file_a and file_b are required';
 
     let contentA: string, contentB: string;
-    try { contentA = fs.readFileSync(fileA, 'utf-8'); } catch { return `Error: cannot read ${fileA}`; }
-    try { contentB = fs.readFileSync(fileB, 'utf-8'); } catch { return `Error: cannot read ${fileB}`; }
+    try {
+      contentA = fs.readFileSync(fileA, 'utf-8');
+    } catch {
+      return `Error: cannot read ${fileA}`;
+    }
+    try {
+      contentB = fs.readFileSync(fileB, 'utf-8');
+    } catch {
+      return `Error: cannot read ${fileB}`;
+    }
 
     const linesA = contentA.split('\n');
     const linesB = contentB.split('\n');

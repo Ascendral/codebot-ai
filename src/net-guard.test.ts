@@ -1,11 +1,6 @@
 import { describe, it } from 'node:test';
 import * as assert from 'node:assert';
-import {
-  ipIsPrivate,
-  checkHostnameLiteral,
-  resolveAndCheck,
-  validateOutboundUrl,
-} from './net-guard';
+import { ipIsPrivate, checkHostnameLiteral, resolveAndCheck, validateOutboundUrl } from './net-guard';
 
 describe('ipIsPrivate', () => {
   it('blocks IPv4 loopback 127.x.x.x', () => {

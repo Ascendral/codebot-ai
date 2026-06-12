@@ -115,10 +115,7 @@ describe('TestHealthCheck', () => {
   });
 
   it('returns degraded when tests are failing', () => {
-    fs.writeFileSync(
-      path.join(tmpDir, 'health', 'last-test-result.json'),
-      JSON.stringify({ total: 50, failures: 3 }),
-    );
+    fs.writeFileSync(path.join(tmpDir, 'health', 'last-test-result.json'), JSON.stringify({ total: 50, failures: 3 }));
     const check = new TestHealthCheck();
     const result = check.check();
     assert.strictEqual(result.status, 'degraded');
@@ -127,10 +124,7 @@ describe('TestHealthCheck', () => {
   });
 
   it('returns healthy when all tests pass', () => {
-    fs.writeFileSync(
-      path.join(tmpDir, 'health', 'last-test-result.json'),
-      JSON.stringify({ total: 50, failures: 0 }),
-    );
+    fs.writeFileSync(path.join(tmpDir, 'health', 'last-test-result.json'), JSON.stringify({ total: 50, failures: 0 }));
     const check = new TestHealthCheck();
     const result = check.check();
     assert.strictEqual(result.status, 'healthy');
@@ -185,10 +179,7 @@ describe('APIHealthCheck', () => {
       timestamp: new Date().toISOString(),
       error: `Error ${i}`,
     }));
-    fs.writeFileSync(
-      path.join(tmpDir, 'health', 'api-errors.json'),
-      JSON.stringify(errors),
-    );
+    fs.writeFileSync(path.join(tmpDir, 'health', 'api-errors.json'), JSON.stringify(errors));
 
     const result = check.check();
     assert.ok(['degraded', 'critical'].includes(result.status));

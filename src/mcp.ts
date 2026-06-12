@@ -25,18 +25,29 @@ import { log } from './logger';
  */
 
 /** Allowlist of commands that MCP servers are permitted to run */
-const ALLOWED_MCP_COMMANDS = new Set([
-  'npx', 'node', 'python', 'python3', 'deno', 'bun', 'docker', 'uvx',
-]);
+const ALLOWED_MCP_COMMANDS = new Set(['npx', 'node', 'python', 'python3', 'deno', 'bun', 'docker', 'uvx']);
 
 /** Safe environment variables to pass to MCP subprocesses */
 const SAFE_ENV_VARS = new Set([
-  'PATH', 'HOME', 'USER', 'SHELL', 'LANG', 'TERM', 'TMPDIR', 'TMP', 'TEMP',
-  'LC_ALL', 'LC_CTYPE', 'DISPLAY', 'XDG_RUNTIME_DIR',
+  'PATH',
+  'HOME',
+  'USER',
+  'SHELL',
+  'LANG',
+  'TERM',
+  'TMPDIR',
+  'TMP',
+  'TEMP',
+  'LC_ALL',
+  'LC_CTYPE',
+  'DISPLAY',
+  'XDG_RUNTIME_DIR',
   // Node.js
-  'NODE_ENV', 'NODE_PATH',
+  'NODE_ENV',
+  'NODE_PATH',
   // Python
-  'PYTHONPATH', 'VIRTUAL_ENV',
+  'PYTHONPATH',
+  'VIRTUAL_ENV',
 ]);
 
 interface MCPServerConfig {
@@ -94,7 +105,9 @@ class MCPConnection {
       this.processBuffer();
     });
 
-    this.process.on('error', () => { /* server failed to start */ });
+    this.process.on('error', () => {
+      /* server failed to start */
+    });
   }
 
   private processBuffer() {
@@ -114,7 +127,9 @@ class MCPConnection {
             resolve(msg.result);
           }
         }
-      } catch { /* skip malformed */ }
+      } catch {
+        /* skip malformed */
+      }
     }
   }
 
@@ -146,18 +161,18 @@ class MCPConnection {
   }
 
   async listTools(): Promise<MCPToolDef[]> {
-    const result = await this.request('tools/list') as { tools: MCPToolDef[] };
+    const result = (await this.request('tools/list')) as { tools: MCPToolDef[] };
     return result?.tools || [];
   }
 
   async callTool(name: string, args: Record<string, unknown>): Promise<string> {
-    const result = await this.request('tools/call', { name, arguments: args }) as {
+    const result = (await this.request('tools/call', { name, arguments: args })) as {
       content?: Array<{ type: string; text?: string }>;
     };
     if (result?.content) {
       return result.content
-        .filter(c => c.type === 'text')
-        .map(c => c.text || '')
+        .filter((c) => c.type === 'text')
+        .map((c) => c.text || '')
         .join('\n');
     }
     return JSON.stringify(result);
@@ -171,9 +186,7 @@ class MCPConnection {
 /** Create Tool wrappers from an MCP server's tools */
 function mcpToolToTool(connection: MCPConnection, def: MCPToolDef): Tool {
   // Security: sanitize tool description (limit length, strip control chars)
-  const safeDescription = (def.description || '')
-    .substring(0, 500)
-    .replace(/[\x00-\x1F\x7F]/g, '');
+  const safeDescription = (def.description || '').substring(0, 500).replace(/[\x00-\x1F\x7F]/g, '');
 
   return {
     name: `mcp_${connection.name}_${def.name}`,
@@ -225,9 +238,7 @@ export async function loadMCPTools(projectRoot?: string): Promise<{ tools: Tool[
   const tools: Tool[] = [];
   const connections: MCPConnection[] = [];
 
-  const configPaths = [
-    codebotPath('mcp.json'),
-  ];
+  const configPaths = [codebotPath('mcp.json')];
   if (projectRoot) {
     configPaths.push(path.join(projectRoot, '.codebot', 'mcp.json'));
   }
@@ -264,6 +275,6 @@ export async function loadMCPTools(projectRoot?: string): Promise<{ tools: Tool[
 
   return {
     tools,
-    cleanup: () => connections.forEach(c => c.close()),
+    cleanup: () => connections.forEach((c) => c.close()),
   };
 }

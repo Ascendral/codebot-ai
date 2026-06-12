@@ -5,7 +5,9 @@ import { Tool, CapabilityLabel } from '../types';
 export class GrepTool implements Tool {
   name = 'grep';
   private projectRoot: string;
-  constructor(projectRoot?: string) { this.projectRoot = projectRoot || process.cwd(); }
+  constructor(projectRoot?: string) {
+    this.projectRoot = projectRoot || process.cwd();
+  }
   description = 'Search file contents for a regex pattern. Returns matching lines with file paths and line numbers.';
   permission: Tool['permission'] = 'auto';
   capabilities: CapabilityLabel[] = ['read-only'];
@@ -68,13 +70,7 @@ export class GrepTool implements Tool {
     }
   }
 
-  private searchDir(
-    dir: string,
-    regex: RegExp,
-    results: string[],
-    include: string | undefined,
-    maxResults: number
-  ) {
+  private searchDir(dir: string, regex: RegExp, results: string[], include: string | undefined, maxResults: number) {
     if (results.length >= maxResults) return;
     const skip = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '__pycache__']);
 

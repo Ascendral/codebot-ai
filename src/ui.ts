@@ -31,9 +31,14 @@ export const UI = {
 // ── Box Drawing Characters ──
 
 export const BOX = {
-  tl: '\u250c', tr: '\u2510', bl: '\u2514', br: '\u2518',
-  h: '\u2500', v: '\u2502',
-  lt: '\u251c', rt: '\u2524',
+  tl: '\u250c',
+  tr: '\u2510',
+  bl: '\u2514',
+  br: '\u2518',
+  h: '\u2500',
+  v: '\u2502',
+  lt: '\u251c',
+  rt: '\u2524',
 };
 
 // ── Helpers ──
@@ -56,17 +61,10 @@ function padEnd(s: string, width: number): string {
  * Draw a bordered box with a title.
  * Auto-calculates width from the longest line if not specified.
  */
-export function box(
-  title: string,
-  lines: string[],
-  opts?: { width?: number; color?: string },
-): string {
+export function box(title: string, lines: string[], opts?: { width?: number; color?: string }): string {
   const color = opts?.color || UI.cyan;
-  const contentWidth = opts?.width || Math.max(
-    stripAnsi(title).length + 4,
-    ...lines.map(l => stripAnsi(l).length + 2),
-    40,
-  );
+  const contentWidth =
+    opts?.width || Math.max(stripAnsi(title).length + 4, ...lines.map((l) => stripAnsi(l).length + 2), 40);
 
   const out: string[] = [];
 
@@ -74,21 +72,15 @@ export function box(
   const titleStr = ` ${title} `;
   const titleLen = stripAnsi(titleStr).length;
   const remainingH = Math.max(0, contentWidth - titleLen - 1);
-  out.push(
-    `${color}${BOX.tl}${BOX.h}${titleStr}${BOX.h.repeat(remainingH)}${BOX.tr}${UI.reset}`,
-  );
+  out.push(`${color}${BOX.tl}${BOX.h}${titleStr}${BOX.h.repeat(remainingH)}${BOX.tr}${UI.reset}`);
 
   // Content lines
   for (const line of lines) {
-    out.push(
-      `${color}${BOX.v}${UI.reset} ${padEnd(line, contentWidth - 2)} ${color}${BOX.v}${UI.reset}`,
-    );
+    out.push(`${color}${BOX.v}${UI.reset} ${padEnd(line, contentWidth - 2)} ${color}${BOX.v}${UI.reset}`);
   }
 
   // Bottom border
-  out.push(
-    `${color}${BOX.bl}${BOX.h.repeat(contentWidth)}${BOX.br}${UI.reset}`,
-  );
+  out.push(`${color}${BOX.bl}${BOX.h.repeat(contentWidth)}${BOX.br}${UI.reset}`);
 
   return out.join('\n');
 }
@@ -148,36 +140,26 @@ export function permissionCard(
 
   // Tool line
   const toolLine = `${UI.dim}Tool:${UI.reset}    ${UI.bold}${toolName}${UI.reset}`;
-  lines.push(
-    `${color}${BOX.v}${UI.reset} ${padEnd(toolLine, width - 2)} ${color}${BOX.v}${UI.reset}`,
-  );
+  lines.push(`${color}${BOX.v}${UI.reset} ${padEnd(toolLine, width - 2)} ${color}${BOX.v}${UI.reset}`);
 
   // Risk line
   const riskBarStr = riskBar(risk.score);
   const riskLine = `${UI.dim}Risk:${UI.reset}    ${riskBarStr}`;
-  lines.push(
-    `${color}${BOX.v}${UI.reset} ${padEnd(riskLine, width - 2)} ${color}${BOX.v}${UI.reset}`,
-  );
+  lines.push(`${color}${BOX.v}${UI.reset} ${padEnd(riskLine, width - 2)} ${color}${BOX.v}${UI.reset}`);
 
   // Risk factors (if any and score > 0)
   if (risk.factors && risk.factors.length > 0 && risk.score > 0) {
-    lines.push(
-      `${color}${BOX.v}${UI.reset} ${padEnd('', width - 2)} ${color}${BOX.v}${UI.reset}`,
-    );
+    lines.push(`${color}${BOX.v}${UI.reset} ${padEnd('', width - 2)} ${color}${BOX.v}${UI.reset}`);
     for (const factor of risk.factors) {
       if (factor.rawScore > 0) {
         const factorStr = `${UI.dim}  ${factor.name}: ${factor.reason}${UI.reset}`;
-        lines.push(
-          `${color}${BOX.v}${UI.reset} ${padEnd(factorStr, width - 2)} ${color}${BOX.v}${UI.reset}`,
-        );
+        lines.push(`${color}${BOX.v}${UI.reset} ${padEnd(factorStr, width - 2)} ${color}${BOX.v}${UI.reset}`);
       }
     }
   }
 
   // Blank separator
-  lines.push(
-    `${color}${BOX.v}${UI.reset} ${padEnd('', width - 2)} ${color}${BOX.v}${UI.reset}`,
-  );
+  lines.push(`${color}${BOX.v}${UI.reset} ${padEnd('', width - 2)} ${color}${BOX.v}${UI.reset}`);
 
   // Args
   for (const [k, v] of Object.entries(args)) {
@@ -189,52 +171,49 @@ export function permissionCard(
       val = s.length > 35 ? s.substring(0, 35) + '...' : s;
     }
     const argLine = `${UI.dim}${k}:${UI.reset}${' '.repeat(Math.max(1, 9 - k.length))}${val}`;
-    lines.push(
-      `${color}${BOX.v}${UI.reset} ${padEnd(argLine, width - 2)} ${color}${BOX.v}${UI.reset}`,
-    );
+    lines.push(`${color}${BOX.v}${UI.reset} ${padEnd(argLine, width - 2)} ${color}${BOX.v}${UI.reset}`);
   }
 
   // Blank separator
-  lines.push(
-    `${color}${BOX.v}${UI.reset} ${padEnd('', width - 2)} ${color}${BOX.v}${UI.reset}`,
-  );
+  lines.push(`${color}${BOX.v}${UI.reset} ${padEnd('', width - 2)} ${color}${BOX.v}${UI.reset}`);
 
   // Sandbox/network status
   if (opts) {
-    const sandboxStr = opts.sandbox
-      ? `${UI.brightGreen}\u2713${UI.reset} Docker`
-      : `${UI.dim}\u2717 none${UI.reset}`;
+    const sandboxStr = opts.sandbox ? `${UI.brightGreen}\u2713${UI.reset} Docker` : `${UI.dim}\u2717 none${UI.reset}`;
     const networkStr = opts.network
       ? `${UI.brightGreen}\u2713${UI.reset} allowed`
       : `${UI.red}\u2717${UI.reset} blocked`;
     const statusLine = `Sandbox: ${sandboxStr} ${UI.dim}|${UI.reset} Network: ${networkStr}`;
-    lines.push(
-      `${color}${BOX.v}${UI.reset} ${padEnd(statusLine, width - 2)} ${color}${BOX.v}${UI.reset}`,
-    );
+    lines.push(`${color}${BOX.v}${UI.reset} ${padEnd(statusLine, width - 2)} ${color}${BOX.v}${UI.reset}`);
   }
 
   // Divider
-  lines.push(
-    `${color}${BOX.lt}${BOX.h.repeat(width)}${BOX.rt}${UI.reset}`,
-  );
+  lines.push(`${color}${BOX.lt}${BOX.h.repeat(width)}${BOX.rt}${UI.reset}`);
 
   // Action bar
   const actionLine = `${UI.bold}[y]${UI.reset} Allow  ${UI.bold}[A]${UI.reset} Always  ${UI.bold}[n]${UI.reset} Deny`;
-  lines.push(
-    `${color}${BOX.v}${UI.reset} ${padEnd(actionLine, width - 2)} ${color}${BOX.v}${UI.reset}`,
-  );
+  lines.push(`${color}${BOX.v}${UI.reset} ${padEnd(actionLine, width - 2)} ${color}${BOX.v}${UI.reset}`);
 
   // Bottom border
-  lines.push(
-    `${color}${BOX.bl}${BOX.h.repeat(width)}${BOX.br}${UI.reset}`,
-  );
+  lines.push(`${color}${BOX.bl}${BOX.h.repeat(width)}${BOX.br}${UI.reset}`);
 
   return '\n' + lines.join('\n') + '\n';
 }
 
 // ── spinner() ──
 
-const SPINNER_FRAMES = ['\u280b', '\u2819', '\u2839', '\u2838', '\u283c', '\u2834', '\u2826', '\u2827', '\u2807', '\u280f'];
+const SPINNER_FRAMES = [
+  '\u280b',
+  '\u2819',
+  '\u2839',
+  '\u2838',
+  '\u283c',
+  '\u2834',
+  '\u2826',
+  '\u2827',
+  '\u2807',
+  '\u280f',
+];
 
 /**
  * Create a spinner with update() and stop() methods.
@@ -391,13 +370,7 @@ export function summaryBox(stats: {
   files: number;
   risk: number;
 }): string {
-  const riskColor = stats.risk <= 25
-    ? UI.green
-    : stats.risk <= 50
-      ? UI.yellow
-      : stats.risk <= 75
-        ? UI.orange
-        : UI.red;
+  const riskColor = stats.risk <= 25 ? UI.green : stats.risk <= 50 ? UI.yellow : stats.risk <= 75 ? UI.orange : UI.red;
 
   const lines: string[] = [
     `${UI.dim}Duration:${UI.reset} ${stats.duration}`,
@@ -411,7 +384,6 @@ export function summaryBox(stats: {
 
   return box('Session Summary', lines);
 }
-
 
 // ── budgetBar() ──
 
@@ -501,7 +473,6 @@ export function collapsibleSection(title: string, content: string, expanded: boo
   return out.join('\n');
 }
 
-
 // ── providerCard() ──
 
 export interface ProviderCardItem {
@@ -517,11 +488,7 @@ export interface ProviderCardItem {
 /**
  * Render a bordered card with provider options for setup.
  */
-export function providerCard(opts: {
-  items: ProviderCardItem[];
-  footer?: string;
-  width?: number;
-}): string {
+export function providerCard(opts: { items: ProviderCardItem[]; footer?: string; width?: number }): string {
   const color = UI.cyan;
   const w = opts.width || 56;
   const out: string[] = [];
@@ -530,7 +497,9 @@ export function providerCard(opts: {
   const titleStr = ' Choose your AI provider ';
   const titleLen = titleStr.length;
   const remainH = Math.max(0, w - titleLen - 1);
-  out.push(`${color}${BOX.tl}${BOX.h}${UI.bold}${titleStr}${UI.reset}${color}${BOX.h.repeat(remainH)}${BOX.tr}${UI.reset}`);
+  out.push(
+    `${color}${BOX.tl}${BOX.h}${UI.bold}${titleStr}${UI.reset}${color}${BOX.h.repeat(remainH)}${BOX.tr}${UI.reset}`,
+  );
 
   // Blank line
   out.push(`${color}${BOX.v}${UI.reset}${' '.repeat(w)}${color}${BOX.v}${UI.reset}`);
@@ -555,7 +524,9 @@ export function providerCard(opts: {
 
   // Footer
   if (opts.footer) {
-    out.push(`${color}${BOX.v}${UI.reset} ${padEnd(`${UI.dim}${opts.footer}${UI.reset}`, w - 2)} ${color}${BOX.v}${UI.reset}`);
+    out.push(
+      `${color}${BOX.v}${UI.reset} ${padEnd(`${UI.dim}${opts.footer}${UI.reset}`, w - 2)} ${color}${BOX.v}${UI.reset}`,
+    );
     out.push(`${color}${BOX.v}${UI.reset}${' '.repeat(w)}${color}${BOX.v}${UI.reset}`);
   }
 
@@ -570,7 +541,7 @@ export function providerCard(opts: {
  * Render a "Try saying:" box with example prompts and optional footer.
  */
 export function guidedPrompts(prompts: string[], footer?: string): string {
-  const lines = prompts.map(p => `  ${UI.brightCyan}${p}${UI.reset}`);
+  const lines = prompts.map((p) => `  ${UI.brightCyan}${p}${UI.reset}`);
   if (footer) {
     lines.push('');
     lines.push(`  ${UI.dim}${footer}${UI.reset}`);

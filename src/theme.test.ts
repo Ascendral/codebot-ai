@@ -4,9 +4,31 @@ import { DARK_THEME, LIGHT_THEME, MONO_THEME, loadTheme, setTheme, getTheme, app
 
 describe('Theme System', () => {
   it('DARK_THEME has all required color keys', () => {
-    const requiredKeys = ['primary', 'secondary', 'success', 'warning', 'danger', 'info', 'muted',
-      'border', 'text', 'textDim', 'heading', 'highlight', 'added', 'removed', 'changed',
-      'riskLow', 'riskMedium', 'riskHigh', 'riskCritical', 'reset', 'bold', 'dim', 'italic'];
+    const requiredKeys = [
+      'primary',
+      'secondary',
+      'success',
+      'warning',
+      'danger',
+      'info',
+      'muted',
+      'border',
+      'text',
+      'textDim',
+      'heading',
+      'highlight',
+      'added',
+      'removed',
+      'changed',
+      'riskLow',
+      'riskMedium',
+      'riskHigh',
+      'riskCritical',
+      'reset',
+      'bold',
+      'dim',
+      'italic',
+    ];
     for (const key of requiredKeys) {
       assert.ok(key in DARK_THEME.colors, `DARK_THEME missing color: ${key}`);
       assert.strictEqual(typeof (DARK_THEME.colors as Record<string, string>)[key], 'string');

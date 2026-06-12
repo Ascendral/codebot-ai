@@ -132,8 +132,17 @@ const FAILURE_PATTERNS: Array<{
 
 /** Tools where success is trivial and not worth recording */
 const TRIVIAL_SUCCESS_TOOLS = new Set([
-  'read_file', 'grep', 'glob', 'think', 'memory', 'code_analysis',
-  'multi_search', 'diff_viewer', 'image_info', 'web_search', 'web_fetch',
+  'read_file',
+  'grep',
+  'glob',
+  'think',
+  'memory',
+  'code_analysis',
+  'multi_search',
+  'diff_viewer',
+  'image_info',
+  'web_search',
+  'web_fetch',
 ]);
 
 /**
@@ -258,8 +267,10 @@ export function buildTags(toolName: string, args: Record<string, unknown>, error
 
   // Extract error keywords
   if (errorMessage) {
-    const keywords = errorMessage.match(/\b(ENOENT|EACCES|ETIMEDOUT|ECONNREFUSED|SyntaxError|TypeError|ReferenceError|npm|git|docker|test|build|compile)\b/gi);
-    if (keywords) keywords.forEach(k => tags.add(k.toLowerCase()));
+    const keywords = errorMessage.match(
+      /\b(ENOENT|EACCES|ETIMEDOUT|ECONNREFUSED|SyntaxError|TypeError|ReferenceError|npm|git|docker|test|build|compile)\b/gi,
+    );
+    if (keywords) keywords.forEach((k) => tags.add(k.toLowerCase()));
   }
 
   return Array.from(tags).join(',');
@@ -275,7 +286,7 @@ function summarizeArgs(toolName: string, args: Record<string, unknown>): string 
     case 'edit_file':
       return `${toolName} on ${args.path || 'unknown'}`;
     case 'execute':
-      return `execute: ${(args.command as string || '').substring(0, 100)}`;
+      return `execute: ${((args.command as string) || '').substring(0, 100)}`;
     case 'git':
       return `git ${args.action || args.command || 'unknown'}`;
     case 'browser':

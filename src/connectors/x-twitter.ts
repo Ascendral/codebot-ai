@@ -78,7 +78,9 @@ function parseCredentials(credential: string): XCredentials {
     if (parsed.apiKey && parsed.apiSecret && parsed.accessToken && parsed.accessSecret) {
       return parsed as XCredentials;
     }
-  } catch { /* not JSON, try env assembly */ }
+  } catch {
+    /* not JSON, try env assembly */
+  }
   const apiKey = process.env.X_API_KEY || process.env.TWITTER_API_KEY || '';
   const apiSecret = process.env.X_API_SECRET || process.env.TWITTER_API_SECRET || '';
   const accessToken = process.env.X_ACCESS_TOKEN || process.env.TWITTER_ACCESS_TOKEN || '';
@@ -86,7 +88,7 @@ function parseCredentials(credential: string): XCredentials {
   if (!apiKey || !apiSecret || !accessToken || !accessSecret) {
     throw new Error(
       'X credentials incomplete. Provide JSON: { "apiKey", "apiSecret", "accessToken", "accessSecret" } ' +
-      'or set env vars: X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET'
+        'or set env vars: X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET',
     );
   }
   return { apiKey, apiSecret, accessToken, accessSecret };
@@ -103,19 +105,17 @@ function generateOAuthHeader(method: string, url: string, creds: XCredentials): 
     oauth_token: creds.accessToken,
     oauth_version: '1.0',
   };
-  const sortedParams = Object.keys(params).sort()
-    .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`)
+  const sortedParams = Object.keys(params)
+    .sort()
+    .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`)
     .join('&');
-  const baseString = [
-    method.toUpperCase(),
-    encodeURIComponent(url),
-    encodeURIComponent(sortedParams),
-  ].join('&');
+  const baseString = [method.toUpperCase(), encodeURIComponent(url), encodeURIComponent(sortedParams)].join('&');
   const signingKey = `${encodeURIComponent(creds.apiSecret)}&${encodeURIComponent(creds.accessSecret)}`;
   const signature = crypto.createHmac('sha1', signingKey).update(baseString).digest('base64');
   params.oauth_signature = signature;
-  return `OAuth ${Object.keys(params).sort()
-    .map(k => `${encodeURIComponent(k)}="${encodeURIComponent(params[k])}"`)
+  return `OAuth ${Object.keys(params)
+    .sort()
+    .map((k) => `${encodeURIComponent(k)}="${encodeURIComponent(params[k])}"`)
     .join(', ')}`;
 }
 
@@ -136,10 +136,7 @@ interface XApiError {
   errors?: Array<{ message?: string; code?: number }>;
 }
 
-const X_AUTH_TITLES: ReadonlySet<string> = new Set([
-  'Unauthorized',
-  'Forbidden',
-]);
+const X_AUTH_TITLES: ReadonlySet<string> = new Set(['Unauthorized', 'Forbidden']);
 
 /**
  * Decide whether an X API response indicates a reauth-class failure.
@@ -178,7 +175,7 @@ async function xApiCall(
     const res = await fetch(url, {
       method,
       headers: {
-        'Authorization': authHeader,
+        Authorization: authHeader,
         'Content-Type': 'application/json',
       },
       body: bodyStr,
@@ -187,10 +184,17 @@ async function xApiCall(
     clearTimeout(timer);
     let data: Record<string, unknown> = {};
     if (res.status !== 204) {
-      try { data = await res.json() as Record<string, unknown>; } catch { data = {}; }
+      try {
+        data = (await res.json()) as Record<string, unknown>;
+      } catch {
+        data = {};
+      }
     }
     if (isXAuthError(res.status, data as XApiError)) {
-      throw new ConnectorReauthError('x', `X auth failed: HTTP ${res.status} title=${(data as XApiError).title || 'unknown'}`);
+      throw new ConnectorReauthError(
+        'x',
+        `X auth failed: HTTP ${res.status} title=${(data as XApiError).title || 'unknown'}`,
+      );
     }
     return { ok: res.ok, status: res.status, data };
   } catch (err: unknown) {
@@ -229,7 +233,10 @@ function redactPostTweetArgs(args: Record<string, unknown>): Record<string, unkn
 function redactPostThreadArgs(args: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = { ...args };
   if (typeof args.tweets === 'string' && args.tweets.length > 0) {
-    const tweets = args.tweets.split('|||').map(t => t.trim()).filter(Boolean);
+    const tweets = args.tweets
+      .split('|||')
+      .map((t) => t.trim())
+      .filter(Boolean);
     const totalLen = tweets.reduce((sum, t) => sum + t.length, 0);
     const d = hashAndLength(args.tweets);
     out.tweets = `<redacted ${tweets.length} tweet(s), total ${totalLen} chars sha256:${d.hash} len:${d.length}>`;
@@ -271,8 +278,13 @@ function previewPostTweet(args: Record<string, unknown>): ConnectorPreview {
 
 function previewPostThread(args: Record<string, unknown>): ConnectorPreview {
   const tweetsRaw = String(args.tweets ?? '');
-  const tweets = tweetsRaw ? tweetsRaw.split('|||').map(t => t.trim()).filter(Boolean) : [];
-  const overLimit = tweets.findIndex(t => t.length > MAX_TWEET_LENGTH);
+  const tweets = tweetsRaw
+    ? tweetsRaw
+        .split('|||')
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : [];
+  const overLimit = tweets.findIndex((t) => t.length > MAX_TWEET_LENGTH);
   const digest = tweetsRaw.length > 0 ? hashAndLength(tweetsRaw) : null;
 
   const tweetLines = tweets.map((t, i) => {
@@ -375,7 +387,10 @@ const postThread: ConnectorAction = {
   execute: async (args, cred) => {
     const tweetsRaw = args.tweets as string;
     if (!tweetsRaw) return 'Error: tweets are required (separate with |||)';
-    const tweets = tweetsRaw.split('|||').map(t => t.trim()).filter(Boolean);
+    const tweets = tweetsRaw
+      .split('|||')
+      .map((t) => t.trim())
+      .filter(Boolean);
     if (tweets.length < 2) return 'Error: thread needs at least 2 tweets (separate with |||)';
     for (let i = 0; i < tweets.length; i++) {
       if (tweets[i].length > MAX_TWEET_LENGTH) {
@@ -394,9 +409,9 @@ const postThread: ConnectorAction = {
           const detail = (data as XApiError).detail || JSON.stringify(data);
           return `Error posting tweet ${i + 1}: ${detail}\nPosted ${i} of ${tweets.length} tweets — partial thread is LIVE on X. You may want to delete the posted tweets manually.`;
         }
-        lastTweetId = ((data as { data?: { id?: string } }).data?.id) || null;
+        lastTweetId = (data as { data?: { id?: string } }).data?.id || null;
         results.push(`  ${i + 1}. ${tweets[i].substring(0, 50)}... → ${lastTweetId}`);
-        if (i < tweets.length - 1) await new Promise(r => setTimeout(r, 500));
+        if (i < tweets.length - 1) await new Promise((r) => setTimeout(r, 500));
       }
       const threadUrl = `https://x.com/i/web/status/${lastTweetId || 'unknown'}`;
       return `Thread posted! (${tweets.length} tweets)\n${results.join('\n')}\nThread: ${threadUrl}`;
@@ -458,14 +473,17 @@ const getMe: ConnectorAction = {
       }
       const user = (data as { data?: Record<string, unknown> }).data;
       if (!user) return 'Error: no user data returned';
-      const metrics = (user.public_metrics as { followers_count?: number; following_count?: number; tweet_count?: number }) || {};
+      const metrics =
+        (user.public_metrics as { followers_count?: number; following_count?: number; tweet_count?: number }) || {};
       return [
         `@${user.username} (${user.name})`,
         user.description ? `Bio: ${user.description}` : '',
         `Followers: ${metrics.followers_count || 0} | Following: ${metrics.following_count || 0}`,
         `Tweets: ${metrics.tweet_count || 0}`,
         `Joined: ${user.created_at || 'unknown'}`,
-      ].filter(Boolean).join('\n');
+      ]
+        .filter(Boolean)
+        .join('\n');
     } catch (err: unknown) {
       if (err instanceof ConnectorReauthError) throw err;
       return `Error: ${err instanceof Error ? err.message : String(err)}`;
@@ -497,9 +515,18 @@ const searchTweets: ConnectorAction = {
         const detail = (data as XApiError).detail || JSON.stringify(data);
         return `Error: ${detail}`;
       }
-      const tweets = (data as { data?: Array<{ text: string; id: string; created_at: string; public_metrics?: { like_count: number; retweet_count: number } }> }).data;
+      const tweets = (
+        data as {
+          data?: Array<{
+            text: string;
+            id: string;
+            created_at: string;
+            public_metrics?: { like_count: number; retweet_count: number };
+          }>;
+        }
+      ).data;
       if (!tweets?.length) return `No tweets found for "${query}".`;
-      const lines = tweets.map(t => {
+      const lines = tweets.map((t) => {
         const metrics = t.public_metrics;
         const stats = metrics ? ` [hearts:${metrics.like_count} rt:${metrics.retweet_count}]` : '';
         return `  ${t.text.substring(0, 120)}${stats}\n    -> https://x.com/i/web/status/${t.id}`;

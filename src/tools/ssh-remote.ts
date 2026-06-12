@@ -61,13 +61,12 @@ function isContained(root: string, target: string): boolean {
   return true;
 }
 
-export type SshPlan =
-  | { command: 'ssh' | 'scp'; argv: string[] }
-  | { error: string };
+export type SshPlan = { command: 'ssh' | 'scp'; argv: string[] } | { error: string };
 
 export class SshRemoteTool implements Tool {
   name = 'ssh_remote';
-  description = 'Execute commands on remote servers via SSH, or upload/download files via SCP. Actions: exec, upload, download.';
+  description =
+    'Execute commands on remote servers via SSH, or upload/download files via SCP. Actions: exec, upload, download.';
   permission: Tool['permission'] = 'always-ask';
   capabilities: CapabilityLabel[] = ['write-fs', 'run-cmd', 'net-fetch'];
   /**

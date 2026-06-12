@@ -11,7 +11,7 @@ need to hand something tangible to an auditor.
 
 `docs/SOC2_COMPLIANCE.md` ends with an "Evidence Artifacts for Auditors" table
 that lists 13 different paths and commands. Today, "prepare for an audit"
-means the operator runs `codebot --export-audit sarif` for *each session*,
+means the operator runs `codebot --export-audit sarif` for _each session_,
 runs `--verify-audit`, copies static docs, and assembles a folder by hand.
 That works once. It does not scale to a quarterly Type II evidence period.
 
@@ -31,7 +31,7 @@ key infrastructure.
 - `src/sarif.ts exportSarif()` + `src/cli.ts:358 --export-audit sarif` — converts
   audit entries to SARIF 2.1.0.
 - 25+ audit action types covering tool execution, capability/policy/CORD
-  blocks, model routing, budget thresholds, task lifecycle (PR 27 task_*).
+  blocks, model routing, budget thresholds, task lifecycle (PR 27 task\_\*).
 - `docs/SOC2_COMPLIANCE.md` — 300-line CC1–CC9 mapping, evidence artifact
   table, sample policy, comparison vs. Copilot/Cursor/Auto-GPT.
 
@@ -48,11 +48,13 @@ key infrastructure.
 ## Phase 1 slice — minimum viable evidence pack
 
 ### Goal
+
 One CLI command produces a directory bundle (zipped) containing the dynamic
 audit evidence for an arbitrary date range, with a manifest mapping each
 artifact to the SOC 2 controls it serves.
 
 ### CLI surface
+
 ```
 codebot --evidence-pack \
   --since 2026-04-01 --until 2026-04-30 \
@@ -60,11 +62,13 @@ codebot --evidence-pack \
 ```
 
 Optional flags:
+
 - `--zip` (default true) — zip the directory at the end
 - `--include-static-docs` — also bundle SECURITY.md, THREAT_MODEL.md, etc.
 - `--session-id <id>` — restrict to a single session
 
 ### Bundle contents (Phase 1)
+
 ```
 evidence-2026-04/
 ├── audit.jsonl              # all entries in range, decrypted
@@ -82,7 +86,7 @@ Concretely:
   Hash chain preserved so the auditor can independently verify.
 - **audit.sarif** — `exportSarif()` over the same entries.
 - **verification.json** — `{ valid: bool, sessionsCovered: N, entriesChecked: M,
-  legacySessions: K, firstInvalidAt: null, periodStart, periodEnd }`. One
+legacySessions: K, firstInvalidAt: null, periodStart, periodEnd }`. One
   number for the whole period instead of 30 per-session results.
 - **summary.md** — generated cover letter:
   - Period start/end
@@ -96,8 +100,8 @@ Concretely:
   `docs/SOC2_COMPLIANCE.md` "Evidence Artifacts" table:
   ```json
   {
-    "audit.jsonl":  { "controls": ["CC4.1", "CC7.3"], "type": "logs" },
-    "audit.sarif":  { "controls": ["CC2.1", "CC7.2"], "type": "static_analysis" },
+    "audit.jsonl": { "controls": ["CC4.1", "CC7.3"], "type": "logs" },
+    "audit.sarif": { "controls": ["CC2.1", "CC7.2"], "type": "static_analysis" },
     "verification.json": { "controls": ["CC7.3"], "type": "integrity_check" }
   }
   ```
@@ -121,14 +125,14 @@ Concretely:
 
 ### Anti-theater measurement for Phase 1
 
-| Step | What's measured |
-|---|---|
-| Baseline | `docs/SOC2_COMPLIANCE.md` lists 13 evidence paths/commands; today the operator assembles them by hand. |
-| After Phase 1 | One command produces a bundle that covers 4 of those 13 (audit logs, SARIF reports, integrity verification, action summary). |
-| Validation | Run the command against a real audit period, hand the bundle to ≥3 people who have done a SOC 2 audit, ask: *"Would you accept this as evidence for CC4.1, CC4.2, CC7.2, CC7.3?"* If 0/3 say yes, the bundle is wrong; iterate before claiming the slice. |
+| Step          | What's measured                                                                                                                                                                                                                                           |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Baseline      | `docs/SOC2_COMPLIANCE.md` lists 13 evidence paths/commands; today the operator assembles them by hand.                                                                                                                                                    |
+| After Phase 1 | One command produces a bundle that covers 4 of those 13 (audit logs, SARIF reports, integrity verification, action summary).                                                                                                                              |
+| Validation    | Run the command against a real audit period, hand the bundle to ≥3 people who have done a SOC 2 audit, ask: _"Would you accept this as evidence for CC4.1, CC4.2, CC7.2, CC7.3?"_ If 0/3 say yes, the bundle is wrong; iterate before claiming the slice. |
 
 The validation step is the real anti-theater check. Producing a bundle that
-*looks* official but doesn't satisfy a real auditor would be worse than not
+_looks_ official but doesn't satisfy a real auditor would be worse than not
 shipping it.
 
 ### File-level scope
@@ -185,11 +189,12 @@ GTM decision, not a code decision. Defer until ≥3 buyer conversations.
 
 Per the GTM plan's anti-theater discipline (`docs/gtm/README.md`), Phase 1
 should not be built unless one of these is true:
-- ≥1 inbound asking *"how do I prepare a SOC 2 evidence period from
-  CodeBot?"*
+
+- ≥1 inbound asking _"how do I prepare a SOC 2 evidence period from
+  CodeBot?"_
 - ≥1 paying-customer prospect would not buy without it
 - It costs less than 5 days and lifts the GTM hypothesis test materially
-  (the third pillar — *"runs where your code can't leave"* — is also the
+  (the third pillar — _"runs where your code can't leave"_ — is also the
   audit-evidence pillar)
 
 The third condition is the one that already holds. Phase 1 is 3–5 days,
@@ -204,7 +209,7 @@ conversation. Phase 1 buys you the right to have that conversation.
    `entry.timestamp` (ISO 8601 UTC). Inclusive on both ends? Honest answer:
    inclusive `since`, exclusive `until` (the "[start, end)" convention).
 2. **Decryption for the bundle** — the on-disk audit log is encrypted line-by-line
-   via `encryption.ts`. The bundle contains *decrypted* JSONL so an auditor
+   via `encryption.ts`. The bundle contains _decrypted_ JSONL so an auditor
    can read it. Trade-off: decrypted contents leave the encryption boundary.
    Mitigation: auditor receives the bundle via the org's existing secure
    channel (SFTP, encrypted email, evidence portal). Document this in
@@ -221,10 +226,10 @@ conversation. Phase 1 buys you the right to have that conversation.
 
 Tempting alternatives, all rejected for Phase 1:
 
-- *"Build a real-time compliance dashboard"* — months of work, no buyer yet.
-- *"Auto-generate the SOC 2 narrative report"* — requires an LLM judgment
+- _"Build a real-time compliance dashboard"_ — months of work, no buyer yet.
+- _"Auto-generate the SOC 2 narrative report"_ — requires an LLM judgment
   call per control; unreviewable; auditors will reject it.
-- *"Integrate with Drata/Vanta/Tugboat"* — vendor-specific work; one inbound
+- _"Integrate with Drata/Vanta/Tugboat"_ — vendor-specific work; one inbound
   hasn't materialized yet.
 
 Phase 1 is the smallest thing that would (a) take 3–5 days, (b) be useful

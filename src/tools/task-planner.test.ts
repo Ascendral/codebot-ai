@@ -19,7 +19,9 @@ describe('TaskPlannerTool', () => {
       if (fs.existsSync(tasksFile)) {
         fs.writeFileSync(tasksFile, '[]');
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   });
 
   after(() => {
@@ -28,7 +30,9 @@ describe('TaskPlannerTool', () => {
       if (fs.existsSync(tasksFile)) {
         fs.unlinkSync(tasksFile);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   });
 
   it('should have correct tool metadata', () => {

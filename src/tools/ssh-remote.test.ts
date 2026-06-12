@@ -221,23 +221,29 @@ describe('SshRemoteTool — argv shape (Row 8: via buildPlan)', () => {
     const tool = new SshRemoteTool();
     const payload = '$(touch /tmp/should-not-happen)';
     const plan = tool.buildPlan({
-      action: 'exec', host: 'alice@host', command: payload,
+      action: 'exec',
+      host: 'alice@host',
+      command: payload,
     });
     assert.ok(!('error' in plan));
     if ('error' in plan) return;
     assert.strictEqual(plan.command, 'ssh');
     assert.strictEqual(plan.argv[plan.argv.length - 2], 'alice@host');
-    assert.strictEqual(plan.argv[plan.argv.length - 1], payload,
-      'command must be the last argv element, literal');
+    assert.strictEqual(plan.argv[plan.argv.length - 1], payload, 'command must be the last argv element, literal');
   });
 
   it('exec: -p flag only added for non-default port', () => {
     const tool = new SshRemoteTool();
     const planDefault = tool.buildPlan({
-      action: 'exec', host: 'h', command: 'ls',
+      action: 'exec',
+      host: 'h',
+      command: 'ls',
     });
     const plan2222 = tool.buildPlan({
-      action: 'exec', host: 'h', command: 'ls', port: 2222,
+      action: 'exec',
+      host: 'h',
+      command: 'ls',
+      port: 2222,
     });
     if ('error' in planDefault || 'error' in plan2222) {
       throw new Error('expected both to plan');
@@ -250,7 +256,9 @@ describe('SshRemoteTool — argv shape (Row 8: via buildPlan)', () => {
   it('port: rejects non-number (Row 8 P3-style strict typing)', () => {
     const tool = new SshRemoteTool();
     const plan = tool.buildPlan({
-      action: 'exec', host: 'h', command: 'ls',
+      action: 'exec',
+      host: 'h',
+      command: 'ls',
       port: '22; rm -rf ~' as unknown as number,
     });
     assert.ok('error' in plan);
@@ -260,7 +268,10 @@ describe('SshRemoteTool — argv shape (Row 8: via buildPlan)', () => {
   it('port: rejects out-of-range', () => {
     const tool = new SshRemoteTool();
     const plan = tool.buildPlan({
-      action: 'exec', host: 'h', command: 'ls', port: 99999,
+      action: 'exec',
+      host: 'h',
+      command: 'ls',
+      port: 99999,
     });
     assert.ok('error' in plan);
   });
@@ -271,15 +282,16 @@ describe('SshRemoteTool — argv shape (Row 8: via buildPlan)', () => {
       fs.writeFileSync(path.join(workDir, 'src.txt'), 'hi');
       const t = new SshRemoteTool(workDir);
       const plan = t.buildPlan({
-        action: 'upload', host: 'h', local_path: 'src.txt', remote_path: '/dst/file',
+        action: 'upload',
+        host: 'h',
+        local_path: 'src.txt',
+        remote_path: '/dst/file',
       });
       assert.ok(!('error' in plan));
       if ('error' in plan) return;
       assert.strictEqual(plan.command, 'scp');
-      assert.ok(plan.argv.includes(path.resolve(workDir, 'src.txt')),
-        'local must be resolved absolute');
-      assert.ok(plan.argv.includes('h:/dst/file'),
-        'remote target must be one argv element of form host:remote');
+      assert.ok(plan.argv.includes(path.resolve(workDir, 'src.txt')), 'local must be resolved absolute');
+      assert.ok(plan.argv.includes('h:/dst/file'), 'remote target must be one argv element of form host:remote');
     } finally {
       fs.rmSync(workDir, { recursive: true, force: true });
     }
@@ -290,14 +302,19 @@ describe('SshRemoteTool — argv shape (Row 8: via buildPlan)', () => {
     try {
       const t = new SshRemoteTool(workDir);
       const plan = t.buildPlan({
-        action: 'download', host: 'h', local_path: 'dst.txt', remote_path: '/src/file',
+        action: 'download',
+        host: 'h',
+        local_path: 'dst.txt',
+        remote_path: '/src/file',
       });
       assert.ok(!('error' in plan));
       if ('error' in plan) return;
-      const remoteIdx = plan.argv.findIndex(a => a === 'h:/src/file');
-      const localIdx = plan.argv.findIndex(a => a === path.resolve(workDir, 'dst.txt'));
-      assert.ok(remoteIdx >= 0 && localIdx >= 0 && remoteIdx < localIdx,
-        'scp download argv must be (..opts.., remote, local)');
+      const remoteIdx = plan.argv.findIndex((a) => a === 'h:/src/file');
+      const localIdx = plan.argv.findIndex((a) => a === path.resolve(workDir, 'dst.txt'));
+      assert.ok(
+        remoteIdx >= 0 && localIdx >= 0 && remoteIdx < localIdx,
+        'scp download argv must be (..opts.., remote, local)',
+      );
     } finally {
       fs.rmSync(workDir, { recursive: true, force: true });
     }
@@ -310,7 +327,10 @@ describe('SshRemoteTool — local_path containment (Row 8)', () => {
     try {
       const t = new SshRemoteTool(workDir);
       const plan = t.buildPlan({
-        action: 'upload', host: 'h', local_path: '../../../etc/passwd', remote_path: '/dst',
+        action: 'upload',
+        host: 'h',
+        local_path: '../../../etc/passwd',
+        remote_path: '/dst',
       });
       assert.ok('error' in plan);
       if ('error' in plan) assert.match(plan.error, /local_path escapes project root/);
@@ -325,7 +345,10 @@ describe('SshRemoteTool — local_path containment (Row 8)', () => {
       const t = new SshRemoteTool(workDir);
       const escapeTarget = process.platform === 'win32' ? 'C:\\Windows\\evil.txt' : '/etc/cron.d/evil';
       const plan = t.buildPlan({
-        action: 'download', host: 'h', local_path: escapeTarget, remote_path: '/src',
+        action: 'download',
+        host: 'h',
+        local_path: escapeTarget,
+        remote_path: '/src',
       });
       assert.ok('error' in plan);
       if ('error' in plan) assert.match(plan.error, /local_path escapes project root/);
@@ -340,7 +363,10 @@ describe('SshRemoteTool — local_path containment (Row 8)', () => {
       const sibling = workDir + '-evil'; // shares prefix but is a different dir
       const t = new SshRemoteTool(workDir);
       const plan = t.buildPlan({
-        action: 'upload', host: 'h', local_path: sibling, remote_path: '/dst',
+        action: 'upload',
+        host: 'h',
+        local_path: sibling,
+        remote_path: '/dst',
       });
       assert.ok('error' in plan, 'sibling-prefix must be rejected');
     } finally {
@@ -367,7 +393,11 @@ describe('SshRemoteTool — local-shell injection canaries (real exec)', () => {
 
   after(() => {
     process.chdir(originalCwd);
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('exec: $(...) in command does not run locally', async () => {
@@ -380,8 +410,11 @@ describe('SshRemoteTool — local-shell injection canaries (real exec)', () => {
       port: 1,
       command: payload,
     });
-    assert.strictEqual(fs.existsSync(marker), false,
-      `LOCAL SHELL INJECTION REGRESSION: ${marker} was created via command. Tool reverted to execSync(string).`);
+    assert.strictEqual(
+      fs.existsSync(marker),
+      false,
+      `LOCAL SHELL INJECTION REGRESSION: ${marker} was created via command. Tool reverted to execSync(string).`,
+    );
   });
 
   it('exec: backticks in command do not run locally', async () => {
@@ -394,8 +427,11 @@ describe('SshRemoteTool — local-shell injection canaries (real exec)', () => {
       port: 1,
       command: payload,
     });
-    assert.strictEqual(fs.existsSync(marker), false,
-      `LOCAL SHELL INJECTION REGRESSION via backticks: ${marker} was created.`);
+    assert.strictEqual(
+      fs.existsSync(marker),
+      false,
+      `LOCAL SHELL INJECTION REGRESSION via backticks: ${marker} was created.`,
+    );
   });
 
   it('upload: shell metacharacters in remote_path do not run locally', async () => {
@@ -410,8 +446,11 @@ describe('SshRemoteTool — local-shell injection canaries (real exec)', () => {
       local_path: 'src.txt',
       remote_path: evilRemote,
     });
-    assert.strictEqual(fs.existsSync(marker), false,
-      `LOCAL SHELL INJECTION REGRESSION via remote_path: ${marker} was created.`);
+    assert.strictEqual(
+      fs.existsSync(marker),
+      false,
+      `LOCAL SHELL INJECTION REGRESSION via remote_path: ${marker} was created.`,
+    );
   });
 
   it('download: shell metacharacters in remote_path do not run locally', async () => {
@@ -425,7 +464,10 @@ describe('SshRemoteTool — local-shell injection canaries (real exec)', () => {
       local_path: 'dst.txt',
       remote_path: evilRemote,
     });
-    assert.strictEqual(fs.existsSync(marker), false,
-      `LOCAL SHELL INJECTION REGRESSION via download remote_path: ${marker} was created.`);
+    assert.strictEqual(
+      fs.existsSync(marker),
+      false,
+      `LOCAL SHELL INJECTION REGRESSION via download remote_path: ${marker} was created.`,
+    );
   });
 });

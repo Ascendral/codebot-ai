@@ -293,7 +293,9 @@ describe('Session summary banner', () => {
 describe('Animation system', () => {
   // Use injectable writer to capture output without touching process.stdout
   let captured: string;
-  const captureWriter: AnimationWriter = (text: string) => { captured += text; };
+  const captureWriter: AnimationWriter = (text: string) => {
+    captured += text;
+  };
   const opts = { writer: captureWriter };
 
   it('animateReveal writes banner content', async () => {
@@ -375,13 +377,17 @@ describe('Animation system', () => {
 
   it('animateSessionEnd writes session summary', async () => {
     captured = '';
-    await animateSessionEnd({
-      iterations: 5,
-      toolCalls: 10,
-      tokensUsed: 25000,
-      cost: 0.05,
-      duration: 60,
-    }, 'fast', opts);
+    await animateSessionEnd(
+      {
+        iterations: 5,
+        toolCalls: 10,
+        tokensUsed: 25000,
+        cost: 0.05,
+        duration: 60,
+      },
+      'fast',
+      opts,
+    );
     assert.ok(captured.includes('Session Complete'));
     assert.ok(captured.includes('25,000'));
     assert.ok(captured.includes('$0.0500'));
@@ -419,13 +425,14 @@ describe('Animation system', () => {
   });
 });
 
-
 // ── animateWelcomeBoot tests ──
 
 describe('animateWelcomeBoot', () => {
   it('includes detection steps in output', async () => {
     const output: string[] = [];
-    const writer = (s: string) => { output.push(s); };
+    const writer = (s: string) => {
+      output.push(s);
+    };
     await animateWelcomeBoot(
       BANNER_1,
       '2.3.0',
@@ -444,18 +451,10 @@ describe('animateWelcomeBoot', () => {
 
   it('includes version in output from boot sequence', async () => {
     const output: string[] = [];
-    const writer = (s: string) => { output.push(s); };
-    await animateWelcomeBoot(
-      BANNER_1,
-      '2.3.0',
-      'gpt-4o',
-      'openai',
-      'test-session',
-      false,
-      [],
-      'fast',
-      { writer },
-    );
+    const writer = (s: string) => {
+      output.push(s);
+    };
+    await animateWelcomeBoot(BANNER_1, '2.3.0', 'gpt-4o', 'openai', 'test-session', false, [], 'fast', { writer });
     const joined = output.join('');
     assert.ok(joined.includes('2.3.0'), 'Should include version from boot sequence');
   });

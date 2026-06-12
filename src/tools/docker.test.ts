@@ -40,11 +40,14 @@ describe('DockerTool — metadata', () => {
   });
 
   it('JSON schema declares args as a string array (Row 9 contract)', () => {
-    const props = (tool.parameters as { properties: Record<string, { type?: string; items?: { type?: string } }> }).properties;
-    assert.strictEqual(props.args.type, 'array',
-      'args.type must be "array" so the JSON schema actually advertises the new shape');
-    assert.strictEqual(props.args.items?.type, 'string',
-      'args.items.type must be "string"');
+    const props = (tool.parameters as { properties: Record<string, { type?: string; items?: { type?: string } }> })
+      .properties;
+    assert.strictEqual(
+      props.args.type,
+      'array',
+      'args.type must be "array" so the JSON schema actually advertises the new shape',
+    );
+    assert.strictEqual(props.args.items?.type, 'string', 'args.items.type must be "string"');
   });
 });
 
@@ -269,7 +272,11 @@ describe('DockerTool — local-shell injection canary (real exec)', () => {
 
   after(() => {
     process.chdir(originalCwd);
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('argv element with shell metacharacters does not run a local shell', async () => {
@@ -280,8 +287,11 @@ describe('DockerTool — local-shell injection canary (real exec)', () => {
       action: 'run',
       args: [payload, 'image'],
     });
-    assert.strictEqual(fs.existsSync(marker), false,
-      `LOCAL SHELL INJECTION REGRESSION: ${marker} was created. Tool reverted to execSync(string).`);
+    assert.strictEqual(
+      fs.existsSync(marker),
+      false,
+      `LOCAL SHELL INJECTION REGRESSION: ${marker} was created. Tool reverted to execSync(string).`,
+    );
   });
 
   it('argv element with backticks does not run a local shell', async () => {
@@ -292,7 +302,10 @@ describe('DockerTool — local-shell injection canary (real exec)', () => {
       action: 'inspect',
       args: [payload],
     });
-    assert.strictEqual(fs.existsSync(marker), false,
-      `LOCAL SHELL INJECTION REGRESSION via backticks: ${marker} was created.`);
+    assert.strictEqual(
+      fs.existsSync(marker),
+      false,
+      `LOCAL SHELL INJECTION REGRESSION via backticks: ${marker} was created.`,
+    );
   });
 });

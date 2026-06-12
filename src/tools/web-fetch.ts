@@ -4,14 +4,19 @@ import { validateOutboundUrl } from '../net-guard';
 
 export class WebFetchTool implements Tool {
   name = 'web_fetch';
-  description = 'Make HTTP requests to URLs or APIs. Fetch web pages, call REST APIs, post data. Supports GET, POST, PUT, PATCH, DELETE.';
+  description =
+    'Make HTTP requests to URLs or APIs. Fetch web pages, call REST APIs, post data. Supports GET, POST, PUT, PATCH, DELETE.';
   permission: Tool['permission'] = 'prompt';
   capabilities: CapabilityLabel[] = ['read-only', 'net-fetch'];
   parameters = {
     type: 'object',
     properties: {
       url: { type: 'string', description: 'URL to fetch' },
-      method: { type: 'string', description: 'HTTP method (default: GET)', enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] },
+      method: {
+        type: 'string',
+        description: 'HTTP method (default: GET)',
+        enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+      },
       headers: { type: 'object', description: 'Request headers as key-value pairs' },
       body: { type: 'string', description: 'Request body (for POST/PUT/PATCH)' },
       json: { type: 'object', description: 'JSON body (auto-sets Content-Type)' },
@@ -144,9 +149,10 @@ export class WebFetchTool implements Tool {
 
       // Truncate very large responses
       const maxLen = 50000;
-      const truncated = responseText.length > maxLen
-        ? responseText.substring(0, maxLen) + `\n\n... (truncated, ${responseText.length} total chars)`
-        : responseText;
+      const truncated =
+        responseText.length > maxLen
+          ? responseText.substring(0, maxLen) + `\n\n... (truncated, ${responseText.length} total chars)`
+          : responseText;
 
       const statusLine = `HTTP ${res.status} ${res.statusText}`;
 
@@ -181,24 +187,26 @@ export class WebFetchTool implements Tool {
   }
 
   private htmlToText(html: string): string {
-    return html
-      // Remove script/style blocks
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      // Convert common block elements to newlines
-      .replace(/<\/?(div|p|br|h[1-6]|li|tr|blockquote|pre|section|article|header|footer|nav|main)[^>]*>/gi, '\n')
-      // Remove all remaining tags
-      .replace(/<[^>]+>/g, '')
-      // Decode common entities
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&nbsp;/g, ' ')
-      // Clean up whitespace
-      .replace(/[ \t]+/g, ' ')
-      .replace(/\n\s*\n\s*\n/g, '\n\n')
-      .trim();
+    return (
+      html
+        // Remove script/style blocks
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        // Convert common block elements to newlines
+        .replace(/<\/?(div|p|br|h[1-6]|li|tr|blockquote|pre|section|article|header|footer|nav|main)[^>]*>/gi, '\n')
+        // Remove all remaining tags
+        .replace(/<[^>]+>/g, '')
+        // Decode common entities
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, ' ')
+        // Clean up whitespace
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n\s*\n\s*\n/g, '\n\n')
+        .trim()
+    );
   }
 }

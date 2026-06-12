@@ -133,7 +133,7 @@ describe('verifyMessages', () => {
   });
 
   it('all valid for properly signed messages', () => {
-    const messages = [1, 2, 3].map(i => {
+    const messages = [1, 2, 3].map((i) => {
       const m: Record<string, unknown> = { role: 'user', content: `msg ${i}` };
       m._sig = signMessage(m, key);
       return m;

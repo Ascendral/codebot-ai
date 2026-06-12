@@ -49,17 +49,25 @@ describe('ToolRegistry — capability label coverage (PR 3 enforcement)', () => 
     const missing: string[] = [];
     const empty: string[] = [];
     for (const t of tools) {
-      if (t.capabilities === undefined) { missing.push(t.name); continue; }
+      if (t.capabilities === undefined) {
+        missing.push(t.name);
+        continue;
+      }
       if (!Array.isArray(t.capabilities)) {
         missing.push(`${t.name} (capabilities is not an array)`);
         continue;
       }
-      if (t.capabilities.length === 0) { empty.push(t.name); continue; }
+      if (t.capabilities.length === 0) {
+        empty.push(t.name);
+        continue;
+      }
     }
-    assert.deepStrictEqual(missing, [],
-      `tools missing capabilities: ${missing.join(', ')}`);
-    assert.deepStrictEqual(empty, [],
-      `tools with empty capabilities (use the union of action-level needs, never []): ${empty.join(', ')}`);
+    assert.deepStrictEqual(missing, [], `tools missing capabilities: ${missing.join(', ')}`);
+    assert.deepStrictEqual(
+      empty,
+      [],
+      `tools with empty capabilities (use the union of action-level needs, never []): ${empty.join(', ')}`,
+    );
   });
 
   it('every declared label is a valid CapabilityLabel from the §7 union', () => {
@@ -73,19 +81,23 @@ describe('ToolRegistry — capability label coverage (PR 3 enforcement)', () => 
         }
       }
     }
-    assert.deepStrictEqual(violations, [],
-      `unknown labels declared: ${JSON.stringify(violations)}. Valid set: ${VALID_LABELS.join(', ')}`);
+    assert.deepStrictEqual(
+      violations,
+      [],
+      `unknown labels declared: ${JSON.stringify(violations)}. Valid set: ${VALID_LABELS.join(', ')}`,
+    );
   });
 
   it('no tool declares the move-money label (PROHIBITED per §2/§7)', () => {
     // PR 3 invariant: tools with move-money cannot exist/register.
     // This test pins that. PR 4 will additionally enforce it at the
     // gate level (rejecting any registered tool that carries it).
-    const offenders = tools
-      .filter(t => t.capabilities?.includes('move-money'))
-      .map(t => t.name);
-    assert.deepStrictEqual(offenders, [],
-      `tools declaring PROHIBITED label "move-money": ${offenders.join(', ')}. Per §2, move-money tools must not exist.`);
+    const offenders = tools.filter((t) => t.capabilities?.includes('move-money')).map((t) => t.name);
+    assert.deepStrictEqual(
+      offenders,
+      [],
+      `tools declaring PROHIBITED label "move-money": ${offenders.join(', ')}. Per §2, move-money tools must not exist.`,
+    );
   });
 
   it('capabilities array contains no duplicates', () => {
@@ -100,8 +112,7 @@ describe('ToolRegistry — capability label coverage (PR 3 enforcement)', () => 
         seen.add(label);
       }
     }
-    assert.deepStrictEqual(dupes, [],
-      `duplicate labels: ${JSON.stringify(dupes)}`);
+    assert.deepStrictEqual(dupes, [], `duplicate labels: ${JSON.stringify(dupes)}`);
   });
 });
 
@@ -137,8 +148,11 @@ describe('ToolRegistry — move-money registration guard (PR 4)', () => {
     );
 
     // Tool must NOT be in the registry afterward.
-    assert.strictEqual(registry.get('evil-money-mover'), undefined,
-      'failed registration must not leave the tool in the registry');
+    assert.strictEqual(
+      registry.get('evil-money-mover'),
+      undefined,
+      'failed registration must not leave the tool in the registry',
+    );
   });
 
   it('throws even when move-money is one label among many (strictest still wins)', () => {
@@ -151,10 +165,7 @@ describe('ToolRegistry — move-money registration guard (PR 4)', () => {
       execute: async () => 'never',
     };
 
-    assert.throws(
-      () => registry.register(sneakyTool),
-      /move-money/,
-    );
+    assert.throws(() => registry.register(sneakyTool), /move-money/);
     assert.strictEqual(registry.get('sneaky-mover'), undefined);
   });
 

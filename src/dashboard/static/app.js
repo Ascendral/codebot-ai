@@ -669,20 +669,32 @@ const App = {
       '<div class="permission-card-header">' +
       '<span class="permission-card-icon">⚠</span>' +
       '<span class="permission-card-title">Permission required</span>' +
-      '<span class="permission-card-risk risk-' + App.escapeHtml(riskLevel) + '">' +
-      App.escapeHtml(riskLevel) + ' · ' + riskScore + '/100</span>' +
+      '<span class="permission-card-risk risk-' +
+      App.escapeHtml(riskLevel) +
+      '">' +
+      App.escapeHtml(riskLevel) +
+      ' · ' +
+      riskScore +
+      '/100</span>' +
       '</div>' +
       '<div class="permission-card-body">' +
       '<div class="permission-card-tool">' +
-      '<strong>Tool:</strong> ' + App.escapeHtml(req.tool) +
+      '<strong>Tool:</strong> ' +
+      App.escapeHtml(req.tool) +
       '</div>' +
       previewBlock +
       '<details class="permission-card-args"><summary>Raw args</summary>' +
-      '<pre>' + argsStr + '</pre></details>' +
+      '<pre>' +
+      argsStr +
+      '</pre></details>' +
       '</div>' +
       '<div class="permission-card-actions">' +
-      '<button class="permission-deny" data-rid="' + App.escapeHtml(req.requestId) + '">Deny</button>' +
-      '<button class="permission-approve" data-rid="' + App.escapeHtml(req.requestId) + '">Approve</button>' +
+      '<button class="permission-deny" data-rid="' +
+      App.escapeHtml(req.requestId) +
+      '">Deny</button>' +
+      '<button class="permission-approve" data-rid="' +
+      App.escapeHtml(req.requestId) +
+      '">Approve</button>' +
       '</div>' +
       '<div class="permission-card-status"></div>';
 
@@ -695,7 +707,9 @@ const App = {
     // the chat stream will resume with the next agent event after this.
     const respond = function (approved) {
       const buttons = div.querySelectorAll('button');
-      buttons.forEach(function (b) { b.disabled = true; });
+      buttons.forEach(function (b) {
+        b.disabled = true;
+      });
       const statusEl = div.querySelector('.permission-card-status');
       if (statusEl) statusEl.textContent = approved ? 'Approved — running…' : 'Denied.';
       apiFetch('/api/command/permission/respond', {
@@ -705,8 +719,12 @@ const App = {
         if (statusEl) statusEl.textContent = 'Error: ' + (err && err.message ? err.message : String(err));
       });
     };
-    div.querySelector('.permission-approve').addEventListener('click', function () { respond(true); });
-    div.querySelector('.permission-deny').addEventListener('click', function () { respond(false); });
+    div.querySelector('.permission-approve').addEventListener('click', function () {
+      respond(true);
+    });
+    div.querySelector('.permission-deny').addEventListener('click', function () {
+      respond(false);
+    });
 
     return div;
   },
@@ -1597,9 +1615,12 @@ const App = {
         if (display) {
           display.innerHTML =
             '<strong style="color: var(--accent);">Active</strong><br>' +
-            '<code style="font-size: 12px;">' + this.esc(res.vault.vaultPath) + '</code><br>' +
+            '<code style="font-size: 12px;">' +
+            this.esc(res.vault.vaultPath) +
+            '</code><br>' +
             '<span style="font-size: 12px;">' +
-            (res.vault.writable ? 'writable' : 'read-only') + ' &middot; ' +
+            (res.vault.writable ? 'writable' : 'read-only') +
+            ' &middot; ' +
             (res.vault.networkAllowed ? 'network on' : 'network off') +
             '</span>';
         }
@@ -1611,13 +1632,19 @@ const App = {
         if (banner) {
           banner.style.display = '';
           banner.innerHTML =
-            'Vault Mode: <code>' + this.esc(res.vault.vaultPath) + '</code> ' +
-            '(' + (res.vault.writable ? 'writable' : 'read-only') + ', ' +
-            (res.vault.networkAllowed ? 'network on' : 'network off') + ')';
+            'Vault Mode: <code>' +
+            this.esc(res.vault.vaultPath) +
+            '</code> ' +
+            '(' +
+            (res.vault.writable ? 'writable' : 'read-only') +
+            ', ' +
+            (res.vault.networkAllowed ? 'network on' : 'network off') +
+            ')';
         }
       } else {
         // Inactive
-        if (display) display.innerHTML = '<span style="color: var(--text-secondary);">Not active &mdash; coding agent mode</span>';
+        if (display)
+          display.innerHTML = '<span style="color: var(--text-secondary);">Not active &mdash; coding agent mode</span>';
         if (enableBtn) enableBtn.textContent = 'Enable Vault Mode';
         if (disableBtn) disableBtn.style.display = 'none';
         if (banner) banner.style.display = 'none';
@@ -1637,7 +1664,10 @@ const App = {
       if (feedback) feedback.innerHTML = '<span style="color: #ff6b6b;">Vault path is required.</span>';
       return;
     }
-    if (enableBtn) { enableBtn.disabled = true; enableBtn.textContent = 'Enabling…'; }
+    if (enableBtn) {
+      enableBtn.disabled = true;
+      enableBtn.textContent = 'Enabling…';
+    }
     if (feedback) feedback.textContent = '';
     try {
       var res = await apiFetch('/api/command/vault', {
@@ -1650,13 +1680,19 @@ const App = {
         }),
       });
       if (!res.ok) {
-        var errData = await res.json().catch(function () { return { error: 'HTTP ' + res.status }; });
-        throw new Error(errData.error || ('HTTP ' + res.status));
+        var errData = await res.json().catch(function () {
+          return { error: 'HTTP ' + res.status };
+        });
+        throw new Error(errData.error || 'HTTP ' + res.status);
       }
-      if (feedback) feedback.innerHTML = '<span style="color: #4caf50;">Vault Mode enabled. Head to Chat to ask questions about your notes.</span>';
+      if (feedback)
+        feedback.innerHTML =
+          '<span style="color: #4caf50;">Vault Mode enabled. Head to Chat to ask questions about your notes.</span>';
       await this.vaultRefreshStatus();
     } catch (err) {
-      if (feedback) feedback.innerHTML = '<span style="color: #ff6b6b;">' + this.esc(err && err.message ? err.message : String(err)) + '</span>';
+      if (feedback)
+        feedback.innerHTML =
+          '<span style="color: #ff6b6b;">' + this.esc(err && err.message ? err.message : String(err)) + '</span>';
     } finally {
       if (enableBtn) enableBtn.disabled = false;
     }
@@ -1665,7 +1701,10 @@ const App = {
   async vaultDisable() {
     var feedback = document.getElementById('vault-feedback');
     var disableBtn = document.getElementById('vault-disable-btn');
-    if (disableBtn) { disableBtn.disabled = true; disableBtn.textContent = 'Disabling…'; }
+    if (disableBtn) {
+      disableBtn.disabled = true;
+      disableBtn.textContent = 'Disabling…';
+    }
     try {
       var res = await apiFetch('/api/command/vault', {
         method: 'POST',
@@ -1673,12 +1712,19 @@ const App = {
         body: JSON.stringify({ vaultPath: '' }),
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      if (feedback) feedback.innerHTML = '<span style="color: var(--text-secondary);">Vault Mode disabled &mdash; coding agent restored.</span>';
+      if (feedback)
+        feedback.innerHTML =
+          '<span style="color: var(--text-secondary);">Vault Mode disabled &mdash; coding agent restored.</span>';
       await this.vaultRefreshStatus();
     } catch (err) {
-      if (feedback) feedback.innerHTML = '<span style="color: #ff6b6b;">' + this.esc(err && err.message ? err.message : String(err)) + '</span>';
+      if (feedback)
+        feedback.innerHTML =
+          '<span style="color: #ff6b6b;">' + this.esc(err && err.message ? err.message : String(err)) + '</span>';
     } finally {
-      if (disableBtn) { disableBtn.disabled = false; disableBtn.textContent = 'Disable (return to coding agent)'; }
+      if (disableBtn) {
+        disableBtn.disabled = false;
+        disableBtn.textContent = 'Disable (return to coding agent)';
+      }
     }
   },
 

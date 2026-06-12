@@ -36,7 +36,7 @@ describe('SlackConnector', () => {
 
   it('has all expected actions', () => {
     const slack = new SlackConnector();
-    const names = slack.actions.map(a => a.name);
+    const names = slack.actions.map((a) => a.name);
     assert.ok(names.includes('post_message'));
     assert.ok(names.includes('list_channels'));
     assert.ok(names.includes('search_messages'));
@@ -45,7 +45,7 @@ describe('SlackConnector', () => {
 
   it('post_message requires channel and message', async () => {
     const slack = new SlackConnector();
-    const action = slack.actions.find(a => a.name === 'post_message')!;
+    const action = slack.actions.find((a) => a.name === 'post_message')!;
     const result = await action.execute({ channel: '', message: '' }, 'xoxb-fake');
     assert.ok(result.includes('Error:'));
   });
@@ -90,24 +90,27 @@ describe('SlackConnector — per-verb capability labels', () => {
   }
 
   it('list_channels: read-only + account-access + net-fetch', () => {
-    assert.deepStrictEqual(
-      getAction('list_channels').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'read-only'],
-    );
+    assert.deepStrictEqual(getAction('list_channels').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'read-only',
+    ]);
   });
 
   it('search_messages: read-only + account-access + net-fetch', () => {
-    assert.deepStrictEqual(
-      getAction('search_messages').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'read-only'],
-    );
+    assert.deepStrictEqual(getAction('search_messages').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'read-only',
+    ]);
   });
 
   it('post_message: account-access + net-fetch + send-on-behalf', () => {
-    assert.deepStrictEqual(
-      getAction('post_message').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'send-on-behalf'],
-    );
+    assert.deepStrictEqual(getAction('post_message').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'send-on-behalf',
+    ]);
   });
 
   it('read-only verbs omit preview/idempotency/redact', () => {
@@ -115,7 +118,11 @@ describe('SlackConnector — per-verb capability labels', () => {
       const a = getAction(name);
       assert.strictEqual(a.preview, undefined, `${name}.preview must be undefined for read-only verb`);
       assert.strictEqual(a.idempotency, undefined, `${name}.idempotency must be undefined for read-only verb`);
-      assert.strictEqual(a.redactArgsForAudit, undefined, `${name}.redactArgsForAudit must be undefined for read-only verb`);
+      assert.strictEqual(
+        a.redactArgsForAudit,
+        undefined,
+        `${name}.redactArgsForAudit must be undefined for read-only verb`,
+      );
     }
   });
 });
@@ -127,29 +134,20 @@ describe('SlackConnector — post_message preview', () => {
   }
 
   it('returns the documented {summary, details} shape', async () => {
-    const result = await getPost().preview!(
-      { channel: '#general', message: 'hello team' },
-      'fake-credential-not-used',
-    );
+    const result = await getPost().preview!({ channel: '#general', message: 'hello team' }, 'fake-credential-not-used');
     assert.ok(typeof result.summary === 'string' && result.summary.length > 0);
     assert.ok(typeof result.details === 'object');
   });
 
   it('summary names channel + message length+hash', async () => {
-    const result = await getPost().preview!(
-      { channel: '#general', message: 'hello world' },
-      'fake-cred',
-    );
+    const result = await getPost().preview!({ channel: '#general', message: 'hello world' }, 'fake-cred');
     assert.match(result.summary, /#general/);
-    assert.match(result.summary, /11 chars/);   // 'hello world'
+    assert.match(result.summary, /11 chars/); // 'hello world'
     assert.match(result.summary, /sha256:[a-f0-9]+/);
   });
 
   it('summary shows "(new thread)" for missing thread_ts', async () => {
-    const result = await getPost().preview!(
-      { channel: '#general', message: 'hi' },
-      'fake-cred',
-    );
+    const result = await getPost().preview!({ channel: '#general', message: 'hi' }, 'fake-cred');
     assert.match(result.summary, /Thread:\s+\(new thread\)/);
   });
 
@@ -163,10 +161,7 @@ describe('SlackConnector — post_message preview', () => {
   });
 
   it('details object exposes structured fields', async () => {
-    const result = await getPost().preview!(
-      { channel: '#alerts', message: 'hello' },
-      'fake-cred',
-    );
+    const result = await getPost().preview!({ channel: '#alerts', message: 'hello' }, 'fake-cred');
     const d = result.details as Record<string, unknown>;
     assert.strictEqual(d.channel, '#alerts');
     assert.strictEqual(d.messageLength, 5);
@@ -174,10 +169,7 @@ describe('SlackConnector — post_message preview', () => {
   });
 
   it('preview makes NO network call (pure args inspection)', async () => {
-    const result = await getPost().preview!(
-      { channel: '#general', message: 'b' },
-      'definitely-not-a-real-token',
-    );
+    const result = await getPost().preview!({ channel: '#general', message: 'b' }, 'definitely-not-a-real-token');
     assert.match(result.summary, /Would post to Slack/);
     assert.doesNotMatch(result.summary, /[Ee]rror/);
   });
@@ -194,8 +186,11 @@ describe('SlackConnector — redactArgsForAudit (mutating verb only)', () => {
     });
     assert.strictEqual(redacted.channel, '#general', 'channel stays in audit');
     assert.strictEqual(redacted.thread_ts, '1234567890.123456', 'thread_ts stays in audit');
-    assert.match(String(redacted.message), /^<redacted sha256:[a-f0-9]+ len:\d+>$/,
-      'message must be redacted to hash+length');
+    assert.match(
+      String(redacted.message),
+      /^<redacted sha256:[a-f0-9]+ len:\d+>$/,
+      'message must be redacted to hash+length',
+    );
   });
 
   it('redaction is deterministic (same message → same hash)', () => {
@@ -226,8 +221,11 @@ describe('SlackConnector — idempotency declaration (unsupported arm)', () => {
       assert.match(reason, /Slack/i);
       assert.match(reason, /chat\.postMessage/i);
       assert.match(reason, /client[_-]?msg[_-]?id/i, 'reason must explicitly note no client_msg_id');
-      assert.match(reason, /Idempotency[_-]?Key|client-supplied idempotency/i,
-        'reason must explicitly note no Idempotency-Key / client-supplied idempotency');
+      assert.match(
+        reason,
+        /Idempotency[_-]?Key|client-supplied idempotency/i,
+        'reason must explicitly note no Idempotency-Key / client-supplied idempotency',
+      );
     }
   });
 });
@@ -293,11 +291,11 @@ describe('SlackConnector — API-mode auth-error classifier (no fetch mock)', ()
   it('handles missing/malformed body without crashing', () => {
     assert.strictEqual(isSlackAuthError(undefined), false);
     assert.strictEqual(isSlackAuthError({}), false);
-    assert.strictEqual(isSlackAuthError({ ok: false }), false);    // no error code
+    assert.strictEqual(isSlackAuthError({ ok: false }), false); // no error code
     assert.strictEqual(isSlackAuthError({ ok: false, error: '' }), false);
   });
 
-  it('unknown error code → NOT reauth (don\'t fake-prompt for unknown failures)', () => {
+  it("unknown error code → NOT reauth (don't fake-prompt for unknown failures)", () => {
     assert.strictEqual(isSlackAuthError({ ok: false, error: 'something_we_have_never_heard_of' }), false);
   });
 });

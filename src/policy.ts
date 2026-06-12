@@ -122,41 +122,41 @@ export const DEFAULT_POLICY: Required<Policy> = {
   },
   execution: {
     sandbox: 'auto',
-    network: false,             // safe default: no network in sandbox
+    network: false, // safe default: no network in sandbox
     timeout_seconds: 120,
     max_memory_mb: 512,
   },
   filesystem: {
-    writable_paths: [],       // empty = all project paths allowed
+    writable_paths: [], // empty = all project paths allowed
     read_only_paths: [],
     denied_paths: ['.env', '.env.local', '.env.production'],
     allow_outside_project: false,
   },
   tools: {
-    enabled: [],              // empty = all tools enabled
+    enabled: [], // empty = all tools enabled
     disabled: [],
     permissions: {},
   },
   secrets: {
-    block_on_detect: true,      // safe default: block writes containing secrets
+    block_on_detect: true, // safe default: block writes containing secrets
     scan_on_write: true,
     allowed_patterns: [],
   },
   git: {
-    always_branch: true,        // safe default: auto-branch on first write
+    always_branch: true, // safe default: auto-branch on first write
     branch_prefix: 'codebot/',
     require_tests_before_commit: false,
     never_push_main: true,
   },
   mcp: {
-    allowed_servers: [],      // empty = all allowed
+    allowed_servers: [], // empty = all allowed
     blocked_servers: [],
   },
   limits: {
     max_iterations: 50,
     max_file_size_kb: 500,
     max_files_per_operation: 20,
-    cost_limit_usd: 0,       // 0 = no limit
+    cost_limit_usd: 0, // 0 = no limit
   },
   rbac: {
     enabled: false,
@@ -202,7 +202,17 @@ function loadPolicyFile(filePath: string): Policy | null {
 
 /** Known top-level policy fields for typo detection */
 const KNOWN_POLICY_FIELDS = new Set([
-  'version', 'execution', 'filesystem', 'tools', 'secrets', 'git', 'mcp', 'limits', 'rbac', 'risk', 'constitutional',
+  'version',
+  'execution',
+  'filesystem',
+  'tools',
+  'secrets',
+  'git',
+  'mcp',
+  'limits',
+  'rbac',
+  'risk',
+  'constitutional',
 ]);
 
 /**
@@ -261,7 +271,7 @@ function mergePolicies(...policies: (Policy | null)[]): Policy {
       if (value === undefined || value === null) continue;
       if (typeof value === 'object' && !Array.isArray(value)) {
         // Deep merge objects
-        result[key] = { ...(result[key] as Record<string, unknown> || {}), ...value };
+        result[key] = { ...((result[key] as Record<string, unknown>) || {}), ...value };
       } else {
         result[key] = value;
       }
@@ -281,7 +291,6 @@ export class PolicyEnforcer {
     this.policy = policy || loadPolicy(projectRoot);
     this.projectRoot = projectRoot || process.cwd();
   }
-
 
   /** Resolve the current user's role and return merged policy */
   private currentUser: string | null = null;
@@ -566,11 +575,11 @@ export class PolicyEnforcer {
     if (pattern.includes('**')) {
       const regex = new RegExp(
         '^' +
-        pattern
-          .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-          .replace(/\*\*/g, '.*')
-          .replace(/\*/g, '[^/]*') +
-        '$'
+          pattern
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+            .replace(/\*\*/g, '.*')
+            .replace(/\*/g, '[^/]*') +
+          '$',
       );
       return regex.test(cleanPath);
     }
@@ -597,7 +606,9 @@ export class PolicyEnforcer {
       if (!preset) return false;
       this.policy = this.deepMerge(this.policy, preset);
       return true;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }
 
   private deepMerge(target: any, source: any): any {
@@ -611,98 +622,133 @@ export class PolicyEnforcer {
     }
     return result;
   }
-
 }
 
 /**
  * Generate a default policy file content for `codebot --init-policy`.
  */
 export function generateDefaultPolicyFile(): string {
-  return JSON.stringify({
-    version: '1.0',
-  constitutional: {
-    enabled: true,
-    vigil_enabled: true,
-    hard_block_enabled: true,
-  },
-    execution: {
-      sandbox: 'auto',
-      network: false,
-      timeout_seconds: 120,
-      max_memory_mb: 512,
-    },
-    filesystem: {
-      writable_paths: [],
-      read_only_paths: [],
-      denied_paths: ['.env', '.env.local', '.env.production'],
-      allow_outside_project: false,
-    },
-    tools: {
-      enabled: [],
-      disabled: [],
-      permissions: {
-        execute: 'always-ask',
-        write_file: 'prompt',
-        edit_file: 'prompt',
-      },
-      capabilities: {
-        execute: {
-          shell_commands: [
-            'npm', 'npx', 'node', 'git', 'tsc', 'eslint', 'prettier',
-            'jest', 'vitest', 'pytest', 'make', 'cargo', 'go', 'python',
-            'python3', 'ruby', 'php', 'java', 'javac', 'mvn', 'gradle',
-            'docker', 'ls', 'cat', 'head', 'tail', 'wc', 'sort', 'uniq',
-            'find', 'which', 'echo', 'pwd', 'env', 'date',
-          ],
-          max_output_kb: 500,
+  return (
+    JSON.stringify(
+      {
+        version: '1.0',
+        constitutional: {
+          enabled: true,
+          vigil_enabled: true,
+          hard_block_enabled: true,
         },
-      },
-    },
-    secrets: {
-      block_on_detect: true,
-      scan_on_write: true,
-    },
-    git: {
-      always_branch: true,
-      branch_prefix: 'codebot/',
-      require_tests_before_commit: false,
-      never_push_main: true,
-    },
-    mcp: {
-      allowed_servers: [],
-      blocked_servers: [],
-    },
-    limits: {
-      max_iterations: 50,
-      max_file_size_kb: 500,
-      max_files_per_operation: 20,
-      cost_limit_usd: 0,
-    },
-    rbac: {
-      enabled: false,
-      default_role: 'developer',
-      user_roles: {},
-      roles: {
-        admin: {
-          tools: { disabled: [] },
-          limits: { max_iterations: 100, cost_limit_usd: 50.0 },
+        execution: {
+          sandbox: 'auto',
+          network: false,
+          timeout_seconds: 120,
+          max_memory_mb: 512,
         },
-        developer: {
-          tools: {
-            disabled: ['ssh_remote'],
-            permissions: { execute: 'prompt', write_file: 'prompt' },
+        filesystem: {
+          writable_paths: [],
+          read_only_paths: [],
+          denied_paths: ['.env', '.env.local', '.env.production'],
+          allow_outside_project: false,
+        },
+        tools: {
+          enabled: [],
+          disabled: [],
+          permissions: {
+            execute: 'always-ask',
+            write_file: 'prompt',
+            edit_file: 'prompt',
           },
-          limits: { max_iterations: 50, cost_limit_usd: 10.0 },
-        },
-        reviewer: {
-          tools: {
-            disabled: ['execute', 'write_file', 'edit_file', 'batch_edit', 'ssh_remote', 'docker', 'database'],
-            permissions: {},
+          capabilities: {
+            execute: {
+              shell_commands: [
+                'npm',
+                'npx',
+                'node',
+                'git',
+                'tsc',
+                'eslint',
+                'prettier',
+                'jest',
+                'vitest',
+                'pytest',
+                'make',
+                'cargo',
+                'go',
+                'python',
+                'python3',
+                'ruby',
+                'php',
+                'java',
+                'javac',
+                'mvn',
+                'gradle',
+                'docker',
+                'ls',
+                'cat',
+                'head',
+                'tail',
+                'wc',
+                'sort',
+                'uniq',
+                'find',
+                'which',
+                'echo',
+                'pwd',
+                'env',
+                'date',
+              ],
+              max_output_kb: 500,
+            },
           },
-          filesystem: { writable_paths: [] },
-          limits: { max_iterations: 10, cost_limit_usd: 2.0 },
+        },
+        secrets: {
+          block_on_detect: true,
+          scan_on_write: true,
+        },
+        git: {
+          always_branch: true,
+          branch_prefix: 'codebot/',
+          require_tests_before_commit: false,
+          never_push_main: true,
+        },
+        mcp: {
+          allowed_servers: [],
+          blocked_servers: [],
+        },
+        limits: {
+          max_iterations: 50,
+          max_file_size_kb: 500,
+          max_files_per_operation: 20,
+          cost_limit_usd: 0,
+        },
+        rbac: {
+          enabled: false,
+          default_role: 'developer',
+          user_roles: {},
+          roles: {
+            admin: {
+              tools: { disabled: [] },
+              limits: { max_iterations: 100, cost_limit_usd: 50.0 },
+            },
+            developer: {
+              tools: {
+                disabled: ['ssh_remote'],
+                permissions: { execute: 'prompt', write_file: 'prompt' },
+              },
+              limits: { max_iterations: 50, cost_limit_usd: 10.0 },
+            },
+            reviewer: {
+              tools: {
+                disabled: ['execute', 'write_file', 'edit_file', 'batch_edit', 'ssh_remote', 'docker', 'database'],
+                permissions: {},
+              },
+              filesystem: { writable_paths: [] },
+              limits: { max_iterations: 10, cost_limit_usd: 2.0 },
+            },
+          },
         },
       },
-    },
-  }, null, 2) + '\n';
+      null,
+      2,
+    ) + '\n'
+  );
 }

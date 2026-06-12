@@ -24,49 +24,49 @@ describe('doctor', () => {
 
   it('nodeVersion check passes on supported Node', async () => {
     const report = await runDoctor();
-    const nodeCheck = report.checks.find(c => c.name === 'nodeVersion');
+    const nodeCheck = report.checks.find((c) => c.name === 'nodeVersion');
     assert.ok(nodeCheck, 'nodeVersion check should exist');
     assert.strictEqual(nodeCheck!.status, 'pass', `Node ${process.version} should pass`);
   });
 
   it('gitAvailable check returns pass or warn', async () => {
     const report = await runDoctor();
-    const gitCheck = report.checks.find(c => c.name === 'gitAvailable');
+    const gitCheck = report.checks.find((c) => c.name === 'gitAvailable');
     assert.ok(gitCheck, 'gitAvailable check should exist');
     assert.ok(['pass', 'warn'].includes(gitCheck!.status));
   });
 
   it('configExists check returns valid status', async () => {
     const report = await runDoctor();
-    const configCheck = report.checks.find(c => c.name === 'configExists');
+    const configCheck = report.checks.find((c) => c.name === 'configExists');
     assert.ok(configCheck, 'configExists check should exist');
     assert.ok(['pass', 'warn', 'fail'].includes(configCheck!.status));
   });
 
   it('cloudApiKeys check returns valid status', async () => {
     const report = await runDoctor();
-    const keysCheck = report.checks.find(c => c.name === 'cloudApiKeys');
+    const keysCheck = report.checks.find((c) => c.name === 'cloudApiKeys');
     assert.ok(keysCheck, 'cloudApiKeys check should exist');
     assert.ok(['pass', 'warn'].includes(keysCheck!.status));
   });
 
   it('diskSpace check returns valid status', async () => {
     const report = await runDoctor();
-    const diskCheck = report.checks.find(c => c.name === 'diskSpace');
+    const diskCheck = report.checks.find((c) => c.name === 'diskSpace');
     assert.ok(diskCheck, 'diskSpace check should exist');
     assert.ok(['pass', 'warn', 'fail'].includes(diskCheck!.status));
   });
 
   it('sessionsDir check returns valid status', async () => {
     const report = await runDoctor();
-    const sessionsCheck = report.checks.find(c => c.name === 'sessionsDir');
+    const sessionsCheck = report.checks.find((c) => c.name === 'sessionsDir');
     assert.ok(sessionsCheck, 'sessionsDir check should exist');
     assert.ok(['pass', 'warn', 'fail'].includes(sessionsCheck!.status));
   });
 
   it('auditIntegrity check does not crash', async () => {
     const report = await runDoctor();
-    const auditCheck = report.checks.find(c => c.name === 'auditIntegrity');
+    const auditCheck = report.checks.find((c) => c.name === 'auditIntegrity');
     assert.ok(auditCheck, 'auditIntegrity check should exist');
     assert.ok(['pass', 'warn', 'fail'].includes(auditCheck!.status));
   });

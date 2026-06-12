@@ -49,14 +49,18 @@ function createTaskAgent(opts: TaskOptions): Agent {
     try {
       const pe = agent.getPolicyEnforcer();
       if (pe && pe.applyPreset) pe.applyPreset(opts.preset);
-    } catch { /* preset unavailable */ }
+    } catch {
+      /* preset unavailable */
+    }
   }
 
   if (opts.maxCost) {
     try {
       const tt = agent.getTokenTracker();
       if (tt && tt.setCostLimit) tt.setCostLimit(opts.maxCost);
-    } catch { /* token tracker unavailable */ }
+    } catch {
+      /* token tracker unavailable */
+    }
   }
 
   return agent;
@@ -128,7 +132,9 @@ function emitResult(result: TaskResult, opts: TaskOptions): void {
   const dur = ((new Date(result.completedAt).getTime() - new Date(result.startedAt).getTime()) / 1000).toFixed(1);
   process.stderr.write(`\n  ── Task Result ──\n`);
   process.stderr.write(`  Status: ${result.status}\n`);
-  process.stderr.write(`  Tools: ${result.toolCalls.length} calls (${result.toolCalls.filter(t => t.success).length} succeeded)\n`);
+  process.stderr.write(
+    `  Tools: ${result.toolCalls.length} calls (${result.toolCalls.filter((t) => t.success).length} succeeded)\n`,
+  );
   process.stderr.write(`  Cost: $${result.cost.estimated_usd.toFixed(4)}\n`);
   if (result.errors.length > 0) process.stderr.write(`  Errors: ${result.errors.join('; ')}\n`);
   process.stderr.write(`  Duration: ${dur}s\n\n`);
@@ -159,7 +165,9 @@ export async function runTask(opts: TaskOptions): Promise<TaskResult> {
   }
 
   const completedAt = new Date().toISOString();
-  const summary = state.lastAssistantText || (state.status === 'completed' ? 'Task completed successfully.' : `Task ${state.status}.`);
+  const summary =
+    state.lastAssistantText ||
+    (state.status === 'completed' ? 'Task completed successfully.' : `Task ${state.status}.`);
 
   const result: TaskResult = {
     task: opts.task,
@@ -183,7 +191,9 @@ export async function runTask(opts: TaskOptions): Promise<TaskResult> {
         estimated_usd: tt.getTotalCost() || 0,
       };
     }
-  } catch { /* token tracker unavailable */ }
+  } catch {
+    /* token tracker unavailable */
+  }
 
   emitResult(result, opts);
   return result;

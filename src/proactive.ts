@@ -15,7 +15,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { codebotPath } from './paths';
 
-
 const MAX_NOTIFICATIONS = 100;
 
 export type NotificationType = 'routine' | 'reminder' | 'system' | 'milestone' | 'alert' | 'suggestion';
@@ -52,9 +51,11 @@ export class ProactiveEngine {
         const raw = fs.readFileSync(codebotPath('notifications.json'), 'utf-8');
         const data = JSON.parse(raw) as Notification[];
         // Filter out dismissed and keep only recent
-        return data.filter(n => !n.dismissed).slice(-MAX_NOTIFICATIONS);
+        return data.filter((n) => !n.dismissed).slice(-MAX_NOTIFICATIONS);
       }
-    } catch { /* corrupted or missing */ }
+    } catch {
+      /* corrupted or missing */
+    }
     return [];
   }
 
@@ -71,10 +72,15 @@ export class ProactiveEngine {
   }
 
   /** Add a new notification */
-  push(type: NotificationType, title: string, message: string, opts?: {
-    priority?: NotificationPriority;
-    action?: { label: string; command: string };
-  }): Notification {
+  push(
+    type: NotificationType,
+    title: string,
+    message: string,
+    opts?: {
+      priority?: NotificationPriority;
+      action?: { label: string; command: string };
+    },
+  ): Notification {
     const notification: Notification = {
       id: this.generateId(),
       type,
@@ -98,7 +104,11 @@ export class ProactiveEngine {
 
     // Notify listeners
     for (const listener of this.listeners) {
-      try { listener(notification); } catch { /* ignore listener errors */ }
+      try {
+        listener(notification);
+      } catch {
+        /* ignore listener errors */
+      }
     }
 
     return notification;
@@ -106,17 +116,17 @@ export class ProactiveEngine {
 
   /** Get all active (non-dismissed) notifications */
   getAll(): Notification[] {
-    return this.notifications.filter(n => !n.dismissed);
+    return this.notifications.filter((n) => !n.dismissed);
   }
 
   /** Get unread count */
   getUnreadCount(): number {
-    return this.notifications.filter(n => !n.dismissed && !n.read).length;
+    return this.notifications.filter((n) => !n.dismissed && !n.read).length;
   }
 
   /** Mark a notification as read */
   markRead(id: string): boolean {
-    const n = this.notifications.find(n => n.id === id);
+    const n = this.notifications.find((n) => n.id === id);
     if (n) {
       n.read = true;
       this.save();
@@ -127,7 +137,7 @@ export class ProactiveEngine {
 
   /** Dismiss a notification */
   dismiss(id: string): boolean {
-    const n = this.notifications.find(n => n.id === id);
+    const n = this.notifications.find((n) => n.id === id);
     if (n) {
       n.dismissed = true;
       this.save();
@@ -156,7 +166,7 @@ export class ProactiveEngine {
 
   /** Remove a listener */
   removeListener(callback: (notification: Notification) => void): void {
-    this.listeners = this.listeners.filter(l => l !== callback);
+    this.listeners = this.listeners.filter((l) => l !== callback);
   }
 
   // ── Proactive Check Methods ──
@@ -170,7 +180,7 @@ export class ProactiveEngine {
       {
         priority: success ? 'low' : 'high',
         action: success ? undefined : { label: 'View Details', command: 'View routine log' },
-      }
+      },
     );
   }
 

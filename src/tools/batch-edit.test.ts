@@ -146,11 +146,13 @@ describe('BatchEditTool — file operations', () => {
   it('warns about secrets in new_string but does not block the edit', async () => {
     const filePath = writeTestFile('secret.txt', 'api_key = "placeholder"');
     const result = await tool.execute({
-      edits: [{
-        path: filePath,
-        old_string: 'api_key = "placeholder"',
-        new_string: 'api_key = "AKIA1234567890ABCDEF"',
-      }],
+      edits: [
+        {
+          path: filePath,
+          old_string: 'api_key = "placeholder"',
+          new_string: 'api_key = "AKIA1234567890ABCDEF"',
+        },
+      ],
     });
     // Should succeed but contain a warning about AWS key
     assert.ok(result.includes('Applied 1 edit'));

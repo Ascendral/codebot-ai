@@ -18,19 +18,26 @@ function fetchJSON(url: string, timeoutMs = 5000): Promise<any> {
     };
     const req = http.get(url, { timeout: timeoutMs }, (res) => {
       let data = '';
-      res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
+      res.on('data', (chunk: Buffer) => {
+        data += chunk.toString();
+      });
       res.on('end', () => {
-        try { settle(resolve, JSON.parse(data)); }
-        catch { settle(reject, new Error('Invalid JSON from ' + url)); }
+        try {
+          settle(resolve, JSON.parse(data));
+        } catch {
+          settle(reject, new Error('Invalid JSON from ' + url));
+        }
       });
     });
     req.on('error', (err) => settle(reject, err));
-    req.on('timeout', () => { req.destroy(); settle(reject, new Error('Timeout')); });
+    req.on('timeout', () => {
+      req.destroy();
+      settle(reject, new Error('Timeout'));
+    });
   });
 }
 
 export function registerModelRoutes(server: DashboardServer): void {
-
   // ── GET /api/models/vram ── Detect GPU/VRAM
   server.route('GET', '/api/models/vram', (_req, res) => {
     const vram = detectVRAM();
@@ -61,7 +68,10 @@ export function registerModelRoutes(server: DashboardServer): void {
   server.route('GET', '/api/models/recommend', (req, res) => {
     const url = new URL(req.url || '/', `http://${req.headers.host}`);
     const model = url.searchParams.get('model') || '';
-    if (!model) { DashboardServer.error(res, 400, 'Missing model parameter'); return; }
+    if (!model) {
+      DashboardServer.error(res, 400, 'Missing model parameter');
+      return;
+    }
     const vram = detectVRAM();
     const rec = recommendQuantization(model, vram.totalMB);
     DashboardServer.json(res, { ...rec, vram });
@@ -76,8 +86,10 @@ export function registerModelRoutes(server: DashboardServer): void {
       const data = await fetchJSON('http://127.0.0.1:11434/api/tags');
       ollamaOnline = true;
       modelCount = (data.models || []).length;
-    } catch { /* offline */ }
-    const claudeConfigured = !!(process.env.ANTHROPIC_API_KEY);
+    } catch {
+      /* offline */
+    }
+    const claudeConfigured = !!process.env.ANTHROPIC_API_KEY;
     DashboardServer.json(res, { vram, ollamaOnline, modelCount, claudeConfigured });
   });
 }

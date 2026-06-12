@@ -137,12 +137,11 @@ describe('AppConnectorTool', () => {
       registry.register(readOnlyConnector('myapp'));
       const tool = new AppConnectorTool(vault, registry);
       const labels = tool.effectiveCapabilities({ action: 'myapp.list_things' });
-      assert.deepStrictEqual(
-        (labels || []).slice().sort(),
-        ['account-access', 'net-fetch', 'read-only'],
+      assert.deepStrictEqual((labels || []).slice().sort(), ['account-access', 'net-fetch', 'read-only']);
+      assert.ok(
+        !(labels || []).includes('send-on-behalf'),
+        'read action must NOT carry send-on-behalf from the tool union',
       );
-      assert.ok(!(labels || []).includes('send-on-behalf'),
-        'read action must NOT carry send-on-behalf from the tool union');
     });
 
     it('returns the write action labels for a write action', () => {
@@ -151,8 +150,7 @@ describe('AppConnectorTool', () => {
       registry.register(readOnlyConnector('myapp'));
       const tool = new AppConnectorTool(vault, registry);
       const labels = tool.effectiveCapabilities({ action: 'myapp.send_thing' });
-      assert.ok((labels || []).includes('send-on-behalf'),
-        'write action must carry its real send-on-behalf label');
+      assert.ok((labels || []).includes('send-on-behalf'), 'write action must carry its real send-on-behalf label');
     });
 
     it('returns [] for the meta action "list" (purely local)', () => {
@@ -167,14 +165,8 @@ describe('AppConnectorTool', () => {
       const vault = new VaultManager({ vaultPath: makeTestVaultPath() });
       const registry = new ConnectorRegistry(vault);
       const tool = new AppConnectorTool(vault, registry);
-      assert.deepStrictEqual(
-        tool.effectiveCapabilities({ action: 'connect' }),
-        ['write-fs'],
-      );
-      assert.deepStrictEqual(
-        tool.effectiveCapabilities({ action: 'disconnect' }),
-        ['write-fs'],
-      );
+      assert.deepStrictEqual(tool.effectiveCapabilities({ action: 'connect' }), ['write-fs']);
+      assert.deepStrictEqual(tool.effectiveCapabilities({ action: 'disconnect' }), ['write-fs']);
     });
 
     it('returns undefined for unknown app — caller falls back to tool union', () => {

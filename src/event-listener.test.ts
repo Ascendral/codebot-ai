@@ -6,11 +6,7 @@ import * as os from 'os';
 import * as http from 'http';
 
 import { AuditLogger } from './audit';
-import {
-  EventListener,
-  handleInboundEvent,
-  signEvent,
-} from './event-listener';
+import { EventListener, handleInboundEvent, signEvent } from './event-listener';
 
 const SECRET = 'a-test-secret-at-least-16-chars-long';
 
@@ -31,7 +27,9 @@ describe('event-listener — handleInboundEvent', () => {
   });
 
   afterEach(() => {
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch {}
   });
 
   it('accepts a properly signed event and writes webhook_received', async () => {
@@ -49,9 +47,15 @@ describe('event-listener — handleInboundEvent', () => {
 
   it('rejects unsigned requests with 400 and audits webhook_rejected', async () => {
     const body = '{}';
-    const result = await handleInboundEvent(body, { 'content-type': 'application/json' }, {
-      port: 1, secret: SECRET, audit,
-    });
+    const result = await handleInboundEvent(
+      body,
+      { 'content-type': 'application/json' },
+      {
+        port: 1,
+        secret: SECRET,
+        audit,
+      },
+    );
     assert.strictEqual(result.status, 400);
     assert.strictEqual(result.reason, 'missing_headers');
 
@@ -102,7 +106,9 @@ describe('event-listener — handleInboundEvent', () => {
     const headers = signEvent(SECRET, body, 'evt');
     let dispatched = false;
     const result = await handleInboundEvent(body, headers, {
-      port: 1, secret: SECRET, audit,
+      port: 1,
+      secret: SECRET,
+      audit,
       onEvent: async (e) => {
         dispatched = true;
         assert.strictEqual(e.type, 'evt');
@@ -125,8 +131,12 @@ describe('event-listener — handleInboundEvent', () => {
     const body = '{}';
     const headers = signEvent(SECRET, body, 'evt');
     const result = await handleInboundEvent(body, headers, {
-      port: 1, secret: SECRET, audit,
-      onEvent: async () => { throw new Error('boom'); },
+      port: 1,
+      secret: SECRET,
+      audit,
+      onEvent: async () => {
+        throw new Error('boom');
+      },
     });
     assert.strictEqual(result.status, 500);
     assert.strictEqual(result.reason, 'dispatch_failed');
@@ -142,8 +152,13 @@ describe('event-listener — handleInboundEvent', () => {
     const headers = signEvent(SECRET, body, 'evt');
     let receivedHash = '';
     const result = await handleInboundEvent(body, headers, {
-      port: 1, secret: SECRET, audit,
-      onEvent: async (e) => { receivedHash = e.receiveAuditHash; return 'ok'; },
+      port: 1,
+      secret: SECRET,
+      audit,
+      onEvent: async (e) => {
+        receivedHash = e.receiveAuditHash;
+        return 'ok';
+      },
     });
     assert.strictEqual(result.status, 200);
 
@@ -174,14 +189,13 @@ describe('event-listener — EventListener server', () => {
 
   afterEach(async () => {
     if (listener) await listener.stop();
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch {}
   });
 
   it('rejects construction with short secret', () => {
-    assert.throws(
-      () => new EventListener({ port: 0, secret: 'short', audit }),
-      /at least 16/,
-    );
+    assert.throws(() => new EventListener({ port: 0, secret: 'short', audit }), /at least 16/);
   });
 
   it('rejects construction with bad port', () => {
@@ -205,14 +219,20 @@ describe('event-listener — EventListener server', () => {
     const headers = signEvent(SECRET, body, 'integration.smoke');
 
     const result: { status: number; body: string } = await new Promise((resolve, reject) => {
-      const req = http.request({
-        host: '127.0.0.1', port, path: '/event', method: 'POST',
-        headers: { ...headers, 'content-length': String(Buffer.byteLength(body)) },
-      }, (res) => {
-        const chunks: Buffer[] = [];
-        res.on('data', (c) => chunks.push(c));
-        res.on('end', () => resolve({ status: res.statusCode || 0, body: Buffer.concat(chunks).toString('utf-8') }));
-      });
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port,
+          path: '/event',
+          method: 'POST',
+          headers: { ...headers, 'content-length': String(Buffer.byteLength(body)) },
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (c) => chunks.push(c));
+          res.on('end', () => resolve({ status: res.statusCode || 0, body: Buffer.concat(chunks).toString('utf-8') }));
+        },
+      );
       req.on('error', reject);
       req.write(body);
       req.end();
@@ -229,9 +249,18 @@ describe('event-listener — EventListener server', () => {
     await listener.start();
 
     const status: number = await new Promise((resolve, reject) => {
-      const req = http.request({
-        host: '127.0.0.1', port: 53128, path: '/nope', method: 'POST',
-      }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode || 0)); });
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port: 53128,
+          path: '/nope',
+          method: 'POST',
+        },
+        (res) => {
+          res.resume();
+          res.on('end', () => resolve(res.statusCode || 0));
+        },
+      );
       req.on('error', reject);
       req.end();
     });

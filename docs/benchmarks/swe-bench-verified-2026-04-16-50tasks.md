@@ -6,32 +6,32 @@
 
 ## Headline numbers
 
-| Metric | Value |
-|---|---|
-| Tasks attempted | **50** (first 50 of 500-task SWE-bench Verified by ID) |
-| Patches produced | **33** (CodeBot gave up with empty diff on 17) |
-| Patches submitted to harness | 33 |
-| **Resolved (test suite passes)** | **17** |
-| Unresolved (test suite fails) | 16 |
-| Errors / crashes | 0 |
-| **Pass rate over attempted (17/50)** | **34.0 %** |
-| Pass rate over submitted (17/33) | 51.5 % |
+| Metric                               | Value                                                  |
+| ------------------------------------ | ------------------------------------------------------ |
+| Tasks attempted                      | **50** (first 50 of 500-task SWE-bench Verified by ID) |
+| Patches produced                     | **33** (CodeBot gave up with empty diff on 17)         |
+| Patches submitted to harness         | 33                                                     |
+| **Resolved (test suite passes)**     | **17**                                                 |
+| Unresolved (test suite fails)        | 16                                                     |
+| Errors / crashes                     | 0                                                      |
+| **Pass rate over attempted (17/50)** | **34.0 %**                                             |
+| Pass rate over submitted (17/33)     | 51.5 %                                                 |
 
 The **34.0 %** number is the leaderboard-comparable framing; the 51.5 % is what the harness's `report.json` reports natively (it normalizes by submitted patches, ignoring give-ups).
 
 ## Resources used
 
-| | Value |
-|---|---|
-| Model | `gpt-5.4` (resolved to `gpt-5.4-2026-03-05`) |
-| Provider path | `OpenAIResponsesProvider` → `/v1/responses` |
-| Phase 1 wall (gen, sequential) | 64.2 min |
-| Phase 2 wall (Docker eval, max_workers=2) | 22.4 min |
-| **Total wall** | **86.6 min** |
-| Per-task gen time | min 29.9 s, max 144.4 s, avg 77.0 s |
-| Per-task patch size | min 614 B, max 5,388 B, avg 2,172 B |
-| Docker runtime | Colima 0.10.1 / Docker 29.4.0 / vz + Rosetta 2 |
-| CodeBot version | 2.10.0 |
+|                                           | Value                                          |
+| ----------------------------------------- | ---------------------------------------------- |
+| Model                                     | `gpt-5.4` (resolved to `gpt-5.4-2026-03-05`)   |
+| Provider path                             | `OpenAIResponsesProvider` → `/v1/responses`    |
+| Phase 1 wall (gen, sequential)            | 64.2 min                                       |
+| Phase 2 wall (Docker eval, max_workers=2) | 22.4 min                                       |
+| **Total wall**                            | **86.6 min**                                   |
+| Per-task gen time                         | min 29.9 s, max 144.4 s, avg 77.0 s            |
+| Per-task patch size                       | min 614 B, max 5,388 B, avg 2,172 B            |
+| Docker runtime                            | Colima 0.10.1 / Docker 29.4.0 / vz + Rosetta 2 |
+| CodeBot version                           | 2.10.0                                         |
 
 API cost estimate: smoke task used ~130 K tokens / $0.27. Average gen task here was 77 s (vs 44 s smoke), consistent with similar token counts. Rough total **≈ $10–15**.
 
@@ -74,6 +74,7 @@ Repo split: **Astropy 7/14 attempted-with-patch (50 %), Django 10/19 (53 %)**.
 ## Comparison
 
 SWE-bench Verified leaderboard (full 500, as of run date — verify against [official site](https://swebench.com)):
+
 - Top closed-source systems: ~60–65 %
 - Top open-source: ~50–55 %
 - Mid-tier open-source: ~30–45 %

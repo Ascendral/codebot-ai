@@ -9,16 +9,15 @@ export interface Routine {
   name: string;
   description: string;
   prompt: string;
-  schedule: string;       // Cron expression: "0 9 * * *" = 9am daily
-  lastRun?: string;       // ISO timestamp
+  schedule: string; // Cron expression: "0 9 * * *" = 9am daily
+  lastRun?: string; // ISO timestamp
   enabled: boolean;
 }
 
-
-
 export class RoutineTool implements Tool {
   name = 'routine';
-  description = 'Manage scheduled routines (recurring tasks). Add daily social media posts, email checks, research tasks, etc. Uses cron expressions for scheduling (e.g., "0 9 * * *" for 9am daily, "0 */6 * * *" for every 6 hours, "30 18 * * 1-5" for 6:30pm weekdays).';
+  description =
+    'Manage scheduled routines (recurring tasks). Add daily social media posts, email checks, research tasks, etc. Uses cron expressions for scheduling (e.g., "0 9 * * *" for 9am daily, "0 */6 * * *" for every 6 hours, "30 18 * * 1-5" for 6:30pm weekdays).';
   permission: Tool['permission'] = 'auto';
   capabilities: CapabilityLabel[] = ['write-fs'];
   parameters = {
@@ -32,7 +31,10 @@ export class RoutineTool implements Tool {
       name: { type: 'string', description: 'Routine name (for add/remove)' },
       description: { type: 'string', description: 'Human-readable description (for add)' },
       prompt: { type: 'string', description: 'The message/task to execute when triggered (for add)' },
-      schedule: { type: 'string', description: 'Cron expression: "minute hour day-of-month month day-of-week" (for add)' },
+      schedule: {
+        type: 'string',
+        description: 'Cron expression: "minute hour day-of-month month day-of-week" (for add)',
+      },
       id: { type: 'string', description: 'Routine ID (for remove/enable/disable)' },
     },
     required: ['action'],
@@ -47,11 +49,11 @@ export class RoutineTool implements Tool {
       case 'add':
         return this.add(args);
       case 'remove':
-        return this.remove(args.id as string || args.name as string);
+        return this.remove((args.id as string) || (args.name as string));
       case 'enable':
-        return this.toggle(args.id as string || args.name as string, true);
+        return this.toggle((args.id as string) || (args.name as string), true);
       case 'disable':
-        return this.toggle(args.id as string || args.name as string, false);
+        return this.toggle((args.id as string) || (args.name as string), false);
       default:
         return `Unknown action: ${action}. Use: list, add, remove, enable, disable`;
     }
@@ -62,7 +64,9 @@ export class RoutineTool implements Tool {
       if (fs.existsSync(codebotPath('routines.json'))) {
         return JSON.parse(fs.readFileSync(codebotPath('routines.json'), 'utf-8'));
       }
-    } catch { /* corrupt file */ }
+    } catch {
+      /* corrupt file */
+    }
     return [];
   }
 
@@ -78,16 +82,18 @@ export class RoutineTool implements Tool {
       return 'No routines configured. Use action "add" to create one.';
     }
 
-    return routines.map(r => {
-      const status = r.enabled ? '✓ enabled' : '✗ disabled';
-      const lastRun = r.lastRun ? `Last run: ${r.lastRun}` : 'Never run';
-      return `[${r.id.substring(0, 8)}] ${r.name} (${status})\n  Schedule: ${r.schedule}\n  Task: ${r.prompt.substring(0, 100)}${r.prompt.length > 100 ? '...' : ''}\n  ${lastRun}`;
-    }).join('\n\n');
+    return routines
+      .map((r) => {
+        const status = r.enabled ? '✓ enabled' : '✗ disabled';
+        const lastRun = r.lastRun ? `Last run: ${r.lastRun}` : 'Never run';
+        return `[${r.id.substring(0, 8)}] ${r.name} (${status})\n  Schedule: ${r.schedule}\n  Task: ${r.prompt.substring(0, 100)}${r.prompt.length > 100 ? '...' : ''}\n  ${lastRun}`;
+      })
+      .join('\n\n');
   }
 
   private add(args: Record<string, unknown>): string {
     const name = args.name as string;
-    const description = args.description as string || '';
+    const description = (args.description as string) || '';
     const prompt = args.prompt as string;
     const schedule = args.schedule as string;
 
@@ -104,7 +110,7 @@ export class RoutineTool implements Tool {
     const routines = this.loadRoutines();
 
     // Check for duplicate name
-    if (routines.find(r => r.name.toLowerCase() === name.toLowerCase())) {
+    if (routines.find((r) => r.name.toLowerCase() === name.toLowerCase())) {
       return `Error: routine "${name}" already exists. Remove it first or use a different name.`;
     }
 
@@ -127,8 +133,8 @@ export class RoutineTool implements Tool {
     if (!identifier) return 'Error: id or name is required';
 
     const routines = this.loadRoutines();
-    const idx = routines.findIndex(r =>
-      r.id === identifier || r.id.startsWith(identifier) || r.name.toLowerCase() === identifier.toLowerCase()
+    const idx = routines.findIndex(
+      (r) => r.id === identifier || r.id.startsWith(identifier) || r.name.toLowerCase() === identifier.toLowerCase(),
     );
 
     if (idx === -1) return `Routine "${identifier}" not found.`;
@@ -143,8 +149,8 @@ export class RoutineTool implements Tool {
     if (!identifier) return 'Error: id or name is required';
 
     const routines = this.loadRoutines();
-    const routine = routines.find(r =>
-      r.id === identifier || r.id.startsWith(identifier) || r.name.toLowerCase() === identifier.toLowerCase()
+    const routine = routines.find(
+      (r) => r.id === identifier || r.id.startsWith(identifier) || r.name.toLowerCase() === identifier.toLowerCase(),
     );
 
     if (!routine) return `Routine "${identifier}" not found.`;

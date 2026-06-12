@@ -116,7 +116,8 @@ async function fetchPageContent(url: string): Promise<string> {
 
 export class DeepResearchTool implements Tool {
   name = 'deep_research';
-  description = 'Perform deep research on a topic. Searches the web, fetches multiple sources, and compiles a structured report with key findings and source URLs. Use this when you need thorough, multi-source research on any topic.';
+  description =
+    'Perform deep research on a topic. Searches the web, fetches multiple sources, and compiles a structured report with key findings and source URLs. Use this when you need thorough, multi-source research on any topic.';
   permission: Tool['permission'] = 'auto';
   capabilities: CapabilityLabel[] = ['read-only', 'net-fetch'];
   cacheable = true;
@@ -130,11 +131,13 @@ export class DeepResearchTool implements Tool {
       },
       depth: {
         type: 'string',
-        description: 'Research depth: "quick" (2-3 sources), "standard" (4-5 sources), "deep" (6-8 sources). Default: standard',
+        description:
+          'Research depth: "quick" (2-3 sources), "standard" (4-5 sources), "deep" (6-8 sources). Default: standard',
       },
       focus: {
         type: 'string',
-        description: 'Optional focus area to narrow the research (e.g., "recent developments", "technical details", "market analysis")',
+        description:
+          'Optional focus area to narrow the research (e.g., "recent developments", "technical details", "market analysis")',
       },
     },
     required: ['topic'],
@@ -203,12 +206,14 @@ export class DeepResearchTool implements Tool {
         '',
         '### Search Results (could not fetch full content):',
         '',
-        ...allResults.slice(0, maxSources).map((r, i) =>
-          `${i + 1}. **${r.title}**\n   ${r.snippet}\n   Source: ${r.url}`
-        ),
+        ...allResults
+          .slice(0, maxSources)
+          .map((r, i) => `${i + 1}. **${r.title}**\n   ${r.snippet}\n   Source: ${r.url}`),
         '',
         `_${allResults.length} results found. Full content fetch failed — try web_fetch on individual URLs._`,
-      ].filter(l => l !== undefined).join('\n');
+      ]
+        .filter((l) => l !== undefined)
+        .join('\n');
     }
 
     // Step 4: Compile report
@@ -228,7 +233,7 @@ export class DeepResearchTool implements Tool {
     for (let i = 0; i < sources.length; i++) {
       const src = sources[i];
       // Get first meaningful paragraph (skip very short fragments)
-      const sentences = src.content.split(/\.\s+/).filter(s => s.length > 30);
+      const sentences = src.content.split(/\.\s+/).filter((s) => s.length > 30);
       const excerpt = sentences.slice(0, 3).join('. ') + '.';
 
       report.push(`**Source ${i + 1}: ${src.title}**`);
@@ -246,7 +251,7 @@ export class DeepResearchTool implements Tool {
     }
 
     // Add unfetched results as additional references
-    const unfetched = allResults.filter(r => !sources.find(s => s.url === r.url));
+    const unfetched = allResults.filter((r) => !sources.find((s) => s.url === r.url));
     if (unfetched.length > 0) {
       report.push('');
       report.push('### Additional References');

@@ -13,7 +13,8 @@ interface EditOperation {
 
 export class BatchEditTool implements Tool {
   name = 'batch_edit';
-  description = 'Apply multiple find-and-replace edits across one or more files atomically. All edits are validated before any are applied. Useful for renaming, refactoring, and coordinated multi-file changes.';
+  description =
+    'Apply multiple find-and-replace edits across one or more files atomically. All edits are validated before any are applied. Useful for renaming, refactoring, and coordinated multi-file changes.';
   permission: Tool['permission'] = 'prompt';
   capabilities: CapabilityLabel[] = ['write-fs'];
   private projectRoot: string;
@@ -105,11 +106,15 @@ export class BatchEditTool implements Tool {
         const count = content.split(oldStr).length - 1;
 
         if (count === 0) {
-          errors.push(`String not found in ${filePath}: "${oldStr.substring(0, 60)}${oldStr.length > 60 ? '...' : ''}"`);
+          errors.push(
+            `String not found in ${filePath}: "${oldStr.substring(0, 60)}${oldStr.length > 60 ? '...' : ''}"`,
+          );
           continue;
         }
         if (count > 1) {
-          errors.push(`String found ${count} times in ${filePath} (must be unique): "${oldStr.substring(0, 60)}${oldStr.length > 60 ? '...' : ''}"`);
+          errors.push(
+            `String found ${count} times in ${filePath} (must be unique): "${oldStr.substring(0, 60)}${oldStr.length > 60 ? '...' : ''}"`,
+          );
           continue;
         }
 
@@ -134,7 +139,7 @@ export class BatchEditTool implements Tool {
     }
 
     if (errors.length > 0) {
-      return `Validation failed (no changes made):\n${errors.map(e => `  - ${e}`).join('\n')}`;
+      return `Validation failed (no changes made):\n${errors.map((e) => `  - ${e}`).join('\n')}`;
     }
 
     // Phase 2: Apply all edits atomically
@@ -146,10 +151,10 @@ export class BatchEditTool implements Tool {
 
     const fileCount = validated.length;
     const editCount = edits.length;
-    let output = `Applied ${editCount} edit${editCount > 1 ? 's' : ''} across ${fileCount} file${fileCount > 1 ? 's' : ''}:\n${results.map(f => `  ✓ ${f}`).join('\n')}`;
+    let output = `Applied ${editCount} edit${editCount > 1 ? 's' : ''} across ${fileCount} file${fileCount > 1 ? 's' : ''}:\n${results.map((f) => `  ✓ ${f}`).join('\n')}`;
 
     if (warnings.length > 0) {
-      output += `\n\n⚠️  Security warnings:\n${warnings.map(w => `  - ${w}`).join('\n')}`;
+      output += `\n\n⚠️  Security warnings:\n${warnings.map((w) => `  - ${w}`).join('\n')}`;
     }
 
     return output;

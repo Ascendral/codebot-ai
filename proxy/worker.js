@@ -15,12 +15,7 @@
 const ANTHROPIC_API = 'https://api.anthropic.com';
 const MAX_REQUESTS_PER_HOUR = 30;
 const MAX_REQUESTS_PER_DAY = 200;
-const ALLOWED_MODELS = [
-  'claude-sonnet-4-6',
-  'claude-haiku-4',
-  'claude-3-5-sonnet-20241022',
-  'claude-3-haiku-20240307',
-];
+const ALLOWED_MODELS = ['claude-sonnet-4-6', 'claude-haiku-4', 'claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307'];
 
 export default {
   async fetch(request, env) {
@@ -56,11 +51,14 @@ export default {
       // Rate limiting
       const rateCheck = await checkRateLimit(userId, env.RATE_LIMITS);
       if (!rateCheck.allowed) {
-        return jsonResponse({
-          error: 'Rate limit exceeded',
-          detail: rateCheck.reason,
-          retryAfter: rateCheck.retryAfter,
-        }, 429);
+        return jsonResponse(
+          {
+            error: 'Rate limit exceeded',
+            detail: rateCheck.reason,
+            retryAfter: rateCheck.retryAfter,
+          },
+          429,
+        );
       }
 
       // Parse and validate the request body
@@ -68,9 +66,12 @@ export default {
 
       // Enforce allowed models
       if (body.model && !ALLOWED_MODELS.includes(body.model)) {
-        return jsonResponse({
-          error: `Model not allowed. Use one of: ${ALLOWED_MODELS.join(', ')}`,
-        }, 400);
+        return jsonResponse(
+          {
+            error: `Model not allowed. Use one of: ${ALLOWED_MODELS.join(', ')}`,
+          },
+          400,
+        );
       }
 
       // Cap max_tokens to prevent abuse
@@ -118,7 +119,6 @@ export default {
         status: anthropicResponse.status,
         headers: responseHeaders,
       });
-
     } catch (err) {
       return jsonResponse({ error: 'Proxy error', detail: err.message }, 500);
     }
@@ -142,7 +142,7 @@ async function validateLicense(key, secret) {
     encoder.encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign']
+    ['sign'],
   );
   const sig = await crypto.subtle.sign('HMAC', keyData, encoder.encode(userId));
   const expectedHmac = btoa(String.fromCharCode(...new Uint8Array(sig)))
@@ -161,8 +161,8 @@ async function checkRateLimit(userId, kv) {
   const dayKey = `rate:${userId}:day:${Math.floor(Date.now() / 86400000)}`;
 
   const [hourCount, dayCount] = await Promise.all([
-    kv.get(hourKey).then(v => parseInt(v || '0')),
-    kv.get(dayKey).then(v => parseInt(v || '0')),
+    kv.get(hourKey).then((v) => parseInt(v || '0')),
+    kv.get(dayKey).then((v) => parseInt(v || '0')),
   ]);
 
   if (hourCount >= MAX_REQUESTS_PER_HOUR) {
@@ -191,8 +191,8 @@ async function recordUsage(userId, kv) {
   const dayKey = `rate:${userId}:day:${Math.floor(Date.now() / 86400000)}`;
 
   const [hourCount, dayCount] = await Promise.all([
-    kv.get(hourKey).then(v => parseInt(v || '0')),
-    kv.get(dayKey).then(v => parseInt(v || '0')),
+    kv.get(hourKey).then((v) => parseInt(v || '0')),
+    kv.get(dayKey).then((v) => parseInt(v || '0')),
   ]);
 
   await Promise.all([

@@ -12,13 +12,7 @@
 import { AuditLogger } from '../audit';
 import { appendEvent } from './state';
 import type { CapabilityLabel } from '../types';
-import type {
-  CodingAgentProvider,
-  TaskSpec,
-  TaskHandle,
-  TaskEvent,
-  TaskStatus,
-} from './types';
+import type { CodingAgentProvider, TaskSpec, TaskHandle, TaskEvent, TaskStatus } from './types';
 
 class EchoTaskHandle implements TaskHandle {
   readonly id: string;
@@ -107,7 +101,7 @@ class EchoTaskHandle implements TaskHandle {
             if (self.done) {
               return Promise.resolve({ value: undefined as unknown as TaskEvent, done: true });
             }
-            return new Promise<IteratorResult<TaskEvent>>(res => {
+            return new Promise<IteratorResult<TaskEvent>>((res) => {
               self.resolveNext = res;
             });
           },
@@ -117,17 +111,10 @@ class EchoTaskHandle implements TaskHandle {
   }
 
   async cancel(reason: string): Promise<void> {
-    if (
-      this.currentStatus === 'succeeded' ||
-      this.currentStatus === 'failed' ||
-      this.currentStatus === 'cancelled'
-    ) {
+    if (this.currentStatus === 'succeeded' || this.currentStatus === 'failed' || this.currentStatus === 'cancelled') {
       return;
     }
-    this.emit(
-      { type: 'log', level: 'warn', message: `cancelled: ${reason}`, at: this.now() },
-      'cancelled',
-    );
+    this.emit({ type: 'log', level: 'warn', message: `cancelled: ${reason}`, at: this.now() }, 'cancelled');
     this.audit?.log({
       tool: 'coding-agent:echo',
       action: 'task_cancelled',

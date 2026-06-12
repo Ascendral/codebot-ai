@@ -8,8 +8,6 @@ import { codebotPath } from './paths';
 import { SelfMonitor, HealthReport } from './self-monitor';
 import { SkillEvolution } from './skill-evolution';
 
-
-
 export class Scheduler {
   private agent: Agent;
   private interval: ReturnType<typeof setInterval> | null = null;
@@ -99,7 +97,10 @@ export class Scheduler {
       await Promise.race([
         this.runRoutineAgent(routine),
         new Promise<void>((_, reject) =>
-          setTimeout(() => reject(new Error(`Routine timed out after ${ROUTINE_TIMEOUT_MS / 1000}s`)), ROUTINE_TIMEOUT_MS)
+          setTimeout(
+            () => reject(new Error(`Routine timed out after ${ROUTINE_TIMEOUT_MS / 1000}s`)),
+            ROUTINE_TIMEOUT_MS,
+          ),
         ),
       ]);
 
@@ -126,7 +127,11 @@ export class Scheduler {
           this.onOutput?.(event.text || '');
           break;
         case 'tool_call':
-          this.onOutput?.(`\n⚡ ${event.toolCall?.name}(${Object.entries(event.toolCall?.args || {}).map(([k, v]) => `${k}: ${typeof v === 'string' ? v.substring(0, 40) : v}`).join(', ')})\n`);
+          this.onOutput?.(
+            `\n⚡ ${event.toolCall?.name}(${Object.entries(event.toolCall?.args || {})
+              .map(([k, v]) => `${k}: ${typeof v === 'string' ? v.substring(0, 40) : v}`)
+              .join(', ')})\n`,
+          );
           break;
         case 'tool_result':
           this.onOutput?.(`  ✓ ${event.toolResult?.result?.substring(0, 100) || ''}\n`);
@@ -153,18 +158,24 @@ export class Scheduler {
         if (action.risk <= 0.3) {
           this.onOutput?.(`\n[HEALTH] Auto-fixing: ${action.description}\n`);
           try {
-            for await (const event of this.agent.run(`[AUTO-HEAL] ${action.description}. Use tool "${action.tool}" with args: ${JSON.stringify(action.args)}`)) {
+            for await (const event of this.agent.run(
+              `[AUTO-HEAL] ${action.description}. Use tool "${action.tool}" with args: ${JSON.stringify(action.args)}`,
+            )) {
               if (event.type === 'text' && event.text) {
                 this.onOutput?.(event.text);
               }
             }
             this.onOutput?.(`[HEALTH] Fix applied: ${action.description}\n`);
           } catch (err) {
-            this.onOutput?.(`[HEALTH] Fix failed: ${action.description} — ${err instanceof Error ? err.message : String(err)}\n`);
+            this.onOutput?.(
+              `[HEALTH] Fix failed: ${action.description} — ${err instanceof Error ? err.message : String(err)}\n`,
+            );
           }
         }
       }
-    } catch { /* health check should never crash the scheduler */ }
+    } catch {
+      /* health check should never crash the scheduler */
+    }
   }
 
   /** Run skill evolution cycle */
@@ -178,9 +189,13 @@ export class Scheduler {
       this.onOutput?.('\n[SKILLS] Running skill evolution cycle...\n');
       const report = await this.skillEvolution.evolve();
       if (report.tested.length > 0 || report.retired.length > 0 || report.evolved.length > 0) {
-        this.onOutput?.(`[SKILLS] Evolution: ${report.tested.length} tested, ${report.retired.length} retired, ${report.evolved.length} evolved, ${report.composed.length} composed\n`);
+        this.onOutput?.(
+          `[SKILLS] Evolution: ${report.tested.length} tested, ${report.retired.length} retired, ${report.evolved.length} evolved, ${report.composed.length} composed\n`,
+        );
       }
-    } catch { /* skill evolution should never crash the scheduler */ }
+    } catch {
+      /* skill evolution should never crash the scheduler */
+    }
   }
 
   /** Get the self-monitor instance */
@@ -198,7 +213,9 @@ export class Scheduler {
       if (fs.existsSync(codebotPath('routines.json'))) {
         return JSON.parse(fs.readFileSync(codebotPath('routines.json'), 'utf-8'));
       }
-    } catch { /* corrupt file */ }
+    } catch {
+      /* corrupt file */
+    }
     return [];
   }
 

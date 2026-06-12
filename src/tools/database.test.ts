@@ -53,7 +53,11 @@ describe('DatabaseTool — input validation', () => {
   });
 
   after(() => {
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('returns error when action is missing', async () => {
@@ -93,12 +97,18 @@ describe('DatabaseTool — SQL blocking (destructive queries)', () => {
   });
 
   after(() => {
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('blocks DROP TABLE statements', async () => {
     const result = await tool.execute({
-      action: 'query', db: tempDbPath, sql: 'DROP TABLE users;',
+      action: 'query',
+      db: tempDbPath,
+      sql: 'DROP TABLE users;',
     });
     assert.ok(result.includes('Error: destructive SQL blocked'));
     assert.ok(result.includes('DROP'));
@@ -106,14 +116,18 @@ describe('DatabaseTool — SQL blocking (destructive queries)', () => {
 
   it('blocks DROP DATABASE statements', async () => {
     const result = await tool.execute({
-      action: 'query', db: tempDbPath, sql: 'DROP DATABASE production;',
+      action: 'query',
+      db: tempDbPath,
+      sql: 'DROP DATABASE production;',
     });
     assert.ok(result.includes('Error: destructive SQL blocked'));
   });
 
   it('blocks DELETE FROM statements', async () => {
     const result = await tool.execute({
-      action: 'query', db: tempDbPath, sql: 'DELETE FROM users WHERE id > 0;',
+      action: 'query',
+      db: tempDbPath,
+      sql: 'DELETE FROM users WHERE id > 0;',
     });
     assert.ok(result.includes('Error: destructive SQL blocked'));
     assert.ok(result.includes('DELETE'));
@@ -121,7 +135,9 @@ describe('DatabaseTool — SQL blocking (destructive queries)', () => {
 
   it('blocks TRUNCATE statements', async () => {
     const result = await tool.execute({
-      action: 'query', db: tempDbPath, sql: 'TRUNCATE TABLE sessions;',
+      action: 'query',
+      db: tempDbPath,
+      sql: 'TRUNCATE TABLE sessions;',
     });
     assert.ok(result.includes('Error: destructive SQL blocked'));
     assert.ok(result.includes('TRUNCATE'));
@@ -129,35 +145,44 @@ describe('DatabaseTool — SQL blocking (destructive queries)', () => {
 
   it('blocks ALTER TABLE ... DROP statements', async () => {
     const result = await tool.execute({
-      action: 'query', db: tempDbPath, sql: 'ALTER TABLE users DROP COLUMN email;',
+      action: 'query',
+      db: tempDbPath,
+      sql: 'ALTER TABLE users DROP COLUMN email;',
     });
     assert.ok(result.includes('Error: destructive SQL blocked'));
   });
 
   it('blocks case-insensitive variations of destructive SQL', async () => {
     const result = await tool.execute({
-      action: 'query', db: tempDbPath, sql: 'drop table users;',
+      action: 'query',
+      db: tempDbPath,
+      sql: 'drop table users;',
     });
     assert.ok(result.includes('Error: destructive SQL blocked'));
   });
 
   it('blocks mixed case destructive SQL', async () => {
     const result = await tool.execute({
-      action: 'query', db: tempDbPath, sql: 'Delete From users WHERE 1=1;',
+      action: 'query',
+      db: tempDbPath,
+      sql: 'Delete From users WHERE 1=1;',
     });
     assert.ok(result.includes('Error: destructive SQL blocked'));
   });
 
   it('does not block SELECT statements (safe query passes validation)', async () => {
     const result = await tool.execute({
-      action: 'query', db: tempDbPath, sql: 'SELECT * FROM users;',
+      action: 'query',
+      db: tempDbPath,
+      sql: 'SELECT * FROM users;',
     });
     assert.ok(!result.includes('destructive SQL blocked'));
   });
 
   it('does not block SELECT with subqueries', async () => {
     const result = await tool.execute({
-      action: 'query', db: tempDbPath,
+      action: 'query',
+      db: tempDbPath,
       sql: 'SELECT count(*) FROM (SELECT id FROM users WHERE active=1);',
     });
     assert.ok(!result.includes('destructive SQL blocked'));
@@ -178,7 +203,11 @@ describe('DatabaseTool — tables action on nonexistent db', () => {
       const result = await tool.execute({ action: 'tables', db: missing });
       assert.ok(result.includes('Error: database not found'));
     } finally {
-      try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(workDir, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 });
@@ -199,7 +228,11 @@ describe('DatabaseTool — argv shape (Row 8: via buildSqlitePlan)', () => {
   });
 
   after(() => {
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('query: db and sql each become discrete argv elements (no shell interpolation)', () => {
@@ -210,10 +243,11 @@ describe('DatabaseTool — argv shape (Row 8: via buildSqlitePlan)', () => {
     if ('error' in plan) return;
     assert.strictEqual(plan.command, 'sqlite3');
     assert.strictEqual(plan.argv[0], path.resolve(workDir, 'argv.db'));
-    assert.strictEqual(plan.argv[1], sql,
-      'sql must be its own argv element, with backtick literal');
-    assert.ok(!plan.argv.some(a => a.includes('"') && a.includes('sqlite3')),
-      'no element should resemble a pre-quoted shell fragment');
+    assert.strictEqual(plan.argv[1], sql, 'sql must be its own argv element, with backtick literal');
+    assert.ok(
+      !plan.argv.some((a) => a.includes('"') && a.includes('sqlite3')),
+      'no element should resemble a pre-quoted shell fragment',
+    );
   });
 
   it('tables: argv is [db, ".tables"]', () => {
@@ -235,7 +269,9 @@ describe('DatabaseTool — argv shape (Row 8: via buildSqlitePlan)', () => {
   it('schema rejects malicious table name (defense-in-depth)', () => {
     const tool = new DatabaseTool(workDir);
     const plan = tool.buildSqlitePlan({
-      action: 'schema', db: tempDb, table: 'users; DROP TABLE x',
+      action: 'schema',
+      db: tempDb,
+      table: 'users; DROP TABLE x',
     });
     assert.ok('error' in plan);
     if ('error' in plan) assert.match(plan.error, /invalid table name/);
@@ -246,8 +282,11 @@ describe('DatabaseTool — argv shape (Row 8: via buildSqlitePlan)', () => {
     const plan = tool.buildSqlitePlan({ action: 'tables', db: 'argv.db' /* relative */ });
     assert.ok(!('error' in plan));
     if ('error' in plan) return;
-    assert.strictEqual(plan.argv[0], path.resolve(workDir, 'argv.db'),
-      'relative db must be resolved against projectRoot');
+    assert.strictEqual(
+      plan.argv[0],
+      path.resolve(workDir, 'argv.db'),
+      'relative db must be resolved against projectRoot',
+    );
   });
 });
 
@@ -264,7 +303,11 @@ describe('DatabaseTool — db-path containment (Row 8)', () => {
       assert.ok('error' in plan);
       if ('error' in plan) assert.match(plan.error, /db path escapes project root/);
     } finally {
-      try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(workDir, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 
@@ -276,7 +319,11 @@ describe('DatabaseTool — db-path containment (Row 8)', () => {
       assert.ok('error' in plan);
       if ('error' in plan) assert.match(plan.error, /db path escapes project root/);
     } finally {
-      try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(workDir, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 
@@ -288,7 +335,11 @@ describe('DatabaseTool — db-path containment (Row 8)', () => {
       const plan = tool.buildSqlitePlan({ action: 'tables', db: sibling });
       assert.ok('error' in plan, 'sibling-prefix must be rejected');
     } finally {
-      try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(workDir, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 });
@@ -312,7 +363,11 @@ describe('DatabaseTool — local-shell injection canary (real exec)', () => {
 
   after(() => {
     process.chdir(originalCwd);
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('backticks in sql do not run a local shell', async () => {
@@ -320,8 +375,11 @@ describe('DatabaseTool — local-shell injection canary (real exec)', () => {
     const tool = new DatabaseTool(workDir);
     const sql = `SELECT 1; \`node -e "require('fs').writeFileSync('${marker.replace(/\\/g, '\\\\')}','pwned')"\``;
     await tool.execute({ action: 'query', db: 'real.db', sql });
-    assert.strictEqual(fs.existsSync(marker), false,
-      `LOCAL SHELL INJECTION REGRESSION via sql backticks: ${marker} was created. Tool reverted to execSync(string).`);
+    assert.strictEqual(
+      fs.existsSync(marker),
+      false,
+      `LOCAL SHELL INJECTION REGRESSION via sql backticks: ${marker} was created. Tool reverted to execSync(string).`,
+    );
   });
 
   it('$(...) in sql does not run a local shell', async () => {
@@ -329,7 +387,10 @@ describe('DatabaseTool — local-shell injection canary (real exec)', () => {
     const tool = new DatabaseTool(workDir);
     const sql = `SELECT 1; $(node -e "require('fs').writeFileSync('${marker.replace(/\\/g, '\\\\')}','pwned')")`;
     await tool.execute({ action: 'query', db: 'real.db', sql });
-    assert.strictEqual(fs.existsSync(marker), false,
-      `LOCAL SHELL INJECTION REGRESSION via sql $(...): ${marker} was created.`);
+    assert.strictEqual(
+      fs.existsSync(marker),
+      false,
+      `LOCAL SHELL INJECTION REGRESSION via sql $(...): ${marker} was created.`,
+    );
   });
 });

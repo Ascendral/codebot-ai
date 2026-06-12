@@ -58,12 +58,12 @@ describe('JiraConnector — §8 contract surface', () => {
   });
 
   it('exposes the 5 expected actions', () => {
-    const names = connector.actions.map(a => a.name).sort();
+    const names = connector.actions.map((a) => a.name).sort();
     assert.deepStrictEqual(names, ['add_comment', 'create_issue', 'list_issues', 'search', 'update_issue']);
   });
 
   it('per-action capability labels match the §8 spec', () => {
-    const byName = Object.fromEntries(connector.actions.map(a => [a.name, a]));
+    const byName = Object.fromEntries(connector.actions.map((a) => [a.name, a]));
     assert.deepStrictEqual(byName.list_issues.capabilities, ['read-only', 'account-access', 'net-fetch']);
     assert.deepStrictEqual(byName.search.capabilities, ['read-only', 'account-access', 'net-fetch']);
     assert.deepStrictEqual(byName.create_issue.capabilities, ['account-access', 'net-fetch', 'send-on-behalf']);
@@ -72,7 +72,7 @@ describe('JiraConnector — §8 contract surface', () => {
   });
 
   it('idempotency: create_issue unsupported, names POST-creates-new', () => {
-    const a = connector.actions.find(x => x.name === 'create_issue')!;
+    const a = connector.actions.find((x) => x.name === 'create_issue')!;
     assert.strictEqual(a.idempotency?.kind, 'unsupported');
     if (a.idempotency?.kind === 'unsupported') {
       assert.match(a.idempotency.reason, /Idempotency-Key/i);
@@ -81,7 +81,7 @@ describe('JiraConnector — §8 contract surface', () => {
   });
 
   it('idempotency: update_issue unsupported, names transition gotcha', () => {
-    const a = connector.actions.find(x => x.name === 'update_issue')!;
+    const a = connector.actions.find((x) => x.name === 'update_issue')!;
     assert.strictEqual(a.idempotency?.kind, 'unsupported');
     if (a.idempotency?.kind === 'unsupported') {
       assert.match(a.idempotency.reason, /transition/);
@@ -90,7 +90,7 @@ describe('JiraConnector — §8 contract surface', () => {
   });
 
   it('idempotency: add_comment unsupported, names duplicate-comment gap', () => {
-    const a = connector.actions.find(x => x.name === 'add_comment')!;
+    const a = connector.actions.find((x) => x.name === 'add_comment')!;
     assert.strictEqual(a.idempotency?.kind, 'unsupported');
     if (a.idempotency?.kind === 'unsupported') {
       assert.match(a.idempotency.reason, /duplicate|two visible comments/i);
@@ -98,16 +98,19 @@ describe('JiraConnector — §8 contract surface', () => {
   });
 
   it('preview: create_issue shows fields + hashes description', async () => {
-    const a = connector.actions.find(x => x.name === 'create_issue')!;
-    const p = await a.preview!({
-      project: 'PROJ',
-      summary: 'Fix login bug',
-      issuetype: 'Bug',
-      priority: 'High',
-      assignee: 'user-id-123',
-      labels: 'auth, regression',
-      description: 'The login form fails on Firefox with 500 error',
-    }, '');
+    const a = connector.actions.find((x) => x.name === 'create_issue')!;
+    const p = await a.preview!(
+      {
+        project: 'PROJ',
+        summary: 'Fix login bug',
+        issuetype: 'Bug',
+        priority: 'High',
+        assignee: 'user-id-123',
+        labels: 'auth, regression',
+        description: 'The login form fails on Firefox with 500 error',
+      },
+      '',
+    );
     assert.match(p.summary, /Project:\s+PROJ/);
     assert.match(p.summary, /Type:\s+Bug/);
     assert.match(p.summary, /Summary:\s+Fix login bug/);
@@ -120,12 +123,15 @@ describe('JiraConnector — §8 contract surface', () => {
   });
 
   it('preview: update_issue lists only changed fields', async () => {
-    const a = connector.actions.find(x => x.name === 'update_issue')!;
-    const p = await a.preview!({
-      issue_key: 'PROJ-42',
-      summary: 'New title',
-      status: 'In Progress',
-    }, '');
+    const a = connector.actions.find((x) => x.name === 'update_issue')!;
+    const p = await a.preview!(
+      {
+        issue_key: 'PROJ-42',
+        summary: 'New title',
+        status: 'In Progress',
+      },
+      '',
+    );
     assert.match(p.summary, /Would update Jira PROJ-42/);
     assert.match(p.summary, /summary -> New title/);
     assert.match(p.summary, /status \(transition\) -> In Progress/);
@@ -134,7 +140,7 @@ describe('JiraConnector — §8 contract surface', () => {
   });
 
   it('preview: add_comment hashes comment + names duplicate-on-retry', async () => {
-    const a = connector.actions.find(x => x.name === 'add_comment')!;
+    const a = connector.actions.find((x) => x.name === 'add_comment')!;
     const p = await a.preview!({ issue_key: 'PROJ-7', comment: 'private investigation notes' }, '');
     assert.match(p.summary, /Would add comment to Jira PROJ-7/);
     assert.match(p.summary, /sha256:[a-f0-9]{16}/);
@@ -144,7 +150,7 @@ describe('JiraConnector — §8 contract surface', () => {
   });
 
   it('redactArgsForAudit: create_issue hashes description; project/summary/labels preserved', () => {
-    const a = connector.actions.find(x => x.name === 'create_issue')!;
+    const a = connector.actions.find((x) => x.name === 'create_issue')!;
     const out = a.redactArgsForAudit!({
       project: 'PROJ',
       summary: 'Fix bug',
@@ -159,7 +165,7 @@ describe('JiraConnector — §8 contract surface', () => {
   });
 
   it('redactArgsForAudit: add_comment hashes comment, preserves issue_key', () => {
-    const a = connector.actions.find(x => x.name === 'add_comment')!;
+    const a = connector.actions.find((x) => x.name === 'add_comment')!;
     const out = a.redactArgsForAudit!({
       issue_key: 'PROJ-99',
       comment: 'forensic write-up — DO NOT POST',
@@ -171,7 +177,6 @@ describe('JiraConnector — §8 contract surface', () => {
 
   it('contract validator passes with zero violations', () => {
     const violations = validateConnectorContract(connector);
-    assert.strictEqual(violations.length, 0,
-      `expected zero violations; got: ${JSON.stringify(violations)}`);
+    assert.strictEqual(violations.length, 0, `expected zero violations; got: ${JSON.stringify(violations)}`);
   });
 });

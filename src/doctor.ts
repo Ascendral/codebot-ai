@@ -28,8 +28,6 @@ export interface DoctorReport {
   failed: number;
 }
 
-
-
 function check(name: string, fn: () => HealthCheck): HealthCheck {
   try {
     return fn();
@@ -77,7 +75,7 @@ function checkSessionsDir(): HealthCheck {
   }
   try {
     fs.accessSync(dir, fs.constants.R_OK | fs.constants.W_OK);
-    const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'));
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.jsonl'));
     return { name: 'sessionsDir', status: 'pass', message: `${files.length} session(s) stored` };
   } catch {
     return { name: 'sessionsDir', status: 'fail', message: 'Sessions directory not readable/writable' };
@@ -91,7 +89,7 @@ function checkAuditDir(): HealthCheck {
   }
   try {
     fs.accessSync(dir, fs.constants.R_OK | fs.constants.W_OK);
-    const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'));
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.jsonl'));
     return { name: 'auditDir', status: 'pass', message: `${files.length} audit log(s)` };
   } catch {
     return { name: 'auditDir', status: 'fail', message: 'Audit directory not readable/writable' };
@@ -187,7 +185,12 @@ function checkEncryptionKey(): HealthCheck {
   if (process.env.CODEBOT_ENCRYPTION_KEY) {
     return { name: 'encryptionKey', status: 'pass', message: 'Encryption at rest enabled' };
   }
-  return { name: 'encryptionKey', status: 'warn', message: 'No encryption key set (CODEBOT_ENCRYPTION_KEY)', detail: 'Sessions and audit logs stored in plaintext' };
+  return {
+    name: 'encryptionKey',
+    status: 'warn',
+    message: 'No encryption key set (CODEBOT_ENCRYPTION_KEY)',
+    detail: 'Sessions and audit logs stored in plaintext',
+  };
 }
 
 function checkGitAvailable(): HealthCheck {
@@ -225,9 +228,9 @@ export async function runDoctor(): Promise<DoctorReport> {
     check('dockerAvailable', checkDockerAvailable),
   ];
 
-  const passed = checks.filter(c => c.status === 'pass').length;
-  const warned = checks.filter(c => c.status === 'warn').length;
-  const failed = checks.filter(c => c.status === 'fail').length;
+  const passed = checks.filter((c) => c.status === 'pass').length;
+  const warned = checks.filter((c) => c.status === 'warn').length;
+  const failed = checks.filter((c) => c.status === 'fail').length;
 
   return { checks, passed, warned, failed };
 }
@@ -252,7 +255,9 @@ export function formatDoctorReport(report: DoctorReport): string {
   }
 
   lines.push('');
-  lines.push(`${UI.bold}${report.passed} passed${UI.reset}, ${report.warned > 0 ? UI.yellow : ''}${report.warned} warnings${UI.reset}, ${report.failed > 0 ? UI.red : ''}${report.failed} failed${UI.reset}`);
+  lines.push(
+    `${UI.bold}${report.passed} passed${UI.reset}, ${report.warned > 0 ? UI.yellow : ''}${report.warned} warnings${UI.reset}, ${report.failed > 0 ? UI.red : ''}${report.failed} failed${UI.reset}`,
+  );
 
   return box('CodeBot Doctor', lines);
 }

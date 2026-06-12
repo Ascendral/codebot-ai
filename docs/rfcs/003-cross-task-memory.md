@@ -13,6 +13,7 @@ this is a longer-tail compounding play, not a one-shot lift)
 ## Problem and current state
 
 CodeBot already has scaffolding for "remember what worked":
+
 - `src/experiential-memory.ts` — stores `LessonRecord` entries
 - `src/cross-session.ts` — `CrossSessionLearning` (aggregates patterns
   across sessions)
@@ -24,7 +25,7 @@ CodeBot already has scaffolding for "remember what worked":
 The infrastructure is there but the loop isn't closed: nothing measures
 "did the agent's choice in this session actually help?" so nothing can
 mark a lesson as good or bad. The result is a memory that grows but
-doesn't get *better*.
+doesn't get _better_.
 
 For SWE-bench specifically: the resolved Django tasks share patterns
 (both `django-11119` and `django-11133` involve admin/filters work; both
@@ -47,6 +48,7 @@ Wire `reinforceLesson` / `weakenLesson` into the existing flow:
    `resolved`/`unresolved` outcome.
 
 This requires:
+
 - Recording `lesson_id`s a session referenced (not currently tracked)
 - A small `apply-outcome.ts` script that reads a SWE-bench
   `report.json` + the corresponding session log and dispatches
@@ -73,17 +75,18 @@ names + import statements in changed files.
 ### Part C — first SWE-bench-specific lesson template (1 week)
 
 Define a concrete `SWELesson` schema:
+
 ```typescript
 interface SWELesson {
   pattern_id: string;
-  repo: string;                  // e.g. "django/django"
-  problem_keywords: string[];    // extracted from problem statements
-  approach_summary: string;      // 1-2 sentence "what worked"
+  repo: string; // e.g. "django/django"
+  problem_keywords: string[]; // extracted from problem statements
+  approach_summary: string; // 1-2 sentence "what worked"
   example_files_modified: string[];
   example_test_passed: string[];
-  source_session_ids: string[];  // for provenance
-  reinforcements: number;        // success count
-  weakenings: number;            // failure count
+  source_session_ids: string[]; // for provenance
+  reinforcements: number; // success count
+  weakenings: number; // failure count
 }
 ```
 
@@ -112,7 +115,7 @@ enough success-pattern signal to make memory worth mining.
 ## Non-goals
 
 - Free-form text "memory" (already exists as `~/.codebot/memory/*.md`).
-  This RFC is about *structured* lessons that can be queried and
+  This RFC is about _structured_ lessons that can be queried and
   reinforced.
 - Vector embeddings of lesson text. Defer until simple keyword matching
   proves insufficient.

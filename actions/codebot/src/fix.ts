@@ -60,20 +60,14 @@ async function getCIFailureLog(context: FixContext): Promise<string> {
         filter: 'latest',
       });
 
-      const failedJobs = jobs.jobs.filter(
-        (job) => job.conclusion === 'failure'
-      );
+      const failedJobs = jobs.jobs.filter((job) => job.conclusion === 'failure');
 
       if (failedJobs.length > 0) {
         const logParts: string[] = [];
         for (const job of failedJobs) {
-          const failedSteps = (job.steps || []).filter(
-            (step) => step.conclusion === 'failure'
-          );
+          const failedSteps = (job.steps || []).filter((step) => step.conclusion === 'failure');
           for (const step of failedSteps) {
-            logParts.push(
-              `Job: ${job.name}\nStep: ${step.name}\nStatus: ${step.conclusion}\n`
-            );
+            logParts.push(`Job: ${job.name}\nStep: ${step.name}\nStatus: ${step.conclusion}\n`);
           }
           // Attempt to get the full job log
           try {
@@ -154,7 +148,7 @@ export async function autoFix(agent: Agent, context: FixContext): Promise<void> 
   // Configure git for the commit
   await execAsync(
     'git config user.name "CodeBot AI" && git config user.email "codebot-ai[bot]@users.noreply.github.com"',
-    { cwd: process.cwd() }
+    { cwd: process.cwd() },
   );
 
   // Stage, commit, and push changes

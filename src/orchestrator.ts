@@ -181,7 +181,9 @@ export class Orchestrator {
       const isTimeout = errorMsg.includes('timed out');
 
       this.metrics.endSpan(spanId, errorMsg);
-      this.metrics.observe('child_agent_duration_seconds', durationMs / 1000, { status: isTimeout ? 'timeout' : 'error' });
+      this.metrics.observe('child_agent_duration_seconds', durationMs / 1000, {
+        status: isTimeout ? 'timeout' : 'error',
+      });
       this.metrics.increment('child_agents_completed_total', { status: isTimeout ? 'timeout' : 'error' });
 
       const agentResult: AgentResult = {
@@ -215,9 +217,7 @@ export class Orchestrator {
     // Process in batches of maxConcurrent
     for (let i = 0; i < tasks.length; i += this.config.maxConcurrent) {
       const batch = tasks.slice(i, i + this.config.maxConcurrent);
-      const batchResults = await Promise.allSettled(
-        batch.map(task => this.delegate(task, executor)),
-      );
+      const batchResults = await Promise.allSettled(batch.map((task) => this.delegate(task, executor)));
 
       for (const result of batchResults) {
         if (result.status === 'fulfilled') {
@@ -295,4 +295,3 @@ export class Orchestrator {
 export function generateTaskId(): string {
   return `task_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 }
-

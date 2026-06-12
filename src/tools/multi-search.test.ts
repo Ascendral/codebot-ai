@@ -15,19 +15,21 @@ describe('MultiSearchTool', () => {
 
     // Create test files
     fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'src', 'auth-service.ts'), [
-      'export class AuthService {',
-      '  login(user: string, pass: string) {',
-      '    return true;',
-      '  }',
-      '}',
-    ].join('\n'));
-    fs.writeFileSync(path.join(tmpDir, 'src', 'user-controller.ts'), [
-      'import { AuthService } from "./auth-service";',
-      'export function getUser(id: number) {',
-      '  return { id, name: "test" };',
-      '}',
-    ].join('\n'));
+    fs.writeFileSync(
+      path.join(tmpDir, 'src', 'auth-service.ts'),
+      ['export class AuthService {', '  login(user: string, pass: string) {', '    return true;', '  }', '}'].join(
+        '\n',
+      ),
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, 'src', 'user-controller.ts'),
+      [
+        'import { AuthService } from "./auth-service";',
+        'export function getUser(id: number) {',
+        '  return { id, name: "test" };',
+        '}',
+      ].join('\n'),
+    );
     fs.writeFileSync(path.join(tmpDir, 'config.json'), '{"debug": true}');
   });
 

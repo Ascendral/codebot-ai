@@ -47,7 +47,7 @@ describe('Orchestrator — formatResultsSummary edge cases', () => {
   it('shows timeout icon for timed out tasks', async () => {
     const orch = makeOrchestrator({ childTimeoutMs: 50 });
     const slowExecutor = async () => {
-      await new Promise(r => setTimeout(r, 5000));
+      await new Promise((r) => setTimeout(r, 5000));
       return { output: '', toolCalls: [], filesModified: [] };
     };
     await orch.delegate(makeTask('Slow task'), slowExecutor);
@@ -73,7 +73,6 @@ describe('Orchestrator — generateTaskId uniqueness', () => {
     assert.ok(!isNaN(Number(parts[1])));
   });
 });
-
 
 describe('Orchestrator — config immutability', () => {
   it('getConfig returns a copy that cannot mutate internal state', () => {

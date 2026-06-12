@@ -1,6 +1,13 @@
 import { describe, it } from 'node:test';
 import * as assert from 'node:assert';
-import { classifyComplexity, classifyToolTier, selectModel, autoDetectTierModels, RouterConfig, ModelTier } from './router';
+import {
+  classifyComplexity,
+  classifyToolTier,
+  selectModel,
+  autoDetectTierModels,
+  RouterConfig,
+  ModelTier,
+} from './router';
 
 describe('Model Router — classifyComplexity edge cases', () => {
   it('classifies explain/tell as fast', () => {

@@ -58,10 +58,7 @@ describe('isGoogleDriveAuthError', () => {
   });
 
   it('403 with unrecognized / no reason → NOT reauth (fail closed)', () => {
-    assert.strictEqual(
-      isGoogleDriveAuthError(403, { error: { errors: [{ reason: 'mysteryProblem' }] } }),
-      false,
-    );
+    assert.strictEqual(isGoogleDriveAuthError(403, { error: { errors: [{ reason: 'mysteryProblem' }] } }), false);
     assert.strictEqual(isGoogleDriveAuthError(403, { error: {} }), false);
     assert.strictEqual(isGoogleDriveAuthError(403, undefined), false);
   });
@@ -75,7 +72,7 @@ describe('GoogleDriveConnector — §8 contract surface', () => {
   });
 
   it('exposes the 4 expected actions', () => {
-    const names = connector.actions.map(a => a.name).sort();
+    const names = connector.actions.map((a) => a.name).sort();
     assert.deepStrictEqual(names, ['get_file_info', 'list_files', 'read_file', 'search_files']);
   });
 
@@ -99,7 +96,6 @@ describe('GoogleDriveConnector — §8 contract surface', () => {
 
   it('contract validator passes with zero violations', () => {
     const violations = validateConnectorContract(connector);
-    assert.strictEqual(violations.length, 0,
-      `expected zero violations; got: ${JSON.stringify(violations)}`);
+    assert.strictEqual(violations.length, 0, `expected zero violations; got: ${JSON.stringify(violations)}`);
   });
 });

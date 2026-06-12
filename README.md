@@ -4,7 +4,7 @@
 
 **Open-source autonomous coding agent with a cryptographic audit trail.**
 
-For work you want to *delegate*, not just *assist* with — and verify after the fact.
+For work you want to _delegate_, not just _assist_ with — and verify after the fact.
 
 [![npm version](https://img.shields.io/npm/v/codebot-ai.svg?style=flat-square&color=6366f1)](https://www.npmjs.com/package/codebot-ai)
 [![license](https://img.shields.io/npm/l/codebot-ai.svg?style=flat-square)](https://github.com/Ascendral/codebot-ai/blob/main/LICENSE)
@@ -18,13 +18,13 @@ For work you want to *delegate*, not just *assist* with — and verify after the
 
 CodeBot runs coding tasks end-to-end. Point it at a GitHub issue, a problem statement, or a spec — it reads the repo, makes the changes, runs the tests, and opens a PR. Every tool call it makes (every file it touches, every command it runs, every URL it fetches) is recorded in a SHA-256 hash-chained audit log. Tamper with the log, the chain breaks, you know.
 
-It runs against the LLM *you* pick — local Ollama / LM Studio / vLLM, or any of eight cloud providers — through *your* API key, on *your* endpoint. Zero telemetry by default. MIT. Air-gapped if you want.
+It runs against the LLM _you_ pick — local Ollama / LM Studio / vLLM, or any of eight cloud providers — through _your_ API key, on _your_ endpoint. Zero telemetry by default. MIT. Air-gapped if you want.
 
 ## What CodeBot is NOT
 
 CodeBot is not an AI-powered editor. Cursor, Zed, and VS Code with Copilot already own that category. If you want Tab-completion and inline suggestions while you type, one of those is a better fit — CodeBot won't try to compete.
 
-CodeBot is for the class of work that starts with *"hey agent, go do this while I'm not watching"* and ends with someone — maybe you, maybe your auditor — needing to know exactly what got done.
+CodeBot is for the class of work that starts with _"hey agent, go do this while I'm not watching"_ and ends with someone — maybe you, maybe your auditor — needing to know exactly what got done.
 
 ## Who it's for
 
@@ -151,7 +151,7 @@ Run CodeBot in any GitHub workflow. Code review on every PR, auto-fix on demand,
 ```yaml
 - uses: codebot-ai/codebot@v1
   with:
-    task: review          # or: fix, scan
+    task: review # or: fix, scan
     api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
@@ -159,16 +159,16 @@ Run CodeBot in any GitHub workflow. Code review on every PR, auto-fix on demand,
 
 ## How CodeBot differs
 
-| | Cursor / Copilot | Aider | Devin | **CodeBot** |
-|---|:---:|:---:|:---:|:---:|
-| Autonomous issue-to-PR | No | Partial | Yes | **Yes** |
-| Cryptographic audit trail | No | No | No | **Yes** |
-| Local LLM supported | No | Yes | No | **Yes** |
-| Policy + risk-scoring layer | No | No | Partial | **Yes** |
-| SARIF export for CI | No | No | No | **Yes** |
-| MIT-licensed / open source | No | Yes | No | **Yes** |
-| Runs fully offline (with local LLM) | No | Yes | No | **Yes** |
-| Price | $20/mo | Free | $500/mo | **Free / MIT** |
+|                                     | Cursor / Copilot |  Aider  |  Devin  |  **CodeBot**   |
+| ----------------------------------- | :--------------: | :-----: | :-----: | :------------: |
+| Autonomous issue-to-PR              |        No        | Partial |   Yes   |    **Yes**     |
+| Cryptographic audit trail           |        No        |   No    |   No    |    **Yes**     |
+| Local LLM supported                 |        No        |   Yes   |   No    |    **Yes**     |
+| Policy + risk-scoring layer         |        No        |   No    | Partial |    **Yes**     |
+| SARIF export for CI                 |        No        |   No    |   No    |    **Yes**     |
+| MIT-licensed / open source          |        No        |   Yes   |   No    |    **Yes**     |
+| Runs fully offline (with local LLM) |        No        |   Yes   |   No    |    **Yes**     |
+| Price                               |      $20/mo      |  Free   | $500/mo | **Free / MIT** |
 
 ## Three pillars
 

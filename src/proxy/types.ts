@@ -50,9 +50,9 @@ export interface RateLimitResult {
 
 /** Per-tier rate limit defaults */
 export const TIER_RATE_LIMITS: Record<LicenseTier, RateLimitConfig> = {
-  free:       { maxRequests: 10,  windowSeconds: 60 },
-  pro:        { maxRequests: 60,  windowSeconds: 60 },
-  team:       { maxRequests: 120, windowSeconds: 60 },
+  free: { maxRequests: 10, windowSeconds: 60 },
+  pro: { maxRequests: 60, windowSeconds: 60 },
+  team: { maxRequests: 120, windowSeconds: 60 },
   enterprise: { maxRequests: 300, windowSeconds: 60 },
 };
 

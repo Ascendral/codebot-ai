@@ -29,10 +29,14 @@ export class PdfExtractTool implements Tool {
     if (ext !== '.pdf') return `Error: not a PDF file (got ${ext})`;
 
     switch (action) {
-      case 'text': return this.extractText(filePath, args);
-      case 'info': return this.getInfo(filePath);
-      case 'pages': return this.countPages(filePath);
-      default: return `Error: unknown action "${action}". Use: text, info, pages`;
+      case 'text':
+        return this.extractText(filePath, args);
+      case 'info':
+        return this.getInfo(filePath);
+      case 'pages':
+        return this.countPages(filePath);
+      default:
+        return `Error: unknown action "${action}". Use: text, info, pages`;
     }
   }
 
@@ -134,8 +138,8 @@ export class PdfExtractTool implements Tool {
 
     // Clean up and join
     return chunks
-      .map(c => c.trim())
-      .filter(c => c.length > 0)
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0)
       .join('\n')
       .substring(0, 20_000);
   }

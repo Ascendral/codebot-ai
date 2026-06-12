@@ -26,7 +26,9 @@ describe('Offline Cache', () => {
     cacheSet('short-lived', 'bye', 1); // 1ms TTL
     // Wait a tiny bit
     const start = Date.now();
-    while (Date.now() - start < 5) { /* spin */ }
+    while (Date.now() - start < 5) {
+      /* spin */
+    }
     assert.strictEqual(cacheGet('short-lived'), null);
   });
 
@@ -43,7 +45,9 @@ describe('Offline Cache', () => {
     cacheSet('fresh', 'keep-me', 60000);
     cacheSet('stale', 'remove-me', 1);
     const start = Date.now();
-    while (Date.now() - start < 5) { /* spin */ }
+    while (Date.now() - start < 5) {
+      /* spin */
+    }
     const purged = cachePurgeExpired();
     assert.ok(purged >= 1);
     assert.strictEqual(cacheGet('fresh'), 'keep-me');

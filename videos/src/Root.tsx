@@ -1,5 +1,5 @@
-import { Composition } from "remotion";
-import { CodeBotPromo } from "./CodeBotPromo";
+import { Composition } from 'remotion';
+import { CodeBotPromo } from './CodeBotPromo';
 
 export const RemotionRoot: React.FC = () => {
   return (

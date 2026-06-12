@@ -36,7 +36,7 @@ export class ToolCache {
   static key(toolName: string, args: Record<string, unknown>): string {
     const sorted = Object.keys(args)
       .sort()
-      .map(k => `${k}=${JSON.stringify(args[k])}`)
+      .map((k) => `${k}=${JSON.stringify(args[k])}`)
       .join('&');
     return `${toolName}:${sorted}`;
   }

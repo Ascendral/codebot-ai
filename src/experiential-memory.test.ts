@@ -26,7 +26,9 @@ describe('ExperientialMemory', () => {
 
   afterEach(() => {
     mem.close();
-    try { fs.unlinkSync(dbPath); } catch {}
+    try {
+      fs.unlinkSync(dbPath);
+    } catch {}
   });
 
   it('initializes and reports active', () => {
@@ -217,7 +219,7 @@ describe('ExperientialMemory', () => {
         toolName: `tool_${i}`,
         outcome: 'failure',
         lesson: `lesson ${i}`,
-        confidence: 0.3 + (i / 100),
+        confidence: 0.3 + i / 100,
       });
     }
 
@@ -249,7 +251,11 @@ describe('ExperientialMemory', () => {
     assert.deepStrictEqual(inactive.queryLessons({}), []);
     assert.strictEqual(inactive.buildPromptBlock({}), '');
     assert.deepStrictEqual(inactive.getLessonStats(), {
-      totalLessons: 0, failureLessons: 0, successLessons: 0, challengedLessons: 0, averageConfidence: 0,
+      totalLessons: 0,
+      failureLessons: 0,
+      successLessons: 0,
+      challengedLessons: 0,
+      averageConfidence: 0,
     });
     inactive.close();
   });

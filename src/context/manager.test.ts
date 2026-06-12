@@ -62,9 +62,7 @@ describe('ContextManager', () => {
 
   it('compact without force returns original if fits', () => {
     const cm = new ContextManager('gpt-4o');
-    const messages: Message[] = [
-      { role: 'user', content: 'short' },
-    ];
+    const messages: Message[] = [{ role: 'user', content: 'short' }];
     const result = cm.compact(messages);
     assert.deepStrictEqual(result, messages);
   });
@@ -78,18 +76,16 @@ describe('ContextManager', () => {
       { role: 'system', content: 'System prompt' },
       { role: 'user', content: 'Hello' },
       {
-        role: 'assistant', content: '',
-        tool_calls: [
-          { id: 'call_1', type: 'function' as const, function: { name: 'execute', arguments: '{}' } },
-        ],
+        role: 'assistant',
+        content: '',
+        tool_calls: [{ id: 'call_1', type: 'function' as const, function: { name: 'execute', arguments: '{}' } }],
       },
       { role: 'tool', content: bigContent, tool_call_id: 'call_1' },
       { role: 'user', content: 'Continue' },
       {
-        role: 'assistant', content: '',
-        tool_calls: [
-          { id: 'call_2', type: 'function' as const, function: { name: 'think', arguments: '{}' } },
-        ],
+        role: 'assistant',
+        content: '',
+        tool_calls: [{ id: 'call_2', type: 'function' as const, function: { name: 'think', arguments: '{}' } }],
       },
       { role: 'tool', content: 'small result', tool_call_id: 'call_2' },
     ];
@@ -108,7 +104,7 @@ describe('ContextManager', () => {
       if (msg.role === 'tool' && msg.tool_call_id) {
         assert.ok(
           validIds.has(msg.tool_call_id),
-          `Orphaned tool message found: tool_call_id "${msg.tool_call_id}" has no matching assistant tool_call`
+          `Orphaned tool message found: tool_call_id "${msg.tool_call_id}" has no matching assistant tool_call`,
         );
       }
     }
@@ -121,7 +117,8 @@ describe('ContextManager', () => {
       { role: 'system', content: 'System' },
       { role: 'user', content: 'First request' },
       {
-        role: 'assistant', content: '',
+        role: 'assistant',
+        content: '',
         tool_calls: [
           { id: 'call_a', type: 'function' as const, function: { name: 'execute', arguments: '{}' } },
           { id: 'call_b', type: 'function' as const, function: { name: 'think', arguments: '{}' } },
@@ -136,15 +133,19 @@ describe('ContextManager', () => {
     const result = cm.compact(messages, true);
 
     // Count assistant messages with tool_calls in result
-    const assistantWithTools = result.filter(m => m.role === 'assistant' && m.tool_calls?.length);
-    const toolMsgs = result.filter(m => m.role === 'tool');
+    const assistantWithTools = result.filter((m) => m.role === 'assistant' && m.tool_calls?.length);
+    const toolMsgs = result.filter((m) => m.role === 'tool');
 
     if (assistantWithTools.length > 0) {
       // If we kept the assistant, both tool messages should be there
       assert.strictEqual(toolMsgs.length, 2, 'If assistant with tool_calls is kept, both tool responses must be kept');
     } else {
       // If assistant was dropped, no tool messages should remain
-      assert.strictEqual(toolMsgs.length, 0, 'If assistant with tool_calls is dropped, no tool responses should remain');
+      assert.strictEqual(
+        toolMsgs.length,
+        0,
+        'If assistant with tool_calls is dropped, no tool responses should remain',
+      );
     }
   });
 
@@ -157,14 +158,16 @@ describe('ContextManager', () => {
       // Group 1
       { role: 'user', content: 'Do thing 1' },
       {
-        role: 'assistant', content: '',
+        role: 'assistant',
+        content: '',
         tool_calls: [{ id: 'call_1', type: 'function' as const, function: { name: 'execute', arguments: '{}' } }],
       },
       { role: 'tool', content: mediumContent, tool_call_id: 'call_1' },
       // Group 2
       { role: 'user', content: 'Do thing 2' },
       {
-        role: 'assistant', content: '',
+        role: 'assistant',
+        content: '',
         tool_calls: [{ id: 'call_2', type: 'function' as const, function: { name: 'think', arguments: '{}' } }],
       },
       { role: 'tool', content: 'small', tool_call_id: 'call_2' },
@@ -182,10 +185,7 @@ describe('ContextManager', () => {
         for (const tc of msg.tool_calls) validIds.add(tc.id);
       }
       if (msg.role === 'tool' && msg.tool_call_id) {
-        assert.ok(
-          validIds.has(msg.tool_call_id),
-          `Orphaned tool message: "${msg.tool_call_id}" missing assistant`
-        );
+        assert.ok(validIds.has(msg.tool_call_id), `Orphaned tool message: "${msg.tool_call_id}" missing assistant`);
       }
     }
   });

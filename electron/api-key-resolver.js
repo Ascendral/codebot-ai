@@ -49,8 +49,8 @@ function looksLike(provider, key) {
 
 const PROVIDER_META = {
   anthropic: { envName: 'ANTHROPIC_API_KEY', configField: 'anthropicApiKey' },
-  openai:    { envName: 'OPENAI_API_KEY',    configField: 'openaiApiKey'    },
-  gemini:    { envName: 'GEMINI_API_KEY',    configField: 'geminiApiKey'    },
+  openai: { envName: 'OPENAI_API_KEY', configField: 'openaiApiKey' },
+  gemini: { envName: 'GEMINI_API_KEY', configField: 'geminiApiKey' },
 };
 
 /**
@@ -104,8 +104,8 @@ function resolveKey(provider, inputs) {
 function resolveAll(inputs) {
   return {
     anthropic: resolveKey('anthropic', inputs),
-    openai:    resolveKey('openai', inputs),
-    gemini:    resolveKey('gemini', inputs),
+    openai: resolveKey('openai', inputs),
+    gemini: resolveKey('gemini', inputs),
   };
 }
 

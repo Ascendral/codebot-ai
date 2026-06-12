@@ -9,8 +9,17 @@ export function buildRepoMap(rootDir: string): string {
   const maxFiles = 50;
   let fileCount = 0;
   const skip = new Set([
-    'node_modules', '.git', 'dist', 'build', 'coverage',
-    '__pycache__', '.next', '.cache', '.codebot', '.venv', 'venv',
+    'node_modules',
+    '.git',
+    'dist',
+    'build',
+    'coverage',
+    '__pycache__',
+    '.next',
+    '.cache',
+    '.codebot',
+    '.venv',
+    'venv',
   ]);
 
   const walk = (dir: string, prefix: string, depth: number) => {

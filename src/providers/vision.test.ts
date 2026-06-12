@@ -47,10 +47,12 @@ describe('Vision/Multimodal — Anthropic image content blocks', () => {
       role: 'tool',
       content: 'Screenshot saved: /tmp/shot.png (150KB)',
       tool_call_id: 'call_1',
-      images: [{
-        data: 'iVBORw0KGgoAAAANSUhEUg==',  // tiny base64 stub
-        mediaType: 'image/png',
-      }],
+      images: [
+        {
+          data: 'iVBORw0KGgoAAAANSUhEUg==', // tiny base64 stub
+          mediaType: 'image/png',
+        },
+      ],
     };
 
     // Simulate Anthropic conversion
@@ -82,10 +84,12 @@ describe('Vision/Multimodal — Anthropic image content blocks', () => {
     const msg: Message = {
       role: 'user',
       content: 'What do you see in this image?',
-      images: [{
-        data: 'dGVzdA==',
-        mediaType: 'image/jpeg',
-      }],
+      images: [
+        {
+          data: 'dGVzdA==',
+          mediaType: 'image/jpeg',
+        },
+      ],
     };
 
     const content: Array<Record<string, unknown>> = [];
@@ -122,10 +126,12 @@ describe('Vision/Multimodal — OpenAI image content blocks', () => {
     const msg: Message = {
       role: 'user',
       content: 'Describe this screenshot.',
-      images: [{
-        data: 'iVBORw0KGgoAAAANSUhEUg==',
-        mediaType: 'image/png',
-      }],
+      images: [
+        {
+          data: 'iVBORw0KGgoAAAANSUhEUg==',
+          mediaType: 'image/png',
+        },
+      ],
     };
 
     // Simulate OpenAI formatMessage
@@ -192,14 +198,8 @@ describe('Vision/Multimodal — context manager image token estimation', () => {
     };
 
     assert.strictEqual(estimateMessageTokens(textOnly), estimateTokens('Hello world'));
-    assert.strictEqual(
-      estimateMessageTokens(withImage),
-      estimateTokens('Screenshot saved') + 1000,
-    );
-    assert.strictEqual(
-      estimateMessageTokens(withTwoImages),
-      estimateTokens('Screenshots') + 2000,
-    );
+    assert.strictEqual(estimateMessageTokens(withImage), estimateTokens('Screenshot saved') + 1000);
+    assert.strictEqual(estimateMessageTokens(withTwoImages), estimateTokens('Screenshots') + 2000);
   });
 
   it('no extra tokens when message has no images', () => {

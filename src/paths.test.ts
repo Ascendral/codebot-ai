@@ -62,7 +62,10 @@ describe('warnNonFatal()', () => {
 
     let count = 0;
     const origWrite = process.stderr.write;
-    process.stderr.write = () => { count++; return true; };
+    process.stderr.write = () => {
+      count++;
+      return true;
+    };
 
     warnNonFatal('dup.test', 'same error');
     warnNonFatal('dup.test', 'same error');

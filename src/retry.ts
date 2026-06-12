@@ -25,10 +25,15 @@ export function isRetryable(error: unknown, status?: number, opts?: RetryOptions
   if (error instanceof TypeError) return true; // fetch network errors
   if (error instanceof Error) {
     const msg = error.message.toLowerCase();
-    if (msg.includes('fetch failed') || msg.includes('econnreset') ||
-        msg.includes('econnrefused') || msg.includes('etimedout') ||
-        msg.includes('socket hang up') || msg.includes('network') ||
-        msg.includes('abort')) {
+    if (
+      msg.includes('fetch failed') ||
+      msg.includes('econnreset') ||
+      msg.includes('econnrefused') ||
+      msg.includes('etimedout') ||
+      msg.includes('socket hang up') ||
+      msg.includes('network') ||
+      msg.includes('abort')
+    ) {
       return true;
     }
   }
@@ -58,7 +63,7 @@ export function getRetryDelay(attempt: number, retryAfterHeader?: string | null,
 }
 
 export function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**

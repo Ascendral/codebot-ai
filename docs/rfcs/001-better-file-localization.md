@@ -25,6 +25,7 @@ This is the dominant failure mode for the 16 wrong-patch unresolved tasks.
 
 CodeBot's tool registry has `read_file`, `grep`, `glob`, `find`, but no
 structural understanding of the repo. The agent navigates by:
+
 1. Reading the problem statement
 2. Grepping for keywords from the problem
 3. Reading whatever files come back
@@ -41,6 +42,7 @@ Three concrete additions, in priority order:
 ### A. Symbol index per session (~3 days)
 
 Build a flat symbol-to-location index when CodeBot opens a project:
+
 ```
 {
   "django.db.models.fields.related.RelatedFieldListFilter": "django/db/models/fields/related.py:1247",
@@ -98,6 +100,7 @@ where they fall short.
 ## Validation plan
 
 Before merging:
+
 1. Re-run the 50-task SWE-bench slice with A+B
 2. Compare resolved count vs the 17/50 baseline
 3. Look at the 16 previously-wrong-patch tasks specifically — did

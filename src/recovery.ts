@@ -34,7 +34,7 @@ export function toRecoveryAction(suggestion: RecoverySuggestion): RecoveryAction
 
   // Only auto-execute low-risk commands
   const lowRiskCommands = ['codebot --setup', 'ollama serve', 'npm run build', 'npm test'];
-  const isLowRisk = lowRiskCommands.some(cmd => suggestion.command?.includes(cmd));
+  const isLowRisk = lowRiskCommands.some((cmd) => suggestion.command?.includes(cmd));
 
   return {
     ...suggestion,
@@ -89,7 +89,8 @@ const RECOVERY_PATTERNS: Array<{
   },
   {
     test: (m) => /context.?length|too many tokens|maximum.*tokens|token.*limit/i.test(m),
-    suggestion: 'Context too large for this model. Try compacting (/compact) or using a model with a larger context window.',
+    suggestion:
+      'Context too large for this model. Try compacting (/compact) or using a model with a larger context window.',
   },
   {
     test: (m) => /ENOSPC|no space left/i.test(m),

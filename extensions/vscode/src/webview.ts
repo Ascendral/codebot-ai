@@ -4,10 +4,7 @@ import * as vscode from 'vscode';
  * Generates the full HTML content for the chat webview panel.
  * Uses VS Code CSS custom properties for theme integration.
  */
-export function getWebviewContent(
-  webview: vscode.Webview,
-  _extensionUri: vscode.Uri
-): string {
+export function getWebviewContent(webview: vscode.Webview, _extensionUri: vscode.Uri): string {
   // Generate a nonce for Content-Security-Policy
   const nonce = getNonce();
 

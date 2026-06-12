@@ -109,7 +109,7 @@ export class DecomposeGoalTool implements Tool {
       this.decomposer.summarize(this.activeTree),
       '',
       `${ready.length} task(s) ready to execute:`,
-      ...ready.map(n => `  - [${n.id}] ${n.description}${n.toolHint ? ` (hint: ${n.toolHint})` : ''}`),
+      ...ready.map((n) => `  - [${n.id}] ${n.description}${n.toolHint ? ` (hint: ${n.toolHint})` : ''}`),
     ].join('\n');
   }
 
@@ -162,12 +162,9 @@ export class DecomposeGoalTool implements Tool {
     const error = (args.error as string) || 'Unknown failure';
     this.decomposer.fail(this.activeTree, goalId, error);
 
-    return [
-      `Failed: ${node.description}`,
-      `Reason: ${error}`,
-      '',
-      this.decomposer.summarize(this.activeTree),
-    ].join('\n');
+    return [`Failed: ${node.description}`, `Reason: ${error}`, '', this.decomposer.summarize(this.activeTree)].join(
+      '\n',
+    );
   }
 
   private handleAddSubtasks(args: Record<string, unknown>): string {
@@ -175,12 +172,14 @@ export class DecomposeGoalTool implements Tool {
     const goalId = args.goal_id as string | undefined;
     if (!goalId) return 'Error: "goal_id" is required for add_subtasks action.';
 
-    const rawSubtasks = args.subtasks as Array<{ description: string; tool_hint?: string; dependencies?: string[] }> | undefined;
+    const rawSubtasks = args.subtasks as
+      | Array<{ description: string; tool_hint?: string; dependencies?: string[] }>
+      | undefined;
     if (!rawSubtasks || rawSubtasks.length === 0) {
       return 'Error: "subtasks" array is required with at least one entry.';
     }
 
-    const drafts: SubtaskDraft[] = rawSubtasks.map(s => ({
+    const drafts: SubtaskDraft[] = rawSubtasks.map((s) => ({
       description: s.description,
       toolHint: s.tool_hint,
       dependencies: s.dependencies,
@@ -192,7 +191,7 @@ export class DecomposeGoalTool implements Tool {
 
       return [
         `Added ${created.length} subtask(s) to ${goalId}:`,
-        ...created.map(n => `  - [${n.id}] ${n.description}`),
+        ...created.map((n) => `  - [${n.id}] ${n.description}`),
         '',
         `${ready.length} task(s) now ready.`,
       ].join('\n');
@@ -224,7 +223,9 @@ export class DecomposeGoalTool implements Tool {
       ready[0].context ? `  Context: ${ready[0].context.join(', ')}` : '',
       '',
       `${ready.length - 1} more task(s) queued after this.`,
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
   }
 
   /** Expose tree for testing / serialization */

@@ -22,10 +22,14 @@ function c(text: string, style: keyof typeof C): string {
 
 /** Flags that take no value — set to `true` when present. */
 const BOOLEAN_FLAGS = new Set([
-  '--help', '-h',
-  '--version', '-v',
-  '--continue', '-c',
-  '--setup', '--init',
+  '--help',
+  '-h',
+  '--version',
+  '-v',
+  '--continue',
+  '-c',
+  '--setup',
+  '--init',
   '--init-policy',
   '--sandbox-info',
   '--dashboard',
@@ -39,7 +43,8 @@ const BOOLEAN_FLAGS = new Set([
   '--open-pr',
   '--safe',
   '--no-constitutional',
-  '--dry-run', '--estimate',
+  '--dry-run',
+  '--estimate',
   '--deterministic',
   '--no-auto-approve',
   '--listen',
@@ -108,11 +113,7 @@ function hasRequiredValue(flag: string): boolean {
   return REQUIRED_VALUE_FLAGS.has(flag);
 }
 
-function applyAliases(
-  result: Record<string, string | boolean>,
-  flag: string,
-  value: string | boolean,
-): void {
+function applyAliases(result: Record<string, string | boolean>, flag: string, value: string | boolean): void {
   const aliases = ALIAS_FLAGS[flag];
   if (aliases) {
     for (const k of aliases) result[k] = value;
@@ -165,12 +166,7 @@ export function parseArgs(argv: string[]): Record<string, string | boolean> {
   return result;
 }
 
-function parseRequiredValue(
-  argv: string[],
-  i: number,
-  flag: string,
-  result: Record<string, string | boolean>,
-): number {
+function parseRequiredValue(argv: string[], i: number, flag: string, result: Record<string, string | boolean>): number {
   const next = argv[i + 1];
   if (flag === '--vault') {
     if (!next || next.startsWith('--')) {
@@ -206,12 +202,7 @@ function parseRequiredValue(
   return i;
 }
 
-function parseOptionalValue(
-  argv: string[],
-  i: number,
-  flag: string,
-  result: Record<string, string | boolean>,
-): number {
+function parseOptionalValue(argv: string[], i: number, flag: string, result: Record<string, string | boolean>): number {
   const next = argv[i + 1];
   const key = flagKey(flag);
   if (next && !next.startsWith('--')) {
@@ -222,12 +213,7 @@ function parseOptionalValue(
   return i;
 }
 
-function parseUnknownFlag(
-  argv: string[],
-  i: number,
-  flag: string,
-  result: Record<string, string | boolean>,
-): number {
+function parseUnknownFlag(argv: string[], i: number, flag: string, result: Record<string, string | boolean>): number {
   const key = flag.slice(2);
   const next = argv[i + 1];
   // Issue #7: don't let an unknown flag swallow the user's task message.

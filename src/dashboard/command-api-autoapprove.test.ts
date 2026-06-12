@@ -94,7 +94,9 @@ describe('Agent autoApprove getter/setter (PR 16)', () => {
     const flipReq1 = (a: Agent, requested: boolean) => {
       const prior = a.getAutoApprove();
       if (requested !== prior) a.setAutoApprove(requested);
-      return () => { if (requested !== prior) a.setAutoApprove(prior); };
+      return () => {
+        if (requested !== prior) a.setAutoApprove(prior);
+      };
     };
     {
       assert.strictEqual(agent.getAutoApprove(), false);
@@ -110,7 +112,9 @@ describe('Agent autoApprove getter/setter (PR 16)', () => {
     const flip = (a: Agent, requested: boolean) => {
       const prior = a.getAutoApprove();
       if (requested !== prior) a.setAutoApprove(requested);
-      const restore = () => { if (requested !== prior) a.setAutoApprove(prior); };
+      const restore = () => {
+        if (requested !== prior) a.setAutoApprove(prior);
+      };
       return restore;
     };
     {

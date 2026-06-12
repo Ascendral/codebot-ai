@@ -1,11 +1,6 @@
 import { describe, it } from 'node:test';
 import * as assert from 'node:assert';
-import {
-  extractLessonFromFailure,
-  extractLessonFromSuccess,
-  shouldRecordSuccess,
-  buildTags,
-} from './lesson-extractor';
+import { extractLessonFromFailure, extractLessonFromSuccess, shouldRecordSuccess, buildTags } from './lesson-extractor';
 
 describe('extractLessonFromFailure', () => {
   it('extracts ENOENT lesson', () => {
@@ -134,32 +129,17 @@ describe('extractLessonFromSuccess', () => {
   });
 
   it('records execute test success', () => {
-    const lesson = extractLessonFromSuccess(
-      'execute',
-      { command: 'npm test' },
-      'All tests passed',
-      'Run tests',
-    );
+    const lesson = extractLessonFromSuccess('execute', { command: 'npm test' }, 'All tests passed', 'Run tests');
     assert.ok(lesson, 'Should record test success');
   });
 
   it('skips trivial read_file success', () => {
-    const lesson = extractLessonFromSuccess(
-      'read_file',
-      { path: 'README.md' },
-      'file contents...',
-      'Read readme',
-    );
+    const lesson = extractLessonFromSuccess('read_file', { path: 'README.md' }, 'file contents...', 'Read readme');
     assert.strictEqual(lesson, null, 'Should not record trivial read');
   });
 
   it('skips trivial grep success', () => {
-    const lesson = extractLessonFromSuccess(
-      'grep',
-      { pattern: 'TODO' },
-      'matches found',
-      'Search for todos',
-    );
+    const lesson = extractLessonFromSuccess('grep', { pattern: 'TODO' }, 'matches found', 'Search for todos');
     assert.strictEqual(lesson, null);
   });
 

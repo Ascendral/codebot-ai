@@ -18,13 +18,13 @@ Posting cadence: Post #1 pinned, each subsequent post is a reply in the same thr
 >
 > 🧵
 
-*Image:* 30-second GIF — terminal showing `codebot --solve https://github.com/...`, then a rendered audit log entry with `prevHash` / `hash` / tool name visible.
+_Image:_ 30-second GIF — terminal showing `codebot --solve https://github.com/...`, then a rendered audit log entry with `prevHash` / `hash` / tool name visible.
 
 ---
 
 ## POST 2 — the problem
 
-> Every AI coding tool today (Cursor, Copilot, Devin, Aider) is optimized for making *you* faster.
+> Every AI coding tool today (Cursor, Copilot, Devin, Aider) is optimized for making _you_ faster.
 >
 > None of them help you answer the question "what did the AI actually do to our codebase?"
 >
@@ -42,13 +42,13 @@ Posting cadence: Post #1 pinned, each subsequent post is a reply in the same thr
 >
 > SARIF 2.1.0 export pipes into your existing code-scanning dashboard.
 
-*Image:* screenshot of 3–4 audit log entries as JSON with `prevHash` / `hash` highlighted.
+_Image:_ screenshot of 3–4 audit log entries as JSON with `prevHash` / `hash` highlighted.
 
 ---
 
 ## POST 4 — sovereignty
 
-> Runs against whatever LLM *you* pick, with *your* API key:
+> Runs against whatever LLM _you_ pick, with _your_ API key:
 >
 > • Local: Ollama / LM Studio / vLLM
 > • Cloud: Anthropic, OpenAI (incl. gpt-5.4), Google, DeepSeek, Groq, Mistral, xAI
@@ -117,7 +117,7 @@ Pick whichever fits the moment. Each is standalone, quotable, can be posted any 
 
 > CodeBot isn't an AI-enhanced editor. It's an autonomous coding agent with an audit log.
 >
-> Cursor makes *you* faster. CodeBot does work *while you're not there* — and tells you exactly what it did when you get back.
+> Cursor makes _you_ faster. CodeBot does work _while you're not there_ — and tells you exactly what it did when you get back.
 >
 > Two different tools. Two different buyers.
 >

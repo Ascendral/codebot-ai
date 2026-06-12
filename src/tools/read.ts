@@ -9,7 +9,9 @@ export class ReadFileTool implements Tool {
   capabilities: CapabilityLabel[] = ['read-only'];
   cacheable = true;
   private projectRoot: string;
-  constructor(projectRoot?: string) { this.projectRoot = projectRoot || process.cwd(); }
+  constructor(projectRoot?: string) {
+    this.projectRoot = projectRoot || process.cwd();
+  }
   parameters = {
     type: 'object',
     properties: {
@@ -45,8 +47,6 @@ export class ReadFileTool implements Tool {
     const limit = (args.limit as number) || lines.length;
     const slice = lines.slice(offset, offset + limit);
 
-    return slice
-      .map((line, i) => `${String(offset + i + 1).padStart(5)}\t${line}`)
-      .join('\n');
+    return slice.map((line, i) => `${String(offset + i + 1).padStart(5)}\t${line}`).join('\n');
   }
 }

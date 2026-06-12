@@ -23,8 +23,8 @@ export interface RiskAssessment {
 export interface RiskFactor {
   name: string;
   weight: number;
-  rawScore: number;   // 0–100 within this factor
-  weighted: number;   // rawScore * (weight / 100)
+  rawScore: number; // 0–100 within this factor
+  weighted: number; // rawScore * (weight / 100)
   reason: string;
 }
 
@@ -142,9 +142,7 @@ export class RiskScorer {
         this.scoreCumulativeRisk(),
       ];
 
-      const score = Math.min(100, Math.round(
-        factors.reduce((sum, f) => sum + f.weighted, 0)
-      ));
+      const score = Math.min(100, Math.round(factors.reduce((sum, f) => sum + f.weighted, 0)));
 
       const level = scoreToLevel(score, this.policyRisk?.thresholds);
       const assessment: RiskAssessment = { score, level, factors };
@@ -177,9 +175,7 @@ export class RiskScorer {
         this.scoreConstitutional(constitutional),
       ];
 
-      const score = Math.min(100, Math.round(
-        factors.reduce((sum, f) => sum + f.weighted, 0)
-      ));
+      const score = Math.min(100, Math.round(factors.reduce((sum, f) => sum + f.weighted, 0)));
 
       const level = scoreToLevel(score, this.policyRisk?.thresholds);
       const assessment: RiskAssessment = { score, level, factors };
@@ -240,7 +236,15 @@ export class RiskScorer {
   }
 
   /** Get a summary of risk distribution for dashboard display */
-  getRiskSummary(): { total: number; green: number; yellow: number; orange: number; red: number; average: number; peak: number } {
+  getRiskSummary(): {
+    total: number;
+    green: number;
+    yellow: number;
+    orange: number;
+    red: number;
+    average: number;
+    peak: number;
+  } {
     const counts = { total: this.sessionHistory.length, green: 0, yellow: 0, orange: 0, red: 0, average: 0, peak: 0 };
     if (counts.total === 0) return counts;
     let sum = 0;
@@ -467,7 +471,7 @@ export class RiskScorer {
     }
 
     // Count high-risk calls in session
-    const highRisk = this.sessionHistory.filter(a => a.score > 50).length;
+    const highRisk = this.sessionHistory.filter((a) => a.score > 50).length;
     const ratio = highRisk / count;
 
     if (ratio > 0.5) {

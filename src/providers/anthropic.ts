@@ -39,15 +39,15 @@ function sanitizeForJSON(obj: unknown): unknown {
     let out = '';
     for (let i = 0; i < obj.length; i++) {
       const c = obj.charCodeAt(i);
-      if (c >= 0xD800 && c <= 0xDBFF) {
+      if (c >= 0xd800 && c <= 0xdbff) {
         // High surrogate — keep only if followed by a low surrogate
         const next = i + 1 < obj.length ? obj.charCodeAt(i + 1) : 0;
-        if (next >= 0xDC00 && next <= 0xDFFF) {
+        if (next >= 0xdc00 && next <= 0xdfff) {
           out += obj[i] + obj[i + 1];
           i++;
         }
         // else: drop the lone high surrogate
-      } else if (c >= 0xDC00 && c <= 0xDFFF) {
+      } else if (c >= 0xdc00 && c <= 0xdfff) {
         // Lone low surrogate — drop
       } else {
         out += obj[i];
@@ -84,7 +84,10 @@ export class AnthropicProvider implements LLMProvider {
   async *chat(messages: Message[], tools?: ToolSchema[]): AsyncGenerator<StreamEvent> {
     // Early check: Anthropic always requires an API key
     if (!this.config.apiKey) {
-      yield { type: 'error', error: `No API key configured for ${this.config.model}. Set ANTHROPIC_API_KEY or run: codebot --setup` };
+      yield {
+        type: 'error',
+        error: `No API key configured for ${this.config.model}. Set ANTHROPIC_API_KEY or run: codebot --setup`,
+      };
       return;
     }
 
@@ -105,18 +108,20 @@ export class AnthropicProvider implements LLMProvider {
     const cachingEnabled = getModelInfo(this.config.model).supportsCaching;
     if (systemPrompt) {
       if (cachingEnabled) {
-        body.system = [{
-          type: 'text',
-          text: systemPrompt,
-          cache_control: { type: 'ephemeral' },
-        }];
+        body.system = [
+          {
+            type: 'text',
+            text: systemPrompt,
+            cache_control: { type: 'ephemeral' },
+          },
+        ];
       } else {
         body.system = systemPrompt;
       }
     }
 
     if (tools?.length) {
-      const toolDefs = tools.map(t => ({
+      const toolDefs = tools.map((t) => ({
         name: t.function.name,
         description: t.function.description,
         input_schema: t.function.parameters,
@@ -181,13 +186,25 @@ export class AnthropicProvider implements LLMProvider {
       }
       const status = response?.status;
       if (status === 401 || (errorMessage && errorMessage.toLowerCase().includes('api key'))) {
-        yield { type: 'error', error: `Authentication failed (${status}): ${errorMessage || 'Invalid API key'}. Set ANTHROPIC_API_KEY or run: codebot --setup` };
+        yield {
+          type: 'error',
+          error: `Authentication failed (${status}): ${errorMessage || 'Invalid API key'}. Set ANTHROPIC_API_KEY or run: codebot --setup`,
+        };
       } else if (status === 403) {
-        yield { type: 'error', error: `Access denied (403): ${errorMessage || 'Permission denied'}. Check your API key permissions.` };
+        yield {
+          type: 'error',
+          error: `Access denied (403): ${errorMessage || 'Permission denied'}. Check your API key permissions.`,
+        };
       } else if (status === 404) {
-        yield { type: 'error', error: `Model not found (404): ${errorMessage || `"${this.config.model}" may not be available`}.` };
+        yield {
+          type: 'error',
+          error: `Model not found (404): ${errorMessage || `"${this.config.model}" may not be available`}.`,
+        };
       } else {
-        yield { type: 'error', error: `Anthropic error (${status || 'unknown'}): ${errorMessage || lastError || 'Unknown error'}` };
+        yield {
+          type: 'error',
+          error: `Anthropic error (${status || 'unknown'}): ${errorMessage || lastError || 'Unknown error'}`,
+        };
       }
       return;
     }
@@ -225,11 +242,14 @@ export class AnthropicProvider implements LLMProvider {
           readResult = await Promise.race([
             reader.read(),
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Stream chunk timeout after 120s')), CHUNK_TIMEOUT)
+              setTimeout(() => reject(new Error('Stream chunk timeout after 120s')), CHUNK_TIMEOUT),
             ),
           ]);
         } catch (err) {
-          yield { type: 'error', error: `Anthropic stream stalled: ${err instanceof Error ? err.message : String(err)}` };
+          yield {
+            type: 'error',
+            error: `Anthropic stream stalled: ${err instanceof Error ? err.message : String(err)}`,
+          };
           break;
         }
         const { done, value } = readResult;
@@ -266,7 +286,7 @@ export class AnthropicProvider implements LLMProvider {
             case 'content_block_start': {
               const block = data.content_block as Record<string, unknown>;
               currentBlockIndex = data.index as number;
-              currentBlockType = block?.type as string || '';
+              currentBlockType = (block?.type as string) || '';
 
               if (currentBlockType === 'tool_use') {
                 toolBlocks.set(currentBlockIndex, {
@@ -447,9 +467,7 @@ export class AnthropicProvider implements LLMProvider {
 
         apiMessages.push({
           role: 'assistant',
-          content: content.length === 1 && content[0].type === 'text'
-            ? content[0].text as string
-            : content,
+          content: content.length === 1 && content[0].type === 'text' ? (content[0].text as string) : content,
         });
         continue;
       }
@@ -480,11 +498,13 @@ export class AnthropicProvider implements LLMProvider {
         } else {
           apiMessages.push({
             role: 'user',
-            content: [{
-              type: 'tool_result',
-              tool_use_id: msg.tool_call_id,
-              content: toolContent,
-            }],
+            content: [
+              {
+                type: 'tool_result',
+                tool_use_id: msg.tool_call_id,
+                content: toolContent,
+              },
+            ],
           });
         }
         continue;

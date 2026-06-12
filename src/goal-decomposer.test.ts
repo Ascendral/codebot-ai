@@ -289,10 +289,7 @@ describe('DecomposeGoalTool', () => {
     const result = await tool.execute({
       action: 'add_subtasks',
       goal_id: tree.rootId,
-      subtasks: [
-        { description: 'Sub A' },
-        { description: 'Sub B', dependencies: ['0'] },
-      ],
+      subtasks: [{ description: 'Sub A' }, { description: 'Sub B', dependencies: ['0'] }],
     });
     assert.ok(result.includes('Added 2 subtask'));
   });

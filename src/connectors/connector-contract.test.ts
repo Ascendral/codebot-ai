@@ -1,11 +1,6 @@
 import { describe, it } from 'node:test';
 import * as assert from 'node:assert';
-import {
-  validateConnectorContract,
-  scoreConnector,
-  assertContractClean,
-  formatScoreTable,
-} from './connector-contract';
+import { validateConnectorContract, scoreConnector, assertContractClean, formatScoreTable } from './connector-contract';
 import { ConnectorReauthError, isConnectorReauthError } from './base';
 import type { Connector, ConnectorAction } from './base';
 import { TestConnector } from './test-connector';
@@ -87,11 +82,14 @@ describe('validateConnectorContract — rule coverage', () => {
       ],
       validate: async () => true,
     };
-    const rules = validateConnectorContract(c).map((v) => v.rule).sort();
-    assert.deepStrictEqual(
-      rules,
-      ['missing-idempotency-declaration', 'missing-preview-for-mutating-verb', 'missing-redact-for-mutating-verb'],
-    );
+    const rules = validateConnectorContract(c)
+      .map((v) => v.rule)
+      .sort();
+    assert.deepStrictEqual(rules, [
+      'missing-idempotency-declaration',
+      'missing-preview-for-mutating-verb',
+      'missing-redact-for-mutating-verb',
+    ]);
   });
 
   it('flags mutating verb missing redactArgsForAudit', () => {
@@ -106,8 +104,12 @@ describe('validateConnectorContract — rule coverage', () => {
       execute: async () => 'ok',
     };
     const c: Connector = {
-      name: 'fixture-no-redact', displayName: '', description: '',
-      authType: 'api_key', actions: [action], validate: async () => true,
+      name: 'fixture-no-redact',
+      displayName: '',
+      description: '',
+      authType: 'api_key',
+      actions: [action],
+      validate: async () => true,
     };
     const rules = validateConnectorContract(c).map((v) => v.rule);
     assert.deepStrictEqual(rules, ['missing-redact-for-mutating-verb']);
@@ -125,8 +127,12 @@ describe('validateConnectorContract — rule coverage', () => {
       execute: async () => 'ok',
     };
     const c: Connector = {
-      name: 'fixture-no-idem', displayName: '', description: '',
-      authType: 'api_key', actions: [action], validate: async () => true,
+      name: 'fixture-no-idem',
+      displayName: '',
+      description: '',
+      authType: 'api_key',
+      actions: [action],
+      validate: async () => true,
     };
     const rules = validateConnectorContract(c).map((v) => v.rule);
     assert.deepStrictEqual(rules, ['missing-idempotency-declaration']);
@@ -144,8 +150,12 @@ describe('validateConnectorContract — rule coverage', () => {
       execute: async () => 'ok',
     };
     const c: Connector = {
-      name: 'fixture-arg', displayName: '', description: '',
-      authType: 'api_key', actions: [action], validate: async () => true,
+      name: 'fixture-arg',
+      displayName: '',
+      description: '',
+      authType: 'api_key',
+      actions: [action],
+      validate: async () => true,
     };
     assert.deepStrictEqual(validateConnectorContract(c), []);
   });
@@ -168,11 +178,18 @@ describe('validateConnectorContract — rule coverage', () => {
       execute: async () => 'ok',
     };
     const c: Connector = {
-      name: 'fixture-unsupported', displayName: '', description: '',
-      authType: 'api_key', actions: [action], validate: async () => true,
+      name: 'fixture-unsupported',
+      displayName: '',
+      description: '',
+      authType: 'api_key',
+      actions: [action],
+      validate: async () => true,
     };
-    assert.deepStrictEqual(validateConnectorContract(c), [],
-      'unsupported declaration must be accepted as an honest gap doc');
+    assert.deepStrictEqual(
+      validateConnectorContract(c),
+      [],
+      'unsupported declaration must be accepted as an honest gap doc',
+    );
   });
 
   it('idempotency.kind === "arg" with empty arg fails the rule', () => {
@@ -187,12 +204,15 @@ describe('validateConnectorContract — rule coverage', () => {
       execute: async () => 'ok',
     };
     const c: Connector = {
-      name: 'fixture-empty-arg', displayName: '', description: '',
-      authType: 'api_key', actions: [action], validate: async () => true,
+      name: 'fixture-empty-arg',
+      displayName: '',
+      description: '',
+      authType: 'api_key',
+      actions: [action],
+      validate: async () => true,
     };
     const rules = validateConnectorContract(c).map((v) => v.rule);
-    assert.deepStrictEqual(rules, ['missing-idempotency-declaration'],
-      'empty arg string is not an honest declaration');
+    assert.deepStrictEqual(rules, ['missing-idempotency-declaration'], 'empty arg string is not an honest declaration');
   });
 
   it('idempotency.kind === "unsupported" with empty reason fails the rule', () => {
@@ -209,12 +229,19 @@ describe('validateConnectorContract — rule coverage', () => {
       execute: async () => 'ok',
     };
     const c: Connector = {
-      name: 'fixture-empty-reason', displayName: '', description: '',
-      authType: 'api_key', actions: [action], validate: async () => true,
+      name: 'fixture-empty-reason',
+      displayName: '',
+      description: '',
+      authType: 'api_key',
+      actions: [action],
+      validate: async () => true,
     };
     const rules = validateConnectorContract(c).map((v) => v.rule);
-    assert.deepStrictEqual(rules, ['missing-idempotency-declaration'],
-      'empty reason string is not an honest declaration');
+    assert.deepStrictEqual(
+      rules,
+      ['missing-idempotency-declaration'],
+      'empty reason string is not an honest declaration',
+    );
   });
 
   it('idempotency with unknown kind fails the rule (no silent acceptance)', () => {
@@ -233,8 +260,12 @@ describe('validateConnectorContract — rule coverage', () => {
       execute: async () => 'ok',
     };
     const c: Connector = {
-      name: 'fixture-bad-kind', displayName: '', description: '',
-      authType: 'api_key', actions: [action], validate: async () => true,
+      name: 'fixture-bad-kind',
+      displayName: '',
+      description: '',
+      authType: 'api_key',
+      actions: [action],
+      validate: async () => true,
     };
     const rules = validateConnectorContract(c).map((v) => v.rule);
     assert.deepStrictEqual(rules, ['missing-idempotency-declaration']);
@@ -249,8 +280,12 @@ describe('validateConnectorContract — rule coverage', () => {
       execute: async () => 'ok',
     };
     const c: Connector = {
-      name: 'fixture-read-only', displayName: '', description: '',
-      authType: 'api_key', actions: [action], validate: async () => true,
+      name: 'fixture-read-only',
+      displayName: '',
+      description: '',
+      authType: 'api_key',
+      actions: [action],
+      validate: async () => true,
     };
     assert.deepStrictEqual(validateConnectorContract(c), []);
   });
@@ -286,8 +321,11 @@ describe('TestConnector — fully-compliant fixture passes the contract', () => 
     const send = tc.actions.find((a) => a.name === 'send_thing')!;
     const redacted = send.redactArgsForAudit!({ to: 'alice@x.com', body: 'top secret' });
     assert.strictEqual(redacted.to, 'alice@x.com', 'non-sensitive fields pass through');
-    assert.match(String(redacted.body), /^<redacted sha256:[a-f0-9]+ len:\d+>$/,
-      'body should be hash+length, not the original string');
+    assert.match(
+      String(redacted.body),
+      /^<redacted sha256:[a-f0-9]+ len:\d+>$/,
+      'body should be hash+length, not the original string',
+    );
   });
 });
 
@@ -295,7 +333,8 @@ describe('assertContractClean — hard fail for new connector PRs', () => {
   it('throws on any violation, with message naming each rule', () => {
     const c: Connector = {
       name: 'fixture-noncompliant',
-      displayName: '', description: '',
+      displayName: '',
+      description: '',
       authType: 'api_key',
       actions: [
         {
@@ -312,10 +351,12 @@ describe('assertContractClean — hard fail for new connector PRs', () => {
     assert.throws(
       () => assertContractClean(c),
       (e: Error) => {
-        return /3 contract violation\(s\)/.test(e.message)
-          && /missing-preview-for-mutating-verb/.test(e.message)
-          && /missing-idempotency-declaration/.test(e.message)
-          && /missing-redact-for-mutating-verb/.test(e.message);
+        return (
+          /3 contract violation\(s\)/.test(e.message) &&
+          /missing-preview-for-mutating-verb/.test(e.message) &&
+          /missing-idempotency-declaration/.test(e.message) &&
+          /missing-redact-for-mutating-verb/.test(e.message)
+        );
       },
     );
   });
@@ -324,8 +365,11 @@ describe('assertContractClean — hard fail for new connector PRs', () => {
 describe('ConnectorReauthError — structural catchability', () => {
   it('is catchable by instanceof', () => {
     let caught: unknown;
-    try { throw new ConnectorReauthError('gmail', 'token expired'); }
-    catch (e) { caught = e; }
+    try {
+      throw new ConnectorReauthError('gmail', 'token expired');
+    } catch (e) {
+      caught = e;
+    }
     assert.ok(caught instanceof ConnectorReauthError);
   });
 
@@ -351,8 +395,11 @@ describe('ConnectorReauthError — structural catchability', () => {
     const tc = new TestConnector();
     const trip = tc.actions.find((a) => a.name === 'reauth_trip')!;
     let caught: unknown;
-    try { await trip.execute({}, 'creds'); }
-    catch (e) { caught = e; }
+    try {
+      await trip.execute({}, 'creds');
+    } catch (e) {
+      caught = e;
+    }
     // Tests assert the structure is the contract — not just a string.
     assert.ok(isConnectorReauthError(caught), 'must be structurally catchable');
     assert.strictEqual((caught as ConnectorReauthError).kind, 'reauth-required');

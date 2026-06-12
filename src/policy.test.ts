@@ -31,7 +31,14 @@ describe('PolicyEnforcer — tool access', () => {
   });
 
   it('returns correct permission overrides', () => {
-    const policy = { ...DEFAULT_POLICY, tools: { enabled: [], disabled: [], permissions: { execute: 'auto' as const, write_file: 'always-ask' as const } } };
+    const policy = {
+      ...DEFAULT_POLICY,
+      tools: {
+        enabled: [],
+        disabled: [],
+        permissions: { execute: 'auto' as const, write_file: 'always-ask' as const },
+      },
+    };
     const enforcer = new PolicyEnforcer(policy);
     assert.strictEqual(enforcer.getToolPermission('execute'), 'auto');
     assert.strictEqual(enforcer.getToolPermission('write_file'), 'always-ask');
@@ -41,7 +48,15 @@ describe('PolicyEnforcer — tool access', () => {
 
 describe('PolicyEnforcer — filesystem', () => {
   it('blocks denied paths', () => {
-    const policy = { ...DEFAULT_POLICY, filesystem: { denied_paths: ['.env', '.env.local'], writable_paths: [], read_only_paths: [], allow_outside_project: false } };
+    const policy = {
+      ...DEFAULT_POLICY,
+      filesystem: {
+        denied_paths: ['.env', '.env.local'],
+        writable_paths: [],
+        read_only_paths: [],
+        allow_outside_project: false,
+      },
+    };
     const enforcer = new PolicyEnforcer(policy, '/project');
     assert.strictEqual(enforcer.isPathWritable('/project/.env').allowed, false);
     assert.strictEqual(enforcer.isPathWritable('/project/.env.local').allowed, false);
@@ -49,14 +64,25 @@ describe('PolicyEnforcer — filesystem', () => {
   });
 
   it('enforces read-only paths', () => {
-    const policy = { ...DEFAULT_POLICY, filesystem: { read_only_paths: ['./config'], denied_paths: [], writable_paths: [], allow_outside_project: false } };
+    const policy = {
+      ...DEFAULT_POLICY,
+      filesystem: { read_only_paths: ['./config'], denied_paths: [], writable_paths: [], allow_outside_project: false },
+    };
     const enforcer = new PolicyEnforcer(policy, '/project');
     assert.strictEqual(enforcer.isPathWritable('/project/config/app.json').allowed, false);
     assert.strictEqual(enforcer.isPathWritable('/project/src/index.ts').allowed, true);
   });
 
   it('restricts to writable paths when specified', () => {
-    const policy = { ...DEFAULT_POLICY, filesystem: { writable_paths: ['./src', './tests'], read_only_paths: [], denied_paths: [], allow_outside_project: false } };
+    const policy = {
+      ...DEFAULT_POLICY,
+      filesystem: {
+        writable_paths: ['./src', './tests'],
+        read_only_paths: [],
+        denied_paths: [],
+        allow_outside_project: false,
+      },
+    };
     const enforcer = new PolicyEnforcer(policy, '/project');
     assert.strictEqual(enforcer.isPathWritable('/project/src/index.ts').allowed, true);
     assert.strictEqual(enforcer.isPathWritable('/project/tests/foo.test.ts').allowed, true);
@@ -100,7 +126,10 @@ describe('PolicyEnforcer — git', () => {
   });
 
   it('respects always_branch setting', () => {
-    const policy = { ...DEFAULT_POLICY, git: { always_branch: true, branch_prefix: 'cb/', never_push_main: true, require_tests_before_commit: false } };
+    const policy = {
+      ...DEFAULT_POLICY,
+      git: { always_branch: true, branch_prefix: 'cb/', never_push_main: true, require_tests_before_commit: false },
+    };
     const enforcer = new PolicyEnforcer(policy);
     assert.strictEqual(enforcer.shouldAlwaysBranch(), true);
     assert.strictEqual(enforcer.getBranchPrefix(), 'cb/');
@@ -161,11 +190,11 @@ describe('PolicyEnforcer — limits', () => {
   });
 
   it('returns configured limits', () => {
-    const policy = { ...DEFAULT_POLICY, limits: { max_iterations: 10, max_file_size_kb: 100, cost_limit_usd: 1.50 } };
+    const policy = { ...DEFAULT_POLICY, limits: { max_iterations: 10, max_file_size_kb: 100, cost_limit_usd: 1.5 } };
     const enforcer = new PolicyEnforcer(policy);
     assert.strictEqual(enforcer.getMaxIterations(), 10);
     assert.strictEqual(enforcer.getMaxFileSizeBytes(), 100 * 1024);
-    assert.strictEqual(enforcer.getCostLimitUsd(), 1.50);
+    assert.strictEqual(enforcer.getCostLimitUsd(), 1.5);
   });
 });
 
@@ -177,7 +206,11 @@ describe('loadPolicy', () => {
   });
 
   afterEach(() => {
-    try { fs.rmSync(testDir, { recursive: true, force: true }); } catch { /* ok */ }
+    try {
+      fs.rmSync(testDir, { recursive: true, force: true });
+    } catch {
+      /* ok */
+    }
   });
 
   it('returns defaults when no policy files exist', () => {

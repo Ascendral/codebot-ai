@@ -75,7 +75,10 @@ export function handleVaultSubcommand(): boolean {
 
   if (sub === 'delete' || sub === 'rm') {
     const name = process.argv[4];
-    if (!name) { console.error('Usage: codebot vault delete <name>'); process.exit(1); }
+    if (!name) {
+      console.error('Usage: codebot vault delete <name>');
+      process.exit(1);
+    }
     const ok = vault.delete(name);
     console.log(ok ? `deleted: ${name}` : `not found: ${name}`);
     return true;
@@ -95,7 +98,10 @@ export function handleVaultSubcommand(): boolean {
     }
     const eq = kv.indexOf('=');
     const value = kv.slice(eq + 1);
-    if (!value) { console.error('Empty value rejected.'); process.exit(1); }
+    if (!value) {
+      console.error('Empty value rejected.');
+      process.exit(1);
+    }
     vault.set(name, {
       type: 'oauth_token',
       value,
@@ -179,7 +185,9 @@ export function handleVerifyAudit(args: ParsedArgs): void {
   const verifiable = sessions.size - legacySessions;
   const lines: string[] = [];
   if (legacySessions > 0) {
-    lines.push(c(`Skipped ${legacySessions} legacy sessions (${legacyEntries} entries) predating v1.7.0 hash chain.`, 'yellow'));
+    lines.push(
+      c(`Skipped ${legacySessions} legacy sessions (${legacyEntries} entries) predating v1.7.0 hash chain.`, 'yellow'),
+    );
   }
   if (crashed > 0) {
     lines.push(c(`${crashed} sessions failed to verify due to verifier errors.`, 'red'));
@@ -400,9 +408,7 @@ export async function handleListen(args: ParsedArgs): Promise<void> {
   const { AuditLogger } = await import('../audit');
   const port = typeof args.port === 'string' ? parseInt(args.port, 10) : 8442;
   const host = typeof args.host === 'string' ? args.host : '127.0.0.1';
-  const secret = typeof args.secret === 'string'
-    ? args.secret
-    : process.env.CODEBOT_LISTEN_SECRET || '';
+  const secret = typeof args.secret === 'string' ? args.secret : process.env.CODEBOT_LISTEN_SECRET || '';
   if (!secret) {
     console.error(c('error: --secret <key> or CODEBOT_LISTEN_SECRET env var required (>= 16 chars)', 'red'));
     process.exit(2);
@@ -479,20 +485,38 @@ export async function handleDaemon(args: ParsedArgs): Promise<void> {
  * doctor falls through to the interactive REPL and task exits via
  * process.exit() internally, so neither fits the "return true" pattern.
  */
-export async function dispatchEarlyReturnSubcommand(
-  args: ParsedArgs,
-  version: string,
-): Promise<boolean> {
-  if (args['init-policy']) { handleInitPolicy(); return true; }
-  if (args['verify-audit']) { handleVerifyAudit(args); return true; }
-  if (args['sandbox-info']) { handleSandboxInfo(); return true; }
-  if (args.replay) { await handleReplay(args); return true; }
-  if (args['export-audit'] === 'sarif' || args['export-audit'] === true) {
-    handleExportAudit(args, version); return true;
+export async function dispatchEarlyReturnSubcommand(args: ParsedArgs, version: string): Promise<boolean> {
+  if (args['init-policy']) {
+    handleInitPolicy();
+    return true;
   }
-  if (args.solve) { await handleSolve(args); return true; }
-  if (args.daemon) { await handleDaemon(args); return true; }
-  if (args.listen) { await handleListen(args); return true; }
+  if (args['verify-audit']) {
+    handleVerifyAudit(args);
+    return true;
+  }
+  if (args['sandbox-info']) {
+    handleSandboxInfo();
+    return true;
+  }
+  if (args.replay) {
+    await handleReplay(args);
+    return true;
+  }
+  if (args['export-audit'] === 'sarif' || args['export-audit'] === true) {
+    handleExportAudit(args, version);
+    return true;
+  }
+  if (args.solve) {
+    await handleSolve(args);
+    return true;
+  }
+  if (args.daemon) {
+    await handleDaemon(args);
+    return true;
+  }
+  if (args.listen) {
+    await handleListen(args);
+    return true;
+  }
   return false;
 }
-

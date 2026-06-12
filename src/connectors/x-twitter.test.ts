@@ -10,14 +10,12 @@ describe('XTwitterConnector', () => {
     assert.strictEqual(x.displayName, 'X (Twitter)');
     assert.strictEqual(x.authType, 'api_key');
     assert.strictEqual(x.envKey, 'X_API_KEY');
-    assert.deepStrictEqual(x.requiredEnvKeys, [
-      'X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET',
-    ]);
+    assert.deepStrictEqual(x.requiredEnvKeys, ['X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET']);
   });
 
   it('has all expected actions', () => {
     const x = new XTwitterConnector();
-    const names = x.actions.map(a => a.name);
+    const names = x.actions.map((a) => a.name);
     assert.ok(names.includes('post_tweet'));
     assert.ok(names.includes('post_thread'));
     assert.ok(names.includes('delete_tweet'));
@@ -36,12 +34,18 @@ describe('XTwitterConnector', () => {
   // parsing into the network layer (which then 401s on bogus creds).
   it('post_tweet accepts JSON credential bundle', async () => {
     const x = new XTwitterConnector();
-    const action = x.actions.find(a => a.name === 'post_tweet')!;
+    const action = x.actions.find((a) => a.name === 'post_tweet')!;
     let result = '';
     try {
-      result = await action.execute({ message: 'hello' }, JSON.stringify({
-        apiKey: 'k', apiSecret: 's', accessToken: 't', accessSecret: 'as',
-      }));
+      result = await action.execute(
+        { message: 'hello' },
+        JSON.stringify({
+          apiKey: 'k',
+          apiSecret: 's',
+          accessToken: 't',
+          accessSecret: 'as',
+        }),
+      );
     } catch (err) {
       // ConnectorReauthError IS evidence that parsing succeeded — the
       // call made it to the X API and got 401. That's exactly what
@@ -60,7 +64,7 @@ describe('XTwitterConnector', () => {
     process.env.X_ACCESS_SECRET = 'eas';
     try {
       const x = new XTwitterConnector();
-      const action = x.actions.find(a => a.name === 'post_tweet')!;
+      const action = x.actions.find((a) => a.name === 'post_tweet')!;
       let result = '';
       try {
         result = await action.execute({ message: 'hello' }, 'env');
@@ -81,16 +85,18 @@ describe('XTwitterConnector', () => {
   // Credential parsing — incomplete
   it('rejects incomplete credentials', async () => {
     const x = new XTwitterConnector();
-    const action = x.actions.find(a => a.name === 'post_tweet')!;
+    const action = x.actions.find((a) => a.name === 'post_tweet')!;
     const result = await action.execute({ message: 'hello' }, 'bad');
-    assert.ok(result.includes('credentials incomplete') || result.includes('X credentials incomplete'),
-      'Should reject incomplete credentials');
+    assert.ok(
+      result.includes('credentials incomplete') || result.includes('X credentials incomplete'),
+      'Should reject incomplete credentials',
+    );
   });
 
   // Tweet length validation
   it('rejects tweets over 280 characters', async () => {
     const x = new XTwitterConnector();
-    const action = x.actions.find(a => a.name === 'post_tweet')!;
+    const action = x.actions.find((a) => a.name === 'post_tweet')!;
     const longMsg = 'x'.repeat(281);
     const cred = JSON.stringify({ apiKey: 'k', apiSecret: 's', accessToken: 't', accessSecret: 'as' });
     const result = await action.execute({ message: longMsg }, cred);
@@ -100,7 +106,7 @@ describe('XTwitterConnector', () => {
 
   it('post_tweet requires a message', async () => {
     const x = new XTwitterConnector();
-    const action = x.actions.find(a => a.name === 'post_tweet')!;
+    const action = x.actions.find((a) => a.name === 'post_tweet')!;
     const result = await action.execute({ message: '' }, 'fake');
     assert.ok(result.includes('Error:'));
   });
@@ -108,7 +114,7 @@ describe('XTwitterConnector', () => {
   // Thread splitting
   it('post_thread splits on ||| separator', async () => {
     const x = new XTwitterConnector();
-    const action = x.actions.find(a => a.name === 'post_thread')!;
+    const action = x.actions.find((a) => a.name === 'post_thread')!;
     // Single tweet (no |||) should error
     const result = await action.execute({ tweets: 'just one tweet' }, 'fake');
     assert.ok(result.includes('at least 2 tweets'), 'Should require multiple tweets');
@@ -116,7 +122,7 @@ describe('XTwitterConnector', () => {
 
   it('post_thread rejects over-length individual tweets', async () => {
     const x = new XTwitterConnector();
-    const action = x.actions.find(a => a.name === 'post_thread')!;
+    const action = x.actions.find((a) => a.name === 'post_thread')!;
     const longTweet = 'x'.repeat(281);
     const cred = JSON.stringify({ apiKey: 'k', apiSecret: 's', accessToken: 't', accessSecret: 'as' });
     const result = await action.execute({ tweets: `short ||| ${longTweet}` }, cred);
@@ -126,7 +132,7 @@ describe('XTwitterConnector', () => {
 
   it('post_thread requires tweets parameter', async () => {
     const x = new XTwitterConnector();
-    const action = x.actions.find(a => a.name === 'post_thread')!;
+    const action = x.actions.find((a) => a.name === 'post_thread')!;
     const result = await action.execute({ tweets: '' }, 'fake');
     assert.ok(result.includes('Error:'));
   });
@@ -158,7 +164,10 @@ describe('isXAuthError (PR 20)', () => {
 
   it('403 with detail "duplicate content" → NOT reauth (server dedup, not auth)', () => {
     assert.strictEqual(
-      isXAuthError(403, { title: 'Forbidden', detail: 'You are not allowed to create a Tweet with duplicate content.' }),
+      isXAuthError(403, {
+        title: 'Forbidden',
+        detail: 'You are not allowed to create a Tweet with duplicate content.',
+      }),
       false,
     );
   });
@@ -188,16 +197,21 @@ describe('XTwitterConnector — §8 contract surface (PR 20)', () => {
   });
 
   it('per-action capability labels match the §8 spec', () => {
-    const byName = Object.fromEntries(connector.actions.map(a => [a.name, a]));
+    const byName = Object.fromEntries(connector.actions.map((a) => [a.name, a]));
     assert.deepStrictEqual(byName.get_me.capabilities, ['read-only', 'account-access', 'net-fetch']);
     assert.deepStrictEqual(byName.search_tweets.capabilities, ['read-only', 'account-access', 'net-fetch']);
     assert.deepStrictEqual(byName.post_tweet.capabilities, ['account-access', 'net-fetch', 'send-on-behalf']);
     assert.deepStrictEqual(byName.post_thread.capabilities, ['account-access', 'net-fetch', 'send-on-behalf']);
-    assert.deepStrictEqual(byName.delete_tweet.capabilities, ['account-access', 'net-fetch', 'send-on-behalf', 'delete-data']);
+    assert.deepStrictEqual(byName.delete_tweet.capabilities, [
+      'account-access',
+      'net-fetch',
+      'send-on-behalf',
+      'delete-data',
+    ]);
   });
 
   it('idempotency declarations: all three writes are unsupported with explicit reasons', () => {
-    const byName = Object.fromEntries(connector.actions.map(a => [a.name, a]));
+    const byName = Object.fromEntries(connector.actions.map((a) => [a.name, a]));
     for (const name of ['post_tweet', 'post_thread', 'delete_tweet']) {
       const a = byName[name];
       assert.strictEqual(a.idempotency?.kind, 'unsupported', `${name} idempotency should be unsupported`);
@@ -212,7 +226,7 @@ describe('XTwitterConnector — §8 contract surface (PR 20)', () => {
   });
 
   it('preview: post_tweet shows full text + length + irreversibility note', async () => {
-    const a = connector.actions.find(x => x.name === 'post_tweet')!;
+    const a = connector.actions.find((x) => x.name === 'post_tweet')!;
     assert.ok(a.preview, 'preview required for send-on-behalf');
     const p = await a.preview!({ message: 'hello world test tweet' }, '');
     assert.match(p.summary, /Would post tweet on X \(PUBLIC\)/);
@@ -225,7 +239,7 @@ describe('XTwitterConnector — §8 contract surface (PR 20)', () => {
   });
 
   it('preview: post_tweet flags over-length tweets', async () => {
-    const a = connector.actions.find(x => x.name === 'post_tweet')!;
+    const a = connector.actions.find((x) => x.name === 'post_tweet')!;
     const long = 'x'.repeat(300);
     const p = await a.preview!({ message: long }, '');
     assert.match(p.summary, /OVER LIMIT/);
@@ -233,7 +247,7 @@ describe('XTwitterConnector — §8 contract surface (PR 20)', () => {
   });
 
   it('preview: post_thread enumerates all tweets + non-atomic warning', async () => {
-    const a = connector.actions.find(x => x.name === 'post_thread')!;
+    const a = connector.actions.find((x) => x.name === 'post_thread')!;
     const p = await a.preview!({ tweets: 'first ||| second ||| third' }, '');
     assert.match(p.summary, /Count:\s+3 tweet/);
     assert.match(p.summary, /1\..*first/);
@@ -245,7 +259,7 @@ describe('XTwitterConnector — §8 contract surface (PR 20)', () => {
   });
 
   it('preview: delete_tweet names irreversibility + cached-versions caveat', async () => {
-    const a = connector.actions.find(x => x.name === 'delete_tweet')!;
+    const a = connector.actions.find((x) => x.name === 'delete_tweet')!;
     const p = await a.preview!({ tweet_id: '1234567890' }, '');
     assert.match(p.summary, /Would DELETE tweet/);
     assert.match(p.summary, /1234567890/);
@@ -253,7 +267,7 @@ describe('XTwitterConnector — §8 contract surface (PR 20)', () => {
   });
 
   it('redactArgsForAudit: post_tweet hashes message; reply_to preserved', () => {
-    const a = connector.actions.find(x => x.name === 'post_tweet')!;
+    const a = connector.actions.find((x) => x.name === 'post_tweet')!;
     const out = a.redactArgsForAudit!({
       message: 'sensitive draft text that may not get posted',
       reply_to: '999',
@@ -264,7 +278,7 @@ describe('XTwitterConnector — §8 contract surface (PR 20)', () => {
   });
 
   it('redactArgsForAudit: post_thread hashes joined tweets + counts', () => {
-    const a = connector.actions.find(x => x.name === 'post_thread')!;
+    const a = connector.actions.find((x) => x.name === 'post_thread')!;
     const out = a.redactArgsForAudit!({
       tweets: 'first private ||| second private ||| third private',
     });
@@ -273,14 +287,13 @@ describe('XTwitterConnector — §8 contract surface (PR 20)', () => {
   });
 
   it('redactArgsForAudit: delete_tweet preserves tweet_id (already public)', () => {
-    const a = connector.actions.find(x => x.name === 'delete_tweet')!;
+    const a = connector.actions.find((x) => x.name === 'delete_tweet')!;
     const out = a.redactArgsForAudit!({ tweet_id: '12345' });
     assert.strictEqual(out.tweet_id, '12345');
   });
 
   it('contract validator passes with zero violations', () => {
     const violations = validateConnectorContract(connector);
-    assert.strictEqual(violations.length, 0,
-      `expected zero violations; got: ${JSON.stringify(violations)}`);
+    assert.strictEqual(violations.length, 0, `expected zero violations; got: ${JSON.stringify(violations)}`);
   });
 });

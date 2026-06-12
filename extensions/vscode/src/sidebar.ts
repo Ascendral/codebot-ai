@@ -1,10 +1,7 @@
 import * as vscode from 'vscode';
 import { AgentBridge } from './agent-bridge';
 import { getWebviewContent } from './webview';
-import type {
-  ExtensionToWebviewMessage,
-  WebviewToExtensionMessage,
-} from './types';
+import type { ExtensionToWebviewMessage, WebviewToExtensionMessage } from './types';
 import type { AgentEvent } from 'codebot-ai';
 
 /**
@@ -37,7 +34,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
     _context: vscode.WebviewViewResolveContext,
-    _token: vscode.CancellationToken
+    _token: vscode.CancellationToken,
   ): void {
     this.view = webviewView;
 
@@ -46,17 +43,12 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this.extensionUri],
     };
 
-    webviewView.webview.html = getWebviewContent(
-      webviewView.webview,
-      this.extensionUri
-    );
+    webviewView.webview.html = getWebviewContent(webviewView.webview, this.extensionUri);
 
     // Listen for messages from the webview
-    webviewView.webview.onDidReceiveMessage(
-      (message: WebviewToExtensionMessage) => {
-        this.handleWebviewMessage(message);
-      }
-    );
+    webviewView.webview.onDidReceiveMessage((message: WebviewToExtensionMessage) => {
+      this.handleWebviewMessage(message);
+    });
 
     // Clean up bridge when the view is disposed
     webviewView.onDidDispose(() => {
@@ -110,21 +102,15 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
           this.postToWebview({ type: 'agentEvent', event });
           this._onAgentEvent.fire(event);
         },
-        onPermissionRequest: async (
-          tool: string,
-          args: Record<string, unknown>
-        ): Promise<boolean> => {
+        onPermissionRequest: async (tool: string, args: Record<string, unknown>): Promise<boolean> => {
           const argsPreview = JSON.stringify(args, null, 2);
-          const truncated =
-            argsPreview.length > 300
-              ? argsPreview.substring(0, 300) + '...'
-              : argsPreview;
+          const truncated = argsPreview.length > 300 ? argsPreview.substring(0, 300) + '...' : argsPreview;
 
           const result = await vscode.window.showWarningMessage(
             `CodeBot wants to use tool: ${tool}\n\n${truncated}`,
             { modal: true },
             'Allow',
-            'Deny'
+            'Deny',
           );
           return result === 'Allow';
         },
@@ -133,8 +119,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
       try {
         this.bridge.createAgent();
       } catch (err) {
-        const errorMsg =
-          err instanceof Error ? err.message : 'Failed to create agent';
+        const errorMsg = err instanceof Error ? err.message : 'Failed to create agent';
         this.postToWebview({ type: 'error', message: errorMsg });
         this.outputChannel.appendLine(`[ERROR] ${errorMsg}`);
         this.bridge = undefined;
@@ -152,8 +137,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     try {
       await this.bridge.run(text);
     } catch (err) {
-      const errorMsg =
-        err instanceof Error ? err.message : 'Agent run failed';
+      const errorMsg = err instanceof Error ? err.message : 'Agent run failed';
       this.postToWebview({ type: 'error', message: errorMsg });
       this.outputChannel.appendLine(`[ERROR] ${errorMsg}`);
     } finally {
@@ -214,9 +198,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
   public async showUsage(): Promise<void> {
     const agent = this.bridge?.getAgent();
     if (!agent) {
-      vscode.window.showInformationMessage(
-        'No active CodeBot session. Start a session first.'
-      );
+      vscode.window.showInformationMessage('No active CodeBot session. Start a session first.');
       return;
     }
 

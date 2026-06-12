@@ -16,7 +16,15 @@ import { SessionManager } from '../history';
 import { decryptLine } from '../encryption';
 import { UserProfile } from '../user-profile';
 import { MemoryManager } from '../memory';
-import { loadConfig, saveConfig as saveSetupConfig, isFirstRun, detectLocalServers, SavedConfig, isProviderDisabled, pickProviderKey } from '../setup';
+import {
+  loadConfig,
+  saveConfig as saveSetupConfig,
+  isFirstRun,
+  detectLocalServers,
+  SavedConfig,
+  isProviderDisabled,
+  pickProviderKey,
+} from '../setup';
 import { codebotPath } from '../paths';
 import { AuditLogger, AuditEntry } from '../audit';
 
@@ -50,17 +58,18 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
     let sessions = SessionManager.list(100);
 
     if (searchTerm) {
-      sessions = sessions.filter(s =>
-        s.preview.toLowerCase().includes(searchTerm) ||
-        s.id.includes(searchTerm) ||
-        s.model.toLowerCase().includes(searchTerm)
+      sessions = sessions.filter(
+        (s) =>
+          s.preview.toLowerCase().includes(searchTerm) ||
+          s.id.includes(searchTerm) ||
+          s.model.toLowerCase().includes(searchTerm),
       );
     }
 
     const start = (page - 1) * limit;
     const paginated = sessions.slice(start, start + limit);
 
-    const items = paginated.map(s => ({
+    const items = paginated.map((s) => ({
       id: s.id,
       preview: s.preview,
       model: s.model,
@@ -93,16 +102,20 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
       DashboardServer.error(res, 500, 'Failed to read session: ' + (err.message || 'unknown'));
       return;
     }
-    const messages = lines.map(line => {
-      try {
-        const decrypted = decryptLine(line);
-        const obj = JSON.parse(decrypted);
-        delete obj._ts;
-        delete obj._model;
-        delete obj._sig;
-        return obj;
-      } catch { return null; }
-    }).filter(Boolean);
+    const messages = lines
+      .map((line) => {
+        try {
+          const decrypted = decryptLine(line);
+          const obj = JSON.parse(decrypted);
+          delete obj._ts;
+          delete obj._model;
+          delete obj._sig;
+          return obj;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
 
     const toolCalls = messages.filter((m: any) => m.role === 'assistant' && m.tool_calls?.length > 0);
     const stat = safeStatSync(sessionFile);
@@ -174,7 +187,9 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
           if (fs.existsSync(auditFile)) fs.unlinkSync(auditFile);
           deleted++;
         }
-      } catch { failed++; }
+      } catch {
+        failed++;
+      }
     }
 
     DashboardServer.json(res, { deleted, failed, total: ids.length });
@@ -349,9 +364,7 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
       return;
     }
 
-    const memDir = scope === 'project'
-      ? path.join(root, '.codebot', 'memory')
-      : codebotPath('memory');
+    const memDir = scope === 'project' ? path.join(root, '.codebot', 'memory') : codebotPath('memory');
 
     // Prevent path traversal
     const safeFile = path.basename(file.endsWith('.md') ? file : file + '.md');
@@ -391,9 +404,7 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
       return;
     }
 
-    const memDir = scope === 'project'
-      ? path.join(root, '.codebot', 'memory')
-      : codebotPath('memory');
+    const memDir = scope === 'project' ? path.join(root, '.codebot', 'memory') : codebotPath('memory');
 
     fs.mkdirSync(memDir, { recursive: true });
     // Prevent path traversal
@@ -488,9 +499,7 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
 
   server.route('GET', '/api/audit/:sessionId', (_req, res, params) => {
     const auditDir = codebotPath('audit');
-    const entries = (loadAuditEntries(auditDir, 0) as AuditEntry[]).filter(
-      (e) => e.sessionId === params.sessionId
-    );
+    const entries = (loadAuditEntries(auditDir, 0) as AuditEntry[]).filter((e) => e.sessionId === params.sessionId);
 
     let result;
     try {
@@ -546,7 +555,7 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
     const sessionsDir = codebotPath('sessions');
     const sessions = listSessionFiles(sessionsDir).slice(-10); // Last 10 sessions
 
-    const usage = sessions.map(f => {
+    const usage = sessions.map((f) => {
       const id = path.basename(f, '.jsonl');
       const stat = safeStatSync(f);
       const lines = safeReadLines(f);
@@ -574,7 +583,6 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
       entries: entries.slice(-1000),
     });
   });
-
 
   // ── Risk ──
   // PR 13 — these endpoints used to read `server._riskScorer`, a field
@@ -712,7 +720,15 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
           type: e.isDirectory() ? 'directory' : 'file',
           path: path.join(resolved, e.name),
           ext: e.isFile() ? path.extname(e.name).slice(1) : null,
-          size: e.isFile() ? (() => { try { return fs.statSync(path.join(resolved, e.name)).size; } catch { return 0; } })() : null,
+          size: e.isFile()
+            ? (() => {
+                try {
+                  return fs.statSync(path.join(resolved, e.name)).size;
+                } catch {
+                  return 0;
+                }
+              })()
+            : null,
         }))
         .sort((a, b) => {
           if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
@@ -733,7 +749,10 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
   server.route('GET', '/api/files/read', (req, res) => {
     const query = DashboardServer.parseQuery(req.url || '');
     const filePath = query.path;
-    if (!filePath) { DashboardServer.error(res, 400, 'Missing path'); return; }
+    if (!filePath) {
+      DashboardServer.error(res, 400, 'Missing path');
+      return;
+    }
 
     const resolved = path.resolve(filePath);
     if (!resolved.startsWith(root)) {
@@ -744,7 +763,11 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
     try {
       const stat = fs.statSync(resolved);
       if (stat.size > 512 * 1024) {
-        DashboardServer.json(res, { path: resolved, content: '(File too large to display: ' + Math.round(stat.size / 1024) + 'KB)', truncated: true });
+        DashboardServer.json(res, {
+          path: resolved,
+          content: '(File too large to display: ' + Math.round(stat.size / 1024) + 'KB)',
+          truncated: true,
+        });
         return;
       }
       const content = fs.readFileSync(resolved, 'utf-8');
@@ -753,7 +776,6 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
       DashboardServer.error(res, 404, 'File not found');
     }
   });
-
 }
 
 // ── File system helpers (fail-safe) ──
@@ -761,9 +783,10 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
 function listSessionFiles(dir: string): string[] {
   try {
     if (!fs.existsSync(dir)) return [];
-    return fs.readdirSync(dir)
-      .filter(f => f.endsWith('.jsonl'))
-      .map(f => path.join(dir, f))
+    return fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith('.jsonl'))
+      .map((f) => path.join(dir, f))
       .sort((a, b) => {
         const sa = safeStatSync(a);
         const sb = safeStatSync(b);
@@ -777,9 +800,10 @@ function listSessionFiles(dir: string): string[] {
 function loadAuditEntries(dir: string, cutoffMs: number): any[] {
   try {
     if (!fs.existsSync(dir)) return [];
-    const files = fs.readdirSync(dir)
-      .filter(f => f.endsWith('.jsonl'))
-      .map(f => path.join(dir, f));
+    const files = fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith('.jsonl'))
+      .map((f) => path.join(dir, f));
 
     const entries: any[] = [];
     for (const file of files) {
@@ -792,7 +816,9 @@ function loadAuditEntries(dir: string, cutoffMs: number): any[] {
             if (ts < cutoffMs) continue;
           }
           entries.push(entry);
-        } catch { /* skip malformed lines */ }
+        } catch {
+          /* skip malformed lines */
+        }
       }
     }
     return entries;
@@ -802,7 +828,11 @@ function loadAuditEntries(dir: string, cutoffMs: number): any[] {
 }
 
 function safeStatSync(filePath: string): fs.Stats | null {
-  try { return fs.statSync(filePath); } catch { return null; }
+  try {
+    return fs.statSync(filePath);
+  } catch {
+    return null;
+  }
 }
 
 function safeReadLines(filePath: string): string[] {

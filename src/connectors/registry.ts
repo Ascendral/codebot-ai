@@ -30,7 +30,7 @@ export class ConnectorRegistry {
 
   /** Return connectors that have a credential in the vault OR matching env var */
   getConnected(): Connector[] {
-    return this.all().filter(c => this.isConnected(c.name));
+    return this.all().filter((c) => this.isConnected(c.name));
   }
 
   /** Check if a connector has credentials available */
@@ -41,7 +41,7 @@ export class ConnectorRegistry {
     if (connector.envKey && process.env[connector.envKey]) return true;
     // Multi-key: check all required env keys
     if (connector.requiredEnvKeys) {
-      return connector.requiredEnvKeys.every(k => !!process.env[k]);
+      return connector.requiredEnvKeys.every((k) => !!process.env[k]);
     }
     return false;
   }
@@ -62,7 +62,7 @@ export class ConnectorRegistry {
 
     // Multi-key: bundle as JSON
     if (connector.requiredEnvKeys) {
-      const allPresent = connector.requiredEnvKeys.every(k => !!process.env[k]);
+      const allPresent = connector.requiredEnvKeys.every((k) => !!process.env[k]);
       if (allPresent) {
         const bundle: Record<string, string> = {};
         for (const k of connector.requiredEnvKeys) {

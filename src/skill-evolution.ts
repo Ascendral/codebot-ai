@@ -176,7 +176,9 @@ export class SkillEvolution {
             fs.unlinkSync(srcPath);
             retired.push(skill.name);
           }
-        } catch { /* skip on error */ }
+        } catch {
+          /* skip on error */
+        }
       }
     }
 
@@ -226,7 +228,9 @@ export class SkillEvolution {
       try {
         fs.writeFileSync(variantPath, JSON.stringify(variant, null, 2));
         created.push(variantName);
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     }
 
     return created;
@@ -242,7 +246,7 @@ export class SkillEvolution {
     fs.mkdirSync(skillsDir, { recursive: true });
 
     // Only compose high-confidence skills
-    const candidates = skills.filter(s => (s.confidence ?? 0.5) >= this.evolveThreshold);
+    const candidates = skills.filter((s) => (s.confidence ?? 0.5) >= this.evolveThreshold);
 
     for (let i = 0; i < candidates.length; i++) {
       for (let j = i + 1; j < candidates.length; j++) {
@@ -250,9 +254,9 @@ export class SkillEvolution {
         const b = candidates[j];
 
         // Check if they're complementary (different tool sets)
-        const toolsA = new Set(a.steps.map(s => s.tool));
-        const toolsB = new Set(b.steps.map(s => s.tool));
-        const overlap = [...toolsA].filter(t => toolsB.has(t));
+        const toolsA = new Set(a.steps.map((s) => s.tool));
+        const toolsB = new Set(b.steps.map((s) => s.tool));
+        const overlap = [...toolsA].filter((t) => toolsB.has(t));
 
         // Only compose if < 50% overlap and each has unique tools
         if (overlap.length / Math.max(toolsA.size, toolsB.size) >= 0.5) continue;
@@ -278,7 +282,9 @@ export class SkillEvolution {
         try {
           fs.writeFileSync(composedPath, JSON.stringify(combined, null, 2));
           composed.push(composedName);
-        } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
 
         // Limit compositions per cycle
         if (composed.length >= 3) return composed;
@@ -298,12 +304,12 @@ export class SkillEvolution {
     try {
       const data = JSON.parse(fs.readFileSync(skillPath, 'utf-8'));
       const current = data.confidence ?? 0.5;
-      data.confidence = success
-        ? Math.min(current + 0.05, 1.0)
-        : Math.max(current - 0.1, 0.0);
+      data.confidence = success ? Math.min(current + 0.05, 1.0) : Math.max(current - 0.1, 0.0);
       data.updated_at = new Date().toISOString();
       fs.writeFileSync(skillPath, JSON.stringify(data, null, 2));
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
   }
 
   /**
@@ -312,7 +318,7 @@ export class SkillEvolution {
   static formatReport(report: EvolutionReport): string {
     const lines = [
       'Skill Evolution Report',
-      `  Tested: ${report.tested.length} (${report.tested.filter(t => t.passed).length} passed)`,
+      `  Tested: ${report.tested.length} (${report.tested.filter((t) => t.passed).length} passed)`,
       `  Retired: ${report.retired.length}${report.retired.length > 0 ? ` (${report.retired.join(', ')})` : ''}`,
       `  Evolved: ${report.evolved.length}${report.evolved.length > 0 ? ` (${report.evolved.join(', ')})` : ''}`,
       `  Composed: ${report.composed.length}${report.composed.length > 0 ? ` (${report.composed.join(', ')})` : ''}`,
@@ -324,10 +330,9 @@ export class SkillEvolution {
     try {
       const dir = codebotPath('health');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(
-        codebotPath('health/last-evolution-report.json'),
-        JSON.stringify(report, null, 2),
-      );
-    } catch { /* best effort */ }
+      fs.writeFileSync(codebotPath('health/last-evolution-report.json'), JSON.stringify(report, null, 2));
+    } catch {
+      /* best effort */
+    }
   }
 }

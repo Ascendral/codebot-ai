@@ -15,10 +15,20 @@ export const SEQUENTIAL_TOOLS = new Set(['browser']);
 
 /** Map CodeBot tool names to CORD tool types */
 export const TOOL_TYPE_MAP: Record<string, string> = {
-  execute: 'exec', write_file: 'write', edit_file: 'edit', batch_edit: 'edit',
-  read_file: 'read', browser: 'browser', web_fetch: 'network', http_client: 'network',
-  web_search: 'network', git: 'exec', docker: 'exec', ssh_remote: 'exec',
-  notification: 'message', database: 'exec',
+  execute: 'exec',
+  write_file: 'write',
+  edit_file: 'edit',
+  batch_edit: 'edit',
+  read_file: 'read',
+  browser: 'browser',
+  web_fetch: 'network',
+  http_client: 'network',
+  web_search: 'network',
+  git: 'exec',
+  docker: 'exec',
+  ssh_remote: 'exec',
+  notification: 'message',
+  database: 'exec',
 };
 
 /** Max concurrent parallel tool executions */
@@ -114,7 +124,7 @@ export async function executeSingleTool(prep: PreparedCall, deps: ToolExecutorDe
     deps.auditLogger.log(
       outputIsError
         ? { tool: toolName, action: 'error', args: prep.args, result: 'error', reason: output }
-        : { tool: toolName, action: 'execute', args: prep.args, result: 'success' }
+        : { tool: toolName, action: 'execute', args: prep.args, result: 'success' },
     );
 
     // Telemetry: track tool calls and file modifications
@@ -149,18 +159,34 @@ export async function executeSingleTool(prep: PreparedCall, deps: ToolExecutorDe
     }
 
     // SPARK: record success/error based on output
-    if (deps.stateEngine) { try { deps.stateEngine.recordOutcome(toolName, prep.args, !outputIsError, output, latencyMs); } catch {} }
+    if (deps.stateEngine) {
+      try {
+        deps.stateEngine.recordOutcome(toolName, prep.args, !outputIsError, output, latencyMs);
+      } catch {}
+    }
 
     // Experiential memory: record non-trivial successes
-    if (!outputIsError && deps.experientialMemory?.isActive) { try { const lesson = extractLessonFromSuccess(toolName, prep.args, output, deps.currentTask); if (lesson) deps.experientialMemory.recordLesson(lesson); } catch {} }
+    if (!outputIsError && deps.experientialMemory?.isActive) {
+      try {
+        const lesson = extractLessonFromSuccess(toolName, prep.args, output, deps.currentTask);
+        if (lesson) deps.experientialMemory.recordLesson(lesson);
+      } catch {}
+    }
 
     // Experiential memory: also record error-string returns as failures.
     // Most tools (execute, git, http_client, etc.) return errors as strings instead of throwing,
     // so the catch block below is unreachable for them. Without this branch, no lessons would be
     // extracted from the most common failure mode.
-    if (outputIsError && deps.experientialMemory?.isActive) { try { const lesson = extractLessonFromFailure(toolName, prep.args, output, deps.currentTask); if (lesson) deps.experientialMemory.recordLesson(lesson); } catch {} }
+    if (outputIsError && deps.experientialMemory?.isActive) {
+      try {
+        const lesson = extractLessonFromFailure(toolName, prep.args, output, deps.currentTask);
+        if (lesson) deps.experientialMemory.recordLesson(lesson);
+      } catch {}
+    }
 
-    return outputIsError ? { content: output, is_error: true, durationMs: latencyMs } : { content: output, durationMs: latencyMs };
+    return outputIsError
+      ? { content: output, is_error: true, durationMs: latencyMs }
+      : { content: output, durationMs: latencyMs };
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
     // Record latency even on error
@@ -171,10 +197,19 @@ export async function executeSingleTool(prep: PreparedCall, deps: ToolExecutorDe
     deps.auditLogger.log({ tool: toolName, action: 'error', args: prep.args, result: 'error', reason: errMsg });
 
     // SPARK: record failure
-    if (deps.stateEngine) { try { deps.stateEngine.recordOutcome(toolName, prep.args, false, errMsg, latencyMs); } catch {} }
+    if (deps.stateEngine) {
+      try {
+        deps.stateEngine.recordOutcome(toolName, prep.args, false, errMsg, latencyMs);
+      } catch {}
+    }
 
     // Experiential memory: always record failures
-    if (deps.experientialMemory?.isActive) { try { const lesson = extractLessonFromFailure(toolName, prep.args, errMsg, deps.currentTask); deps.experientialMemory.recordLesson(lesson); } catch {} }
+    if (deps.experientialMemory?.isActive) {
+      try {
+        const lesson = extractLessonFromFailure(toolName, prep.args, errMsg, deps.currentTask);
+        deps.experientialMemory.recordLesson(lesson);
+      } catch {}
+    }
 
     // Append recovery hint if a known pattern matches
     const recovery = getRecoverySuggestion(errMsg);
@@ -187,10 +222,7 @@ export async function executeSingleTool(prep: PreparedCall, deps: ToolExecutorDe
  * Execute a batch of prepared tool calls, respecting sequential constraints
  * and concurrency limits. Returns results in the same order as input.
  */
-export async function executeToolBatch(
-  prepared: PreparedCall[],
-  deps: ToolExecutorDeps,
-): Promise<ToolOutput[]> {
+export async function executeToolBatch(prepared: PreparedCall[], deps: ToolExecutorDeps): Promise<ToolOutput[]> {
   const results: ToolOutput[] = new Array(prepared.length);
 
   // Immediately resolve errors and denials
@@ -226,10 +258,10 @@ export async function executeToolBatch(
 
     for (const item of queue) {
       if (running >= MAX_CONCURRENT_TOOLS) {
-        await new Promise<void>(resolve => waiters.push(resolve));
+        await new Promise<void>((resolve) => waiters.push(resolve));
       }
       running++;
-      const p = executeSingleTool(item.prep, deps).then(result => {
+      const p = executeSingleTool(item.prep, deps).then((result) => {
         results[item.index] = result;
         running--;
         if (waiters.length > 0) waiters.shift()!();

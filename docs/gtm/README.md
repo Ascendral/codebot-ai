@@ -14,26 +14,27 @@ This plan is constrained by reality, not aspiration. If the numbers below don't 
 
 Pulled live from GitHub + npm on 2026-04-15. Every future weekly report compares to these numbers.
 
-| Metric | Day-0 value |
-|---|---|
-| GitHub stars | **2** |
-| Forks | 0 |
-| GitHub Pages views (14d) | 11 (9 unique) |
-| Repo clones (14d) | 473 / 101 unique |
-| DMG downloads, all releases | 1 (v2.9.0) |
-| npm downloads (30d) | 320 (~10/day) |
+| Metric                             | Day-0 value                     |
+| ---------------------------------- | ------------------------------- |
+| GitHub stars                       | **2**                           |
+| Forks                              | 0                               |
+| GitHub Pages views (14d)           | 11 (9 unique)                   |
+| Repo clones (14d)                  | 473 / 101 unique                |
+| DMG downloads, all releases        | 1 (v2.9.0)                      |
+| npm downloads (30d)                | 320 (~10/day)                   |
 | Telemetry-verified active installs | 0 (telemetry doesn't exist yet) |
-| Inbound conversations | 0 |
-| Paying customers | 0 |
-| MRR | $0 |
+| Inbound conversations              | 0                               |
+| Paying customers                   | 0                               |
+| MRR                                | $0                              |
 
 ---
 
 ## 2. Hypothesis we are testing
 
-**CodeBot is a different category from AI-enhanced editors.** Cursor / Copilot / Zed sell speed to individual developers. CodeBot sells *delegation with an audit trail* to teams that need to verify what the AI did after the fact — security-conscious engineering orgs and regulated industries.
+**CodeBot is a different category from AI-enhanced editors.** Cursor / Copilot / Zed sell speed to individual developers. CodeBot sells _delegation with an audit trail_ to teams that need to verify what the AI did after the fact — security-conscious engineering orgs and regulated industries.
 
 The three pillars that define the category (use these in every piece of customer-facing copy, in this order):
+
 1. **Autonomous, not interactive** — agent runs end-to-end, not inline suggestions
 2. **Cryptographic audit trail** — every tool call hash-chained, SARIF-exportable
 3. **Runs where your code can't leave** — local LLM support, MIT, zero telemetry
@@ -41,7 +42,8 @@ The three pillars that define the category (use these in every piece of customer
 If this positioning is correct, inbound enterprise interest materializes by month 6 and first paying customer by month 9.
 
 If this hypothesis is wrong, the most likely failure modes are:
-- (a) Positioning still reads as "another AI coding assistant" because the market conflates all agent tools. Fix: lean harder into *NOT* being an editor, visibly, in demos and in copy.
+
+- (a) Positioning still reads as "another AI coding assistant" because the market conflates all agent tools. Fix: lean harder into _NOT_ being an editor, visibly, in demos and in copy.
 - (b) The governance angle exists but the ICP is too narrow to self-serve acquire — needs a compliance/B2B sales motion. Fix: direct LinkedIn outreach to 20 specific InfoSec / DevSecOps titles in month 1–2.
 - (c) Regulated buyers distrust a solo-founder MIT project. Fix: ship SOC 2 mapping + a real 3rd-party security review by month 6.
 - (d) Product has too many rough edges. Fix: kill 60% of tools to "labs" tier, shrink "core" to ~10 tools, focus polish.
@@ -52,14 +54,14 @@ The plan checks for each of these at specific decision gates (§7).
 
 ## 3. 12-month targets (stretch but not delusional)
 
-| Month | Stars | Active installs (telemetry) | Inbound convos | Paying customers | MRR |
-|---|---|---|---|---|---|
-| 0 (today) | 2 | 0 | 0 | 0 | $0 |
-| 1 | 50 | 25 | 0 | 0 | $0 |
-| 3 | 200 | 100 | 1 | 0 | $0 |
-| 6 | 500 | 250 | 5 | 1 (pilot/free) | $0 |
-| 9 | 1,000 | 500 | 10 | 1 (paid) | $5K |
-| 12 | 2,000 | 1,000 | 20 | 3-5 | $15-25K |
+| Month     | Stars | Active installs (telemetry) | Inbound convos | Paying customers | MRR     |
+| --------- | ----- | --------------------------- | -------------- | ---------------- | ------- |
+| 0 (today) | 2     | 0                           | 0              | 0                | $0      |
+| 1         | 50    | 25                          | 0              | 0                | $0      |
+| 3         | 200   | 100                         | 1              | 0                | $0      |
+| 6         | 500   | 250                         | 5              | 1 (pilot/free)   | $0      |
+| 9         | 1,000 | 500                         | 10             | 1 (paid)         | $5K     |
+| 12        | 2,000 | 1,000                       | 20             | 3-5              | $15-25K |
 
 For comparison: PostHog took ~9 months to hit 1K stars. Sentry took ~18. Cal.com hit 1K on a single big HN launch. These are reachable for a strong solo founder; they are not guaranteed.
 
@@ -68,6 +70,7 @@ For comparison: PostHog took ~9 months to hit 1K stars. Sentry took ~18. Cal.com
 ## 4. Three motions running in parallel (~3 hrs/week each)
 
 ### 4a. Open source distribution (3 hrs/week)
+
 - **Get on awesome lists:** awesome-cli-apps, awesome-self-hosted, awesome-electron, awesome-developer-tools, awesome-ai-coding
 - **Show HN launch** of v2.10.0 once telemetry + SWE-bench number are ready
 - **Reddit posts** in /r/programming, /r/selfhosted, /r/devops, /r/MachineLearning (one per month, not spam)
@@ -75,6 +78,7 @@ For comparison: PostHog took ~9 months to hit 1K stars. Sentry took ~18. Cal.com
 - **README is the landing page:** keep stars number live, add "Featured on HN/PH/etc." badges as they happen, lead with the differentiator (governance), not the feature list
 
 ### 4b. Content (3 hrs/week)
+
 One deep technical post every 2 weeks. **Topics ranked by likely traction:**
 
 1. "We ran SWE-bench on 8 LLMs, here's what they cost and how they ranked" (data post → HN front page material)
@@ -89,6 +93,7 @@ Cross-post: dev.to (free distribution), Hacker News (organic), LinkedIn (your ne
 **Not doing:** SEO long-tail (too slow with 0 backlinks), paid ads (no budget), influencer marketing (no money).
 
 ### 4c. Targeted outbound + telemetry (4 hrs/week)
+
 - **Build telemetry first** (week 1-2). Without it, the rest of this plan is blind. Specs in §6.
 - **5 LinkedIn DMs/day = 25/week.** Not spam — handcrafted, targeting Heads of AppSec / Engineering at mid-size regulated companies. **Goal is discovery, not selling.** Use the Mom Test (§5b).
 - **No Apollo, no Sales Nav** — those cost money. Manually search LinkedIn (free), filter to relevant companies/titles, write personalized first messages.
@@ -127,6 +132,7 @@ Zoom this week or next?
 ```
 
 Rules:
+
 - Real first message, never a template-on-template followup
 - If they don't reply in 7 days, ONE bump, then drop
 - Track every send + reply + call in `docs/gtm/discovery-targets.csv`
@@ -151,6 +157,7 @@ For each call, prepared list:
 **Why:** without numbers, we cannot tell whether anything is working. Without opt-in default, the numbers will be too small to mean anything.
 
 **What:**
+
 - Config file: `~/.codebot/telemetry.json` with `{"enabled": true, "installation_id": "<uuid>"}`
 - First-run prompt explains: anonymous, can disable with `codebot --telemetry off`, links to privacy doc
 - Daily ping POST to `https://stats.codebot.ai/api/ping` with body:
@@ -162,8 +169,8 @@ For each call, prepared list:
     "node": "20.x",
     "first_seen_week": "2026-W16",
     "active_today": true,
-    "tools_used_today": ["browser","git","docker"],
-    "models_configured": ["anthropic","local"]
+    "tools_used_today": ["browser", "git", "docker"],
+    "models_configured": ["anthropic", "local"]
   }
   ```
 - Server: Cloudflare Worker (free tier) + Cloudflare KV (free tier ≤ 100K reads/day) + a `stats.codebot.ai` static page that fetches aggregates
@@ -178,18 +185,19 @@ For each call, prepared list:
 
 If the metric on the left is below the value on the right at the date given, **stop and pivot or stop and rest**. Do not "keep pushing." This plan is falsifiable.
 
-| Date | Metric | Kill if below |
-|---|---|---|
-| 2026-04-22 (1 week) | Phase 0 tasks complete | < 5 of 7 (and have honest reason for misses) |
-| 2026-05-15 (1 month) | GitHub stars | < 25 |
-| 2026-05-15 (1 month) | Telemetry-verified active installs | < 10 |
-| 2026-06-15 (2 months) | LinkedIn DM reply rate | < 3% (3 replies per 100 DMs) |
-| 2026-07-15 (3 months) | Inbound conversations | 0 |
-| 2026-09-15 (5 months) | Real pilot user (using daily) | 0 |
-| 2026-12-15 (8 months) | Paying customer | 0 |
-| 2027-04-15 (1 year) | MRR | < $5K |
+| Date                  | Metric                             | Kill if below                                |
+| --------------------- | ---------------------------------- | -------------------------------------------- |
+| 2026-04-22 (1 week)   | Phase 0 tasks complete             | < 5 of 7 (and have honest reason for misses) |
+| 2026-05-15 (1 month)  | GitHub stars                       | < 25                                         |
+| 2026-05-15 (1 month)  | Telemetry-verified active installs | < 10                                         |
+| 2026-06-15 (2 months) | LinkedIn DM reply rate             | < 3% (3 replies per 100 DMs)                 |
+| 2026-07-15 (3 months) | Inbound conversations              | 0                                            |
+| 2026-09-15 (5 months) | Real pilot user (using daily)      | 0                                            |
+| 2026-12-15 (8 months) | Paying customer                    | 0                                            |
+| 2027-04-15 (1 year)   | MRR                                | < $5K                                        |
 
 If a gate fails:
+
 1. Write a postmortem in `docs/gtm/postmortems/{date}-{gate-name}.md`
 2. Decide: pivot the motion (try different niche/channel/positioning) OR halt and reassess strategy
 3. Do NOT just push the date out without changing the approach

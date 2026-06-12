@@ -8,8 +8,6 @@ import { warnNonFatal } from './warn';
 import { encryptLine, decryptLine } from './encryption';
 import { log } from './logger';
 
-
-
 export interface SessionMeta {
   id: string;
   model: string;
@@ -56,7 +54,7 @@ export class SessionManager {
   /** Save all messages (atomic overwrite, HMAC signed) */
   saveAll(messages: Message[]): void {
     try {
-      const lines = messages.map(m => {
+      const lines = messages.map((m) => {
         const record: Record<string, unknown> = {
           ...m,
           _ts: new Date().toISOString(),
@@ -122,7 +120,11 @@ export class SessionManager {
       if (!content) return { valid: 0, tampered: 0, unsigned: 0, tamperedIndices: [] };
       const records: Array<Record<string, unknown>> = [];
       for (const rawLine of content.split('\n')) {
-        try { records.push(JSON.parse(decryptLine(rawLine))); } catch { continue; }
+        try {
+          records.push(JSON.parse(decryptLine(rawLine)));
+        } catch {
+          continue;
+        }
       }
       return verifyMessages(records, this.integrityKey);
     } catch {
@@ -134,9 +136,10 @@ export class SessionManager {
   static list(limit = 10): SessionMeta[] {
     if (!fs.existsSync(codebotPath('sessions'))) return [];
 
-    const files = fs.readdirSync(codebotPath('sessions'))
-      .filter(f => f.endsWith('.jsonl'))
-      .map(f => {
+    const files = fs
+      .readdirSync(codebotPath('sessions'))
+      .filter((f) => f.endsWith('.jsonl'))
+      .map((f) => {
         const fullPath = path.join(codebotPath('sessions'), f);
         const stat = fs.statSync(fullPath);
         return { name: f, mtime: stat.mtime };
@@ -144,7 +147,7 @@ export class SessionManager {
       .sort((a, b) => b.mtime.getTime() - a.mtime.getTime())
       .slice(0, limit);
 
-    return files.map(f => {
+    return files.map((f) => {
       const id = f.name.replace('.jsonl', '');
       const fullPath = path.join(codebotPath('sessions'), f.name);
       const content = fs.readFileSync(fullPath, 'utf-8').trim();
@@ -159,11 +162,15 @@ export class SessionManager {
           const first = JSON.parse(decryptLine(lines[0]));
           created = first._ts || '';
           model = first._model || '';
-        } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
         try {
           const last = JSON.parse(decryptLine(lines[lines.length - 1]));
           updated = last._ts || '';
-        } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
         // Find first user message for preview
         for (const line of lines) {
           try {
@@ -172,7 +179,9 @@ export class SessionManager {
               preview = msg.content.substring(0, 80);
               break;
             }
-          } catch { /* skip */ }
+          } catch {
+            /* skip */
+          }
         }
       }
 

@@ -25,7 +25,7 @@
  */
 
 const ALLOWED_ORIGINS = ['*']; // public dashboard reads, no auth needed
-const PING_TTL_DAYS = 90;       // we only need recent days for "active" counts
+const PING_TTL_DAYS = 90; // we only need recent days for "active" counts
 const STATS_CACHE_TTL_SEC = 300; // recompute aggregate at most every 5 min
 
 export default {
@@ -105,9 +105,9 @@ async function computeStats(env) {
   const last7 = lastNDates(7);
   const last30 = lastNDates(30);
 
-  const dailyActive = {};   // YYYY-MM-DD → set of installation_ids (we use count)
-  const versionCount = {};  // version string → count of pings
-  const osCount = {};       // os string → count
+  const dailyActive = {}; // YYYY-MM-DD → set of installation_ids (we use count)
+  const versionCount = {}; // version string → count of pings
+  const osCount = {}; // os string → count
   let totalPings = 0;
   let dailyActiveToday = 0;
   let weeklyActive = 0;
@@ -185,7 +185,9 @@ function lastNDates(n) {
   for (let i = 0; i < n; i++) {
     const d = new Date(now);
     d.setUTCDate(d.getUTCDate() - i);
-    out.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`);
+    out.push(
+      `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`,
+    );
   }
   return out;
 }

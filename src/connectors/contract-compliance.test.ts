@@ -1,10 +1,6 @@
 import { describe, it } from 'node:test';
 import * as assert from 'node:assert';
-import {
-  scoreConnector,
-  formatScoreTable,
-  type ContractScore,
-} from './connector-contract';
+import { scoreConnector, formatScoreTable, type ContractScore } from './connector-contract';
 import type { Connector } from './base';
 
 import { GitHubConnector } from './github';
@@ -59,8 +55,7 @@ describe('Connector contract compliance — production connectors (non-failing r
     const all = makeAll();
     assert.strictEqual(all.length, 10);
     for (const c of all) {
-      assert.ok(typeof c.name === 'string' && c.name.length > 0,
-        `connector missing name: ${JSON.stringify(c)}`);
+      assert.ok(typeof c.name === 'string' && c.name.length > 0, `connector missing name: ${JSON.stringify(c)}`);
       assert.ok(Array.isArray(c.actions), `${c.name} has no actions array`);
     }
   });

@@ -31,7 +31,7 @@ export function getReviewContext(): ReviewContext {
   if (!pullNumber) {
     throw new Error(
       'CodeBot review task requires a pull_request event context. ' +
-      'Ensure this action is triggered by a pull_request event.'
+        'Ensure this action is triggered by a pull_request event.',
     );
   }
 

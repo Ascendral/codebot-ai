@@ -17,29 +17,14 @@ describe('isLinearAuthError', () => {
   });
 
   it('200 with auth-message error → reauth', () => {
-    assert.strictEqual(
-      isLinearAuthError(200, { errors: [{ message: 'Authentication required' }] }),
-      true,
-    );
-    assert.strictEqual(
-      isLinearAuthError(200, { errors: [{ message: 'Invalid API key' }] }),
-      true,
-    );
-    assert.strictEqual(
-      isLinearAuthError(200, { errors: [{ message: 'token expired' }] }),
-      true,
-    );
+    assert.strictEqual(isLinearAuthError(200, { errors: [{ message: 'Authentication required' }] }), true);
+    assert.strictEqual(isLinearAuthError(200, { errors: [{ message: 'Invalid API key' }] }), true);
+    assert.strictEqual(isLinearAuthError(200, { errors: [{ message: 'token expired' }] }), true);
   });
 
   it('200 with non-auth error → NOT reauth', () => {
-    assert.strictEqual(
-      isLinearAuthError(200, { errors: [{ message: 'Issue with id "FOO-1" not found' }] }),
-      false,
-    );
-    assert.strictEqual(
-      isLinearAuthError(200, { errors: [{ message: 'Validation error: title required' }] }),
-      false,
-    );
+    assert.strictEqual(isLinearAuthError(200, { errors: [{ message: 'Issue with id "FOO-1" not found' }] }), false);
+    assert.strictEqual(isLinearAuthError(200, { errors: [{ message: 'Validation error: title required' }] }), false);
   });
 
   it('200 with no errors → NOT reauth', () => {
@@ -61,12 +46,12 @@ describe('LinearConnector — §8 contract surface', () => {
   });
 
   it('exposes the 4 expected actions', () => {
-    const names = connector.actions.map(a => a.name).sort();
+    const names = connector.actions.map((a) => a.name).sort();
     assert.deepStrictEqual(names, ['create_issue', 'list_issues', 'list_teams', 'update_issue']);
   });
 
   it('per-action capability labels', () => {
-    const byName = Object.fromEntries(connector.actions.map(a => [a.name, a]));
+    const byName = Object.fromEntries(connector.actions.map((a) => [a.name, a]));
     assert.deepStrictEqual(byName.list_issues.capabilities, ['read-only', 'account-access', 'net-fetch']);
     assert.deepStrictEqual(byName.list_teams.capabilities, ['read-only', 'account-access', 'net-fetch']);
     assert.deepStrictEqual(byName.create_issue.capabilities, ['account-access', 'net-fetch', 'send-on-behalf']);
@@ -74,7 +59,7 @@ describe('LinearConnector — §8 contract surface', () => {
   });
 
   it('idempotency: create_issue unsupported, names clientMutationId-is-just-echo', () => {
-    const a = connector.actions.find(x => x.name === 'create_issue')!;
+    const a = connector.actions.find((x) => x.name === 'create_issue')!;
     assert.strictEqual(a.idempotency?.kind, 'unsupported');
     if (a.idempotency?.kind === 'unsupported') {
       assert.match(a.idempotency.reason, /clientMutationId/);
@@ -83,7 +68,7 @@ describe('LinearConnector — §8 contract surface', () => {
   });
 
   it('idempotency: update_issue unsupported, names concurrent-edits gap', () => {
-    const a = connector.actions.find(x => x.name === 'update_issue')!;
+    const a = connector.actions.find((x) => x.name === 'update_issue')!;
     assert.strictEqual(a.idempotency?.kind, 'unsupported');
     if (a.idempotency?.kind === 'unsupported') {
       assert.match(a.idempotency.reason, /concurrent edits/);
@@ -91,15 +76,18 @@ describe('LinearConnector — §8 contract surface', () => {
   });
 
   it('preview: create_issue maps priority number to label, hashes desc', async () => {
-    const a = connector.actions.find(x => x.name === 'create_issue')!;
-    const p = await a.preview!({
-      title: 'Wire feature flag',
-      team_id: 'team-uuid',
-      priority: 1,
-      assignee_id: 'user-uuid',
-      labels: 'bug,p0',
-      description: 'detailed plan with internal context',
-    }, '');
+    const a = connector.actions.find((x) => x.name === 'create_issue')!;
+    const p = await a.preview!(
+      {
+        title: 'Wire feature flag',
+        team_id: 'team-uuid',
+        priority: 1,
+        assignee_id: 'user-uuid',
+        labels: 'bug,p0',
+        description: 'detailed plan with internal context',
+      },
+      '',
+    );
     assert.match(p.summary, /Title:\s+Wire feature flag/);
     assert.match(p.summary, /Team ID:\s+team-uuid/);
     assert.match(p.summary, /Priority:\s+Urgent/);
@@ -110,7 +98,7 @@ describe('LinearConnector — §8 contract surface', () => {
   });
 
   it('preview: update_issue lists changed fields + warns on concurrency', async () => {
-    const a = connector.actions.find(x => x.name === 'update_issue')!;
+    const a = connector.actions.find((x) => x.name === 'update_issue')!;
     const p = await a.preview!({ issue_id: 'TEAM-42', title: 'New', state_id: 'state-x' }, '');
     assert.match(p.summary, /TEAM-42/);
     assert.match(p.summary, /title -> New/);
@@ -120,7 +108,7 @@ describe('LinearConnector — §8 contract surface', () => {
   });
 
   it('redactArgsForAudit: create_issue hashes description, preserves title/team_id', () => {
-    const a = connector.actions.find(x => x.name === 'create_issue')!;
+    const a = connector.actions.find((x) => x.name === 'create_issue')!;
     const out = a.redactArgsForAudit!({
       title: 'Task',
       team_id: 'team-x',
@@ -134,7 +122,6 @@ describe('LinearConnector — §8 contract surface', () => {
 
   it('contract validator passes with zero violations', () => {
     const violations = validateConnectorContract(connector);
-    assert.strictEqual(violations.length, 0,
-      `expected zero violations; got: ${JSON.stringify(violations)}`);
+    assert.strictEqual(violations.length, 0, `expected zero violations; got: ${JSON.stringify(violations)}`);
   });
 });

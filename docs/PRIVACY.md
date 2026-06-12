@@ -31,12 +31,14 @@ CodeBot AI sends prompts to the LLM provider you configure (e.g., Anthropic, Ope
 - **Not proxied**: We do not route, intercept, or log API traffic
 
 **What is sent to the LLM provider:**
+
 - Your task instructions (the prompt)
 - Relevant source code context (files the agent reads)
 - Tool call results (command output, file contents)
 - Conversation history for the current session
 
 **What is NOT sent to the LLM provider:**
+
 - Your API keys for other services
 - Files outside the project scope (unless you explicitly configure it)
 - Content blocked by secret detection
@@ -53,12 +55,14 @@ CodeBot AI does not collect or transmit any telemetry by default.
 **Optional OpenTelemetry export:** If you set the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable, CodeBot will export structured metrics (token counts, tool call counts, latency histograms) to your specified endpoint. This is entirely opt-in and sends data only to infrastructure you control.
 
 Telemetry data exported via OpenTelemetry includes:
+
 - LLM request counts and token usage
 - Tool call counts and latency
 - Error and security block counts
 - Session duration
 
 Telemetry data does **not** include:
+
 - Source code content
 - Prompt or response text
 - File paths or filenames
@@ -72,6 +76,7 @@ Telemetry data does **not** include:
 CodeBot AI includes an opt-in heartbeat mechanism so the project can count active installs without identifying users. **Disabled by default; you must explicitly enable it.**
 
 **Enable / disable:**
+
 ```bash
 codebot --heartbeat on        # opt in
 codebot --heartbeat off       # opt out
@@ -81,6 +86,7 @@ codebot --heartbeat status    # check current state
 Or set `CODEBOT_HEARTBEAT_DISABLED=1` in your environment for a session-scoped kill switch.
 
 **What is sent (when enabled, once per day):**
+
 ```json
 {
   "installation_id": "<32-char hex, rotates daily>",
@@ -95,17 +101,21 @@ Or set `CODEBOT_HEARTBEAT_DISABLED=1` in your environment for a session-scoped k
 That's the entire payload.
 
 **What is NOT sent — ever:**
+
 - Code, file paths, prompts, model output, API keys, environment variables, git remotes, repo names, commit hashes, or any other personal information
 
 **Per-day rotating ID:**
+
 ```
 installation_id = sha256(installRoot + ":" + YYYY-MM-DD).slice(0, 32)
 ```
+
 The `installRoot` is a one-time random UUID stored locally in `~/.codebot/heartbeat.json` and never leaves your machine. The hash incorporates today's UTC date, so the same install produces a different `installation_id` every day. This means the server can count distinct daily-active installs but **cannot link two pings** to the same install across different days.
 
 **Endpoint:** `https://codebot-stats.workers.dev/api/ping`. Override with `CODEBOT_HEARTBEAT_URL` to self-host. Source code for the stats worker lives in `proxy-stats/` so you can audit exactly what it does.
 
 **Inspect what would be sent:**
+
 ```bash
 cat ~/.codebot/heartbeat.json
 ```
@@ -133,15 +143,16 @@ The GitHub Action (`@codebot-ai/action`) runs within your GitHub Actions runner 
 
 ### 6. Data You Control
 
-| Data | Location | You can delete it |
-|------|----------|-------------------|
-| Session history | `~/.codebot/sessions/` | Yes |
-| Audit logs | `~/.codebot/audit/` | Yes |
-| Metrics | `~/.codebot/telemetry/` | Yes |
-| Configuration | `~/.codebot/config.json` | Yes |
-| Policy files | `.codebot/policy.json` | Yes |
+| Data            | Location                 | You can delete it |
+| --------------- | ------------------------ | ----------------- |
+| Session history | `~/.codebot/sessions/`   | Yes               |
+| Audit logs      | `~/.codebot/audit/`      | Yes               |
+| Metrics         | `~/.codebot/telemetry/`  | Yes               |
+| Configuration   | `~/.codebot/config.json` | Yes               |
+| Policy files    | `.codebot/policy.json`   | Yes               |
 
 To delete all local data:
+
 ```bash
 rm -rf ~/.codebot
 ```
@@ -150,11 +161,11 @@ rm -rf ~/.codebot
 
 CodeBot AI may interact with third-party services only when you explicitly use tools that require them:
 
-| Tool | Service | When |
-|------|---------|------|
-| `web_search` | Brave Search API | When you ask the agent to search the web |
-| `web_fetch` | Target website | When you ask the agent to fetch a URL |
-| `browser` | Remote browser service | When you ask the agent to browse |
+| Tool         | Service                | When                                     |
+| ------------ | ---------------------- | ---------------------------------------- |
+| `web_search` | Brave Search API       | When you ask the agent to search the web |
+| `web_fetch`  | Target website         | When you ask the agent to fetch a URL    |
+| `browser`    | Remote browser service | When you ask the agent to browse         |
 
 These interactions are initiated by your instructions, not automatically.
 
@@ -169,5 +180,6 @@ We may update this privacy policy from time to time. Changes will be noted in th
 ### 10. Contact
 
 For privacy-related questions:
+
 - Open an issue: https://github.com/Ascendral/codebot-ai/issues
 - Email: privacy@ascendral.com

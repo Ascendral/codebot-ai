@@ -20,7 +20,7 @@ describe('parseArgs', () => {
 
   it('sets help=true for --help flag', () => {
     const result = parseArgs(['--help']);
-  assert.strictEqual(result.help, true);
+    assert.strictEqual(result.help, true);
   });
 
   it('sets help=true for -h shorthand', () => {
@@ -28,7 +28,7 @@ describe('parseArgs', () => {
     assert.strictEqual(result.help, true);
   });
 
-  it('parses --no-constitutional into args[\'no-constitutional\']=true', () => {
+  it("parses --no-constitutional into args['no-constitutional']=true", () => {
     const result = parseArgs(['--no-constitutional']);
     assert.strictEqual(result['no-constitutional'], true);
   });

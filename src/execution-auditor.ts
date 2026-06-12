@@ -88,11 +88,10 @@ export class ExecutionAuditor {
    * Get execution stats for a specific tool.
    */
   getToolStats(toolName: string): { total: number; failures: number; avgDurationMs: number } {
-    const toolExecs = this.executions.filter(e => e.toolName === toolName);
-    const failures = toolExecs.filter(e => !e.success).length;
-    const avgDuration = toolExecs.length > 0
-      ? toolExecs.reduce((sum, e) => sum + e.durationMs, 0) / toolExecs.length
-      : 0;
+    const toolExecs = this.executions.filter((e) => e.toolName === toolName);
+    const failures = toolExecs.filter((e) => !e.success).length;
+    const avgDuration =
+      toolExecs.length > 0 ? toolExecs.reduce((sum, e) => sum + e.durationMs, 0) / toolExecs.length : 0;
 
     return { total: toolExecs.length, failures, avgDurationMs: Math.round(avgDuration) };
   }
@@ -137,13 +136,13 @@ export class ExecutionAuditor {
 
     // Check if all recent executions of the same tool failed
     const lastTool = recent[recent.length - 1].toolName;
-    const sameTool = recent.filter(e => e.toolName === lastTool);
+    const sameTool = recent.filter((e) => e.toolName === lastTool);
     if (sameTool.length < this.failureThreshold) return null;
 
-    const allFailed = sameTool.every(e => !e.success);
+    const allFailed = sameTool.every((e) => !e.success);
     if (!allFailed) return null;
 
-    const errors = sameTool.map(e => e.errorMessage || 'unknown').slice(-3);
+    const errors = sameTool.map((e) => e.errorMessage || 'unknown').slice(-3);
 
     return {
       type: 'repeated_failure',
@@ -155,7 +154,8 @@ export class ExecutionAuditor {
         description: `Investigate repeated "${lastTool}" failures: ${errors[0]}`,
         tool: 'think',
         args: {
-          thought: `The "${lastTool}" tool has failed ${sameTool.length} times in a row. ` +
+          thought:
+            `The "${lastTool}" tool has failed ${sameTool.length} times in a row. ` +
             `Errors: ${errors.join('; ')}. Consider an alternative approach.`,
         },
         risk: 0.2,
@@ -173,7 +173,7 @@ export class ExecutionAuditor {
     // Skip loop detection for tools that naturally need many sequential calls
     if (ExecutionAuditor.LOOP_EXEMPT_TOOLS.has(recent[0].toolName)) return null;
     // Check if the same tool+args pattern repeats
-    const signatures = recent.map(e => this.getLoopSignature(e));
+    const signatures = recent.map((e) => this.getLoopSignature(e));
     const uniqueSigs = new Set(signatures);
 
     if (uniqueSigs.size === 1) {
@@ -188,7 +188,8 @@ export class ExecutionAuditor {
           description: `Break loop — stop calling "${toolName}" and try a different approach`,
           tool: 'think',
           args: {
-            thought: `Detected loop: "${toolName}" called ${this.loopThreshold} times identically. ` +
+            thought:
+              `Detected loop: "${toolName}" called ${this.loopThreshold} times identically. ` +
               `Stop and try a different strategy.`,
           },
           risk: 0.1,
@@ -223,10 +224,10 @@ export class ExecutionAuditor {
     const window = this.executions.slice(-10);
     if (window.length < 5) return null;
 
-    const failures = window.filter(e => !e.success);
+    const failures = window.filter((e) => !e.success);
     if (failures.length < 4) return null; // 40%+ failure rate in last 10
 
-    const toolNames = [...new Set(failures.map(e => e.toolName))];
+    const toolNames = [...new Set(failures.map((e) => e.toolName))];
     if (toolNames.length < 2) return null; // Multiple tools failing = cascade
 
     return {
@@ -234,12 +235,13 @@ export class ExecutionAuditor {
       severity: 'critical',
       description: `Error cascade: ${failures.length}/10 recent calls failed across ${toolNames.length} tools`,
       toolName: toolNames.join(', '),
-      evidence: failures.map(e => `${e.toolName}: ${e.errorMessage || 'failed'}`),
+      evidence: failures.map((e) => `${e.toolName}: ${e.errorMessage || 'failed'}`),
       fixAction: {
         description: 'Multiple tools failing — check system health (API, disk, network)',
         tool: 'think',
         args: {
-          thought: `Error cascade detected: ${toolNames.join(', ')} all failing. ` +
+          thought:
+            `Error cascade detected: ${toolNames.join(', ')} all failing. ` +
             `This suggests a systemic issue (API down, disk full, network issue). ` +
             `Run health check before continuing.`,
         },

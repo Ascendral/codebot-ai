@@ -42,7 +42,13 @@ export const MASCOT_1 = `
         ▀██████████████████▀
 `;
 
-export const BANNER_1 = (version: string, model: string, provider: string, session: string, autonomous: boolean): string => {
+export const BANNER_1 = (
+  version: string,
+  model: string,
+  provider: string,
+  session: string,
+  autonomous: boolean,
+): string => {
   const f = C.cyan;
   const e = C.brightGreen;
   const m = C.brightCyan;
@@ -78,7 +84,13 @@ export const MASCOT_2 = `
        ╚══════════════════════╝
 `;
 
-export const BANNER_2 = (version: string, model: string, provider: string, session: string, autonomous: boolean): string => {
+export const BANNER_2 = (
+  version: string,
+  model: string,
+  provider: string,
+  session: string,
+  autonomous: boolean,
+): string => {
   const f = C.cyan;
   const e = C.brightGreen;
   const m = C.brightCyan;
@@ -113,7 +125,13 @@ export const MASCOT_3 = `
           ▀████████████▀
 `;
 
-export const BANNER_3 = (version: string, model: string, provider: string, session: string, autonomous: boolean): string => {
+export const BANNER_3 = (
+  version: string,
+  model: string,
+  provider: string,
+  session: string,
+  autonomous: boolean,
+): string => {
   const f = C.cyan;
   const v = C.brightCyan;
   const g = C.brightGreen;
@@ -144,13 +162,13 @@ export const banner = BANNER_1;
 // ─────────────────────────────────────────────────────────────
 
 export const CODI_FACE: Record<CodiMood, string> = {
-  ready:    `${C.cyan}[${C.brightGreen}◉ ◉${C.cyan}]${C.reset}`,
-  working:  `${C.cyan}[${C.brightCyan}◎ ◎${C.cyan}]${C.reset}`,
-  success:  `${C.cyan}[${C.brightGreen}● ●${C.cyan}]${C.reset}`,
-  error:    `${C.cyan}[${C.brightRed}✕ ✕${C.cyan}]${C.reset}`,
+  ready: `${C.cyan}[${C.brightGreen}◉ ◉${C.cyan}]${C.reset}`,
+  working: `${C.cyan}[${C.brightCyan}◎ ◎${C.cyan}]${C.reset}`,
+  success: `${C.cyan}[${C.brightGreen}● ●${C.cyan}]${C.reset}`,
+  error: `${C.cyan}[${C.brightRed}✕ ✕${C.cyan}]${C.reset}`,
   thinking: `${C.cyan}[${C.brightYellow}◉ ${C.dim}·${C.cyan}]${C.reset}`,
-  idle:     `${C.cyan}[${C.dim}· ·${C.cyan}]${C.reset}`,
-  alert:    `${C.cyan}[${C.brightYellow}▲ ▲${C.cyan}]${C.reset}`,
+  idle: `${C.cyan}[${C.dim}· ·${C.cyan}]${C.reset}`,
+  alert: `${C.cyan}[${C.brightYellow}▲ ▲${C.cyan}]${C.reset}`,
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -160,35 +178,35 @@ export const CODI_FACE: Record<CodiMood, string> = {
 const GREETINGS_BY_MOOD: Record<string, string[]> = {
   confident: [
     "Systems online. Let's ship.",
-    "All circuits green. Ready to code.",
+    'All circuits green. Ready to code.',
     "No cloud. No limits. Let's go.",
-    "Standing by. Say the word.",
-    "Initialized. Awaiting instructions.",
-    "Signal locked. Ready to transmit.",
+    'Standing by. Say the word.',
+    'Initialized. Awaiting instructions.',
+    'Signal locked. Ready to transmit.',
     "Provider connected. Model hot. Let's go.",
   ],
   playful: [
-    "What are we building today?",
-    "I read your codebase. We need to talk.",
-    "Your code, your machine, your move.",
-    "Another day, another deploy.",
-    "Booted up. Zero dependencies loaded.",
-    "Local power, global ambitions.",
-    "Scanned your repo. I have thoughts.",
+    'What are we building today?',
+    'I read your codebase. We need to talk.',
+    'Your code, your machine, your move.',
+    'Another day, another deploy.',
+    'Booted up. Zero dependencies loaded.',
+    'Local power, global ambitions.',
+    'Scanned your repo. I have thoughts.',
   ],
   security: [
     "Eight security layers active. You're safe.",
-    "Hash chain intact. Trust verified.",
-    "Sandbox locked. Creativity unlocked.",
-    "Audit trail recording. Every move counts.",
-    "Policy loaded. Rules are rules.",
+    'Hash chain intact. Trust verified.',
+    'Sandbox locked. Creativity unlocked.',
+    'Audit trail recording. Every move counts.',
+    'Policy loaded. Rules are rules.',
     "Risk score: 0. Let's keep it that way.",
   ],
   resuming: [
-    "Memory loaded. I remember everything.",
-    "Picking up where we left off.",
-    "Context restored. Continuity maintained.",
-    "Back online. Nothing lost.",
+    'Memory loaded. I remember everything.',
+    'Picking up where we left off.',
+    'Context restored. Continuity maintained.',
+    'Back online. Nothing lost.',
     "Session recovered. Let's continue.",
   ],
 };
@@ -196,9 +214,7 @@ const GREETINGS_BY_MOOD: Record<string, string[]> = {
 const ALL_GREETINGS = Object.values(GREETINGS_BY_MOOD).flat();
 
 export function randomGreeting(mood?: string): string {
-  const pool = mood && GREETINGS_BY_MOOD[mood]
-    ? GREETINGS_BY_MOOD[mood]
-    : ALL_GREETINGS;
+  const pool = mood && GREETINGS_BY_MOOD[mood] ? GREETINGS_BY_MOOD[mood] : ALL_GREETINGS;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -212,53 +228,41 @@ export interface CodiReaction {
 }
 
 const REACTIONS: Record<string, string[]> = {
-  tool_success: [
-    "Done.",
-    "Clean.",
-    "Handled.",
-    "Next?",
-    "Complete.",
-  ],
+  tool_success: ['Done.', 'Clean.', 'Handled.', 'Next?', 'Complete.'],
   tool_error: [
-    "That broke. Fixing.",
-    "Error caught. Adjusting.",
-    "Not ideal. Recovering.",
-    "Blocked. Finding another way.",
-    "Retrying with different approach.",
+    'That broke. Fixing.',
+    'Error caught. Adjusting.',
+    'Not ideal. Recovering.',
+    'Blocked. Finding another way.',
+    'Retrying with different approach.',
   ],
   security_block: [
-    "Blocked. Policy violation.",
-    "Access denied. Security boundary hit.",
-    "Risk threshold exceeded. Skipping.",
-    "Denied. Policy enforced.",
-    "Path restricted. Cannot proceed.",
+    'Blocked. Policy violation.',
+    'Access denied. Security boundary hit.',
+    'Risk threshold exceeded. Skipping.',
+    'Denied. Policy enforced.',
+    'Path restricted. Cannot proceed.',
   ],
   session_end: [
-    "Session complete. Audit trail sealed.",
-    "Signing off. All changes persisted.",
-    "Done. Metrics saved.",
-    "Session closed. Everything committed.",
-    "Shutting down cleanly.",
+    'Session complete. Audit trail sealed.',
+    'Signing off. All changes persisted.',
+    'Done. Metrics saved.',
+    'Session closed. Everything committed.',
+    'Shutting down cleanly.',
   ],
-  thinking: [
-    "Analyzing...",
-    "Processing...",
-    "Evaluating options...",
-    "Computing...",
-    "Working through it...",
-  ],
+  thinking: ['Analyzing...', 'Processing...', 'Evaluating options...', 'Computing...', 'Working through it...'],
   cost_warning: [
-    "Token usage elevated.",
-    "Cost accumulating. Monitor budget.",
-    "High token throughput detected.",
-    "Budget advisory: cost climbing.",
+    'Token usage elevated.',
+    'Cost accumulating. Monitor budget.',
+    'High token throughput detected.',
+    'Budget advisory: cost climbing.',
   ],
   autonomous_start: [
-    "Autonomous mode engaged.",
-    "Full automation active. No prompts.",
-    "Auto-pilot initialized.",
-    "Running unattended. All tools approved.",
-    "Autonomous. Maximum throughput.",
+    'Autonomous mode engaged.',
+    'Full automation active. No prompts.',
+    'Auto-pilot initialized.',
+    'Running unattended. All tools approved.',
+    'Autonomous. Maximum throughput.',
   ],
 };
 
@@ -299,17 +303,17 @@ export function sessionSummaryBanner(stats: {
   budgetCapUsd?: number;
   budgetRemainingUsd?: number;
 }): string {
-  const durationStr = stats.duration !== undefined
-    ? `${Math.floor(stats.duration / 60)}m ${Math.round(stats.duration % 60)}s`
-    : 'N/A';
+  const durationStr =
+    stats.duration !== undefined ? `${Math.floor(stats.duration / 60)}m ${Math.round(stats.duration % 60)}s` : 'N/A';
   const costStr = stats.cost !== undefined ? `$${stats.cost.toFixed(4)}` : 'N/A';
 
   // PR 6 — render budget remaining only when there is an effective cap.
   // `budgetRemainingUsd === Infinity` means "no cap set," which we omit
   // rather than pretend.
-  const hasCap = (stats.budgetCapUsd ?? 0) > 0
-    && stats.budgetRemainingUsd !== undefined
-    && Number.isFinite(stats.budgetRemainingUsd);
+  const hasCap =
+    (stats.budgetCapUsd ?? 0) > 0 &&
+    stats.budgetRemainingUsd !== undefined &&
+    Number.isFinite(stats.budgetRemainingUsd);
   const budgetStr = hasCap
     ? `$${(stats.budgetRemainingUsd as number).toFixed(4)} / $${(stats.budgetCapUsd as number).toFixed(2)}`
     : 'no cap';
@@ -349,16 +353,16 @@ export function randomBanner(): typeof BANNER_1 {
 const ANSI = {
   hideCursor: '\x1b[?25l',
   showCursor: '\x1b[?25h',
-  clearLine:  '\x1b[2K',
-  moveUp:     (n: number) => `\x1b[${n}A`,
-  moveDown:   (n: number) => `\x1b[${n}B`,
-  moveToCol:  (n: number) => `\x1b[${n}G`,
+  clearLine: '\x1b[2K',
+  moveUp: (n: number) => `\x1b[${n}A`,
+  moveDown: (n: number) => `\x1b[${n}B`,
+  moveToCol: (n: number) => `\x1b[${n}G`,
   saveCursor: '\x1b7',
   restoreCursor: '\x1b8',
 };
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export type AnimationWriter = (text: string) => void;
@@ -376,9 +380,12 @@ export interface AnimationOptions {
 
 function getDelay(speed: AnimationSpeed): { line: number; char: number; pause: number; frame: number } {
   switch (speed) {
-    case 'fast':   return { line: 40,  char: 15,  pause: 200, frame: 50  };
-    case 'normal': return { line: 70,  char: 25,  pause: 300, frame: 80  };
-    case 'slow':   return { line: 100, char: 40,  pause: 400, frame: 120 };
+    case 'fast':
+      return { line: 40, char: 15, pause: 200, frame: 50 };
+    case 'normal':
+      return { line: 70, char: 25, pause: 300, frame: 80 };
+    case 'slow':
+      return { line: 100, char: 40, pause: 400, frame: 120 };
   }
 }
 
@@ -433,13 +440,13 @@ function renderVisorFrame(position: number): string {
   const chars: string[] = [];
   for (let i = 0; i < VISOR_WIDTH; i++) {
     const dist = Math.abs(i - position);
-    if (dist === 0)      chars.push(`${C.brightGreen}██${C.reset}`);
+    if (dist === 0) chars.push(`${C.brightGreen}██${C.reset}`);
     else if (dist === 1) chars.push(`${C.brightCyan}▓▓${C.reset}`);
     else if (dist === 2) chars.push(`${C.cyan}▒▒${C.reset}`);
     else if (dist === 3) chars.push(`${C.dim}░░${C.reset}`);
-    else                 chars.push(`${C.dim}░░${C.reset}`);
+    else chars.push(`${C.dim}░░${C.reset}`);
   }
-  return chars.join('').replace(/(░░)+$/, m => `${C.dim}${m}${C.reset}`);
+  return chars.join('').replace(/(░░)+$/, (m) => `${C.dim}${m}${C.reset}`);
 }
 
 export async function animateVisorScan(
@@ -534,7 +541,10 @@ export async function animateEyeBoot(
     // Phase 2: Cyan glow
     { top: `${C.cyan}▄██▄${r}    ${C.cyan}▄██▄${r}`, bot: `${C.cyan}▀██▀${r}    ${C.cyan}▀██▀${r}` },
     // Phase 3: Bright green — fully online
-    { top: `${C.brightGreen}▄██▄${r}    ${C.brightGreen}▄██▄${r}`, bot: `${C.brightGreen}▀██▀${r}    ${C.brightGreen}▀██▀${r}` },
+    {
+      top: `${C.brightGreen}▄██▄${r}    ${C.brightGreen}▄██▄${r}`,
+      bot: `${C.brightGreen}▀██▀${r}    ${C.brightGreen}▀██▀${r}`,
+    },
   ];
 
   // Print the Core mascot with blank eyes first
@@ -711,9 +721,8 @@ export async function animateSessionEnd(
 // ─────────────────────────────────────────────────────────────
 
 export function shouldAnimate(): boolean {
-  return !!(process.stdout.isTTY) && process.env.TERM !== 'dumb' && !process.env.CI;
+  return !!process.stdout.isTTY && process.env.TERM !== 'dumb' && !process.env.CI;
 }
-
 
 // ─────────────────────────────────────────────────────────────
 // Animation 7: Welcome boot — fused detection + banner

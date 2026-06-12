@@ -38,7 +38,11 @@ describe('FindSymbolTool', () => {
   });
 
   afterEach(() => {
-    try { fs.rmSync(tmp, { recursive: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(tmp, { recursive: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('exact match returns declaration sites only (not mentions in strings/docstrings)', async () => {
@@ -109,7 +113,10 @@ describe('FindSymbolTool', () => {
     const tool = new FindSymbolTool(tmp);
     const out = await tool.execute({ name: 'fn_', match: 'prefix', limit: 10 });
     assert.match(out, /showing first 10/);
-    const body = out.split('\n').slice(1).filter((l) => l.startsWith('  '));
+    const body = out
+      .split('\n')
+      .slice(1)
+      .filter((l) => l.startsWith('  '));
     assert.strictEqual(body.length, 10);
   });
 

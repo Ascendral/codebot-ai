@@ -207,7 +207,7 @@ describe('SkillEvolution', () => {
 
   it('evolve runs full cycle', async () => {
     // Clean slate
-    const remaining = fs.readdirSync(skillsDir).filter(f => f.endsWith('.json'));
+    const remaining = fs.readdirSync(skillsDir).filter((f) => f.endsWith('.json'));
     // Write fresh skills
     writeSkill({ name: 'evo-test-1', confidence: 0.9, use_count: 5, steps: [{ tool: 'grep', args: {} }] });
     writeSkill({ name: 'evo-test-2', confidence: 0.05, steps: [{ tool: 'think', args: {} }] });

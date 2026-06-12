@@ -42,14 +42,14 @@ export class FindSymbolTool implements Tool {
         type: 'string',
         enum: ['exact', 'prefix', 'substring'],
         description:
-          'How to match: "exact" (default) for a precise name, "prefix" for '
-          + 'names starting with the query, "substring" for names containing the query.',
+          'How to match: "exact" (default) for a precise name, "prefix" for ' +
+          'names starting with the query, "substring" for names containing the query.',
       },
       kind: {
         type: 'string',
         description:
-          'Optional filter: class, function, method, interface, type, enum, struct, '
-          + 'trait, module, const. Leave empty to match any kind.',
+          'Optional filter: class, function, method, interface, type, enum, struct, ' +
+          'trait, module, const. Leave empty to match any kind.',
       },
       limit: {
         type: 'number',
@@ -93,8 +93,10 @@ export class FindSymbolTool implements Tool {
 
     if (hits.length === 0) {
       const sizeHint = this.indexer.stats().totalSymbols;
-      return `No symbols found matching ${match}:${JSON.stringify(name)}${kind ? ` kind:${kind}` : ''}. ` +
-             `(Index contains ${sizeHint} symbols total.)`;
+      return (
+        `No symbols found matching ${match}:${JSON.stringify(name)}${kind ? ` kind:${kind}` : ''}. ` +
+        `(Index contains ${sizeHint} symbols total.)`
+      );
     }
 
     // Stable sort by file path then line, so output is deterministic
@@ -106,9 +108,10 @@ export class FindSymbolTool implements Tool {
     const truncated = hits.length > limit;
     const shown = hits.slice(0, limit);
     const lines = shown.map((h) => `  ${h.file}:${h.line}  [${h.kind} ${h.lang}]  ${h.name}`);
-    const header = `Found ${hits.length} symbol${hits.length === 1 ? '' : 's'} matching ${match}:${JSON.stringify(name)}` +
-                   (kind ? ` kind:${kind}` : '') +
-                   (truncated ? ` (showing first ${limit})` : '');
+    const header =
+      `Found ${hits.length} symbol${hits.length === 1 ? '' : 's'} matching ${match}:${JSON.stringify(name)}` +
+      (kind ? ` kind:${kind}` : '') +
+      (truncated ? ` (showing first ${limit})` : '');
     return `${header}\n${lines.join('\n')}`;
   }
 }

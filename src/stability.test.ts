@@ -90,16 +90,16 @@ describe('Agent Stability', () => {
     }
 
     // Should have an error event from the throw, then recovery text, then done
-    const errorEvents = events.filter(e => e.type === 'error');
+    const errorEvents = events.filter((e) => e.type === 'error');
     assert.ok(errorEvents.length > 0, 'Should yield error event from stream crash');
-    assert.ok(
-      errorEvents[0].error?.includes('Stream error'),
-      'Error should mention stream error'
-    );
+    assert.ok(errorEvents[0].error?.includes('Stream error'), 'Error should mention stream error');
 
-    const textEvents = events.filter(e => e.type === 'text');
+    const textEvents = events.filter((e) => e.type === 'text');
     assert.ok(textEvents.length > 0, 'Should recover and produce text on retry');
-    assert.ok(events.some(e => e.type === 'done'), 'Should complete successfully');
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should complete successfully',
+    );
   });
 
   it('recovers from error events and retries on next iteration', async () => {
@@ -117,12 +117,15 @@ describe('Agent Stability', () => {
       events.push(event);
     }
 
-    const errorEvents = events.filter(e => e.type === 'error');
+    const errorEvents = events.filter((e) => e.type === 'error');
     assert.ok(errorEvents.length > 0, 'Should yield error from provider');
 
-    const textEvents = events.filter(e => e.type === 'text');
+    const textEvents = events.filter((e) => e.type === 'text');
     assert.ok(textEvents.length > 0, 'Should recover with text on next iteration');
-    assert.ok(events.some(e => e.type === 'done'), 'Should complete');
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should complete',
+    );
   });
 
   it('feeds permission denial back to LLM and continues', async () => {
@@ -143,12 +146,16 @@ describe('Agent Stability', () => {
     }
 
     // Should have tool_call, then tool_result with denial, then text from LLM on next iteration
-    assert.ok(events.some(e => e.type === 'tool_call'), 'Should emit tool_call');
-    const denialResult = events.find(
-      e => e.type === 'tool_result' && e.toolResult?.result?.includes('denied')
+    assert.ok(
+      events.some((e) => e.type === 'tool_call'),
+      'Should emit tool_call',
     );
+    const denialResult = events.find((e) => e.type === 'tool_result' && e.toolResult?.result?.includes('denied'));
     assert.ok(denialResult, 'Should have denial result');
-    assert.ok(events.some(e => e.type === 'done'), 'Should complete after denial');
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should complete after denial',
+    );
   });
 });
 
@@ -183,11 +190,7 @@ describe('isRetryable', () => {
     ];
 
     for (const msg of networkErrors) {
-      assert.strictEqual(
-        isRetryable(new Error(msg)),
-        true,
-        `"${msg}" should be retryable`
-      );
+      assert.strictEqual(isRetryable(new Error(msg)), true, `"${msg}" should be retryable`);
     }
   });
 
@@ -205,7 +208,8 @@ describe('getRetryDelay', () => {
   it('increases delay with attempt number', () => {
     // Run multiple samples to account for jitter
     const samples = 20;
-    let avg0 = 0, avg2 = 0;
+    let avg0 = 0,
+      avg2 = 0;
     for (let i = 0; i < samples; i++) {
       avg0 += getRetryDelay(0);
       avg2 += getRetryDelay(2);
@@ -221,7 +225,7 @@ describe('getRetryDelay', () => {
       const delay = getRetryDelay(attempt);
       assert.ok(
         delay <= RETRY_DEFAULTS.maxDelayMs,
-        `Delay ${delay}ms at attempt ${attempt} exceeds max ${RETRY_DEFAULTS.maxDelayMs}ms`
+        `Delay ${delay}ms at attempt ${attempt} exceeds max ${RETRY_DEFAULTS.maxDelayMs}ms`,
       );
     }
   });
@@ -235,7 +239,7 @@ describe('getRetryDelay', () => {
     const delay = getRetryDelay(0, '999');
     assert.ok(
       delay <= RETRY_DEFAULTS.maxDelayMs,
-      `Retry-After 999s should be capped at ${RETRY_DEFAULTS.maxDelayMs}ms`
+      `Retry-After 999s should be capped at ${RETRY_DEFAULTS.maxDelayMs}ms`,
     );
   });
 
@@ -260,7 +264,7 @@ describe('sleep', () => {
 
 describe('isFatalError', () => {
   it('detects missing API key errors', () => {
-    assert.strictEqual(isFatalError('You didn\'t provide an API key'), true);
+    assert.strictEqual(isFatalError("You didn't provide an API key"), true);
     assert.strictEqual(isFatalError('No API key configured for gpt-4.1'), true);
     assert.strictEqual(isFatalError('Invalid api_key provided'), true);
   });
@@ -324,7 +328,7 @@ describe('Agent fatal error handling', () => {
     // Should stop after 1 call, NOT loop 50 times
     assert.strictEqual(provider.callCount, 1, `Should call provider only once, got ${provider.callCount}`);
 
-    const errorEvents = events.filter(e => e.type === 'error');
+    const errorEvents = events.filter((e) => e.type === 'error');
     assert.ok(errorEvents.length >= 1, 'Should yield at least one error event');
     assert.ok(errorEvents[0].error?.includes('API key'), 'Error should mention API key');
   });
@@ -359,7 +363,7 @@ describe('Agent fatal error handling', () => {
     // Should stop after 3 calls (circuit breaker), NOT loop 50 times
     assert.strictEqual(provider.callCount, 3, `Circuit breaker should stop after 3 calls, got ${provider.callCount}`);
 
-    const errorEvents = events.filter(e => e.type === 'error');
+    const errorEvents = events.filter((e) => e.type === 'error');
     const lastError = errorEvents[errorEvents.length - 1];
     assert.ok(lastError?.error?.includes('repeated'), 'Last error should mention repeated errors');
   });
@@ -405,11 +409,12 @@ describe('Agent message repair', () => {
       events.push(event);
     }
 
-    const errorResult = events.find(
-      e => e.type === 'tool_result' && e.toolResult?.is_error
-    );
+    const errorResult = events.find((e) => e.type === 'tool_result' && e.toolResult?.is_error);
     assert.ok(errorResult, 'Should have error result for bad JSON');
-    assert.ok(events.some(e => e.type === 'done'), 'Should still complete');
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should still complete',
+    );
   });
 
   it('removes orphaned tool messages that lack a matching assistant tool_call', async () => {
@@ -452,9 +457,12 @@ describe('Agent message repair', () => {
     }
 
     // The orphaned tool message should have been removed before sending to LLM
-    const toolMsgs = receivedMessages.filter(m => m.role === 'tool');
+    const toolMsgs = receivedMessages.filter((m) => m.role === 'tool');
     assert.strictEqual(toolMsgs.length, 0, `Should have removed orphaned tool message, found ${toolMsgs.length}`);
-    assert.ok(events.some(e => e.type === 'done'), 'Should complete successfully');
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should complete successfully',
+    );
   });
 
   it('removes duplicate tool responses keeping only the first', async () => {
@@ -482,7 +490,8 @@ describe('Agent message repair', () => {
       { role: 'system', content: 'You are a test agent.' },
       { role: 'user', content: 'Hello' },
       {
-        role: 'assistant', content: '',
+        role: 'assistant',
+        content: '',
         tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'think', arguments: '{}' } }],
       },
       { role: 'tool', content: 'first response', tool_call_id: 'call_1' },
@@ -494,10 +503,13 @@ describe('Agent message repair', () => {
       events.push(event);
     }
 
-    const toolMsgs = receivedMessages.filter(m => m.role === 'tool');
+    const toolMsgs = receivedMessages.filter((m) => m.role === 'tool');
     assert.strictEqual(toolMsgs.length, 1, `Should keep only one tool response, found ${toolMsgs.length}`);
     assert.strictEqual(toolMsgs[0].content, 'first response', 'Should keep the first response');
-    assert.ok(events.some(e => e.type === 'done'), 'Should complete');
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should complete',
+    );
   });
 
   it('injects missing tool responses for incomplete tool_calls', async () => {
@@ -525,7 +537,8 @@ describe('Agent message repair', () => {
       { role: 'system', content: 'You are a test agent.' },
       { role: 'user', content: 'Hello' },
       {
-        role: 'assistant', content: '',
+        role: 'assistant',
+        content: '',
         tool_calls: [
           { id: 'call_a', type: 'function', function: { name: 'execute', arguments: '{"command":"ls"}' } },
           { id: 'call_b', type: 'function', function: { name: 'think', arguments: '{}' } },
@@ -538,10 +551,16 @@ describe('Agent message repair', () => {
       events.push(event);
     }
 
-    const toolMsgs = receivedMessages.filter(m => m.role === 'tool');
+    const toolMsgs = receivedMessages.filter((m) => m.role === 'tool');
     assert.strictEqual(toolMsgs.length, 2, `Should inject 2 missing tool responses, found ${toolMsgs.length}`);
-    assert.ok(toolMsgs.every(m => m.content.includes('interrupted')), 'Injected responses should mention interrupted');
-    assert.ok(events.some(e => e.type === 'done'), 'Should complete');
+    assert.ok(
+      toolMsgs.every((m) => m.content.includes('interrupted')),
+      'Injected responses should mention interrupted',
+    );
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should complete',
+    );
   });
 
   it('handles combined corruption: orphans + duplicates + missing responses', async () => {
@@ -570,7 +589,8 @@ describe('Agent message repair', () => {
       { role: 'user', content: 'Hello' },
       // Valid assistant with tool_calls
       {
-        role: 'assistant', content: '',
+        role: 'assistant',
+        content: '',
         tool_calls: [
           { id: 'call_1', type: 'function', function: { name: 'think', arguments: '{}' } },
           { id: 'call_2', type: 'function', function: { name: 'execute', arguments: '{}' } },
@@ -590,20 +610,23 @@ describe('Agent message repair', () => {
       events.push(event);
     }
 
-    const toolMsgs = receivedMessages.filter(m => m.role === 'tool');
+    const toolMsgs = receivedMessages.filter((m) => m.role === 'tool');
     // Should have: call_1 (original), call_2 (injected) — orphan and duplicate removed
     assert.strictEqual(toolMsgs.length, 2, `Should have exactly 2 tool messages, found ${toolMsgs.length}`);
 
-    const ids = toolMsgs.map(m => m.tool_call_id).sort();
+    const ids = toolMsgs.map((m) => m.tool_call_id).sort();
     assert.deepStrictEqual(ids, ['call_1', 'call_2'], 'Should have exactly call_1 and call_2');
 
-    const call1Msg = toolMsgs.find(m => m.tool_call_id === 'call_1');
+    const call1Msg = toolMsgs.find((m) => m.tool_call_id === 'call_1');
     assert.strictEqual(call1Msg?.content, 'result 1', 'call_1 should keep original (first) response');
 
-    const call2Msg = toolMsgs.find(m => m.tool_call_id === 'call_2');
+    const call2Msg = toolMsgs.find((m) => m.tool_call_id === 'call_2');
     assert.ok(call2Msg?.content.includes('interrupted'), 'call_2 should have injected response');
 
-    assert.ok(events.some(e => e.type === 'done'), 'Should complete');
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should complete',
+    );
   });
 });
 
@@ -651,9 +674,12 @@ describe('Agent parallel tool execution', () => {
     }
 
     // Should have 3 tool_result events and final text
-    const toolResults = events.filter(e => e.type === 'tool_result');
+    const toolResults = events.filter((e) => e.type === 'tool_result');
     assert.strictEqual(toolResults.length, 3, `Should have 3 tool results, got ${toolResults.length}`);
-    assert.ok(events.some(e => e.type === 'done'), 'Should complete');
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should complete',
+    );
   });
 
   it('maintains original tool_call order in results', async () => {
@@ -717,7 +743,7 @@ describe('Agent parallel tool execution', () => {
     }
 
     // Tool messages in agent history should be in original order
-    const toolMsgs = receivedMessages.filter(m => m.role === 'tool');
+    const toolMsgs = receivedMessages.filter((m) => m.role === 'tool');
     assert.ok(toolMsgs.length >= 2, `Should have at least 2 tool messages, got ${toolMsgs.length}`);
     assert.strictEqual(toolMsgs[0].tool_call_id, 'call_first');
     assert.strictEqual(toolMsgs[1].tool_call_id, 'call_second');
@@ -763,10 +789,13 @@ describe('Agent arg validation', () => {
     }
 
     const errorResult = events.find(
-      e => e.type === 'tool_result' && e.toolResult?.is_error && e.toolResult.result.includes('path')
+      (e) => e.type === 'tool_result' && e.toolResult?.is_error && e.toolResult.result.includes('path'),
     );
     assert.ok(errorResult, 'Should have error mentioning missing path field');
-    assert.ok(events.some(e => e.type === 'done'), 'Should still complete');
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should still complete',
+    );
   });
 
   it('catches wrong type in tool arguments', async () => {
@@ -807,9 +836,12 @@ describe('Agent arg validation', () => {
     }
 
     const errorResult = events.find(
-      e => e.type === 'tool_result' && e.toolResult?.is_error && e.toolResult.result.includes('expected string')
+      (e) => e.type === 'tool_result' && e.toolResult?.is_error && e.toolResult.result.includes('expected string'),
     );
     assert.ok(errorResult, 'Should have error about expected string type');
-    assert.ok(events.some(e => e.type === 'done'), 'Should still complete');
+    assert.ok(
+      events.some((e) => e.type === 'done'),
+      'Should still complete',
+    );
   });
 });

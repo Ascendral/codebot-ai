@@ -21,7 +21,7 @@ async function main() {
   console.log('Note: Command Center requires "codebot --dashboard" for full features.');
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error(err.message);
   process.exit(1);
 });

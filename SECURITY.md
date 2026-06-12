@@ -34,32 +34,41 @@ User Input
 ## Enforcement Layers
 
 ### 1. Policy Engine (`src/policy.ts`)
+
 Declarative JSON policies at `.codebot/policy.json` control tool access, filesystem scope, execution limits, git workflow, secret handling, and MCP server restrictions. Project policies override global policies.
 
 ### 2. Capability-Based Permissions (`src/capabilities.ts`)
+
 Fine-grained resource restrictions per tool: allowed shell commands, writable file paths, permitted network domains, output size caps.
 
 ### 3. Permission Gate
+
 Three levels: `auto` (no prompt), `prompt` (ask in interactive mode), `always-ask` (always require approval). Configurable per-tool via policy.
 
 ### 4. Risk Scoring (`src/risk.ts`)
+
 Every tool call receives a 0-100 risk score based on six weighted factors: permission level, file path sensitivity, command destructiveness, network access, data volume, and cumulative session risk.
 
 ### 5. Path Safety (`src/security.ts`)
+
 Blocks writes to system directories (`/etc`, `/usr/bin`, `~/.ssh`), detects path traversal attacks (`../../`), enforces project-scoped file access.
 
 ### 6. Secret Detection (`src/secrets.ts`)
+
 Scans content for AWS keys, GitHub tokens, JWTs, private keys, connection strings, and other credential patterns. Blocks or masks secrets based on policy.
 
 ### 7. SSRF Protection (`src/tools/web-fetch.ts`)
+
 Blocks requests to localhost, private IPs (10.x, 172.16.x, 192.168.x), link-local addresses, cloud metadata endpoints (169.254.169.254), and non-HTTP protocols.
 
 ### 8. Audit Trail (`src/audit.ts`)
+
 Append-only JSONL log with SHA-256 hash chains for tamper detection. Every tool execution, denial, error, and security block is recorded.
 
 ## Sandbox Execution
 
 When Docker is available, shell commands run in disposable containers with:
+
 - No network access (default)
 - Read-only filesystem with project directory mounted
 - CPU and memory limits

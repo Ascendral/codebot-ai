@@ -32,9 +32,7 @@ describe('GmailConnector — §8 contract compliance', () => {
   it('exposes 5 actions (PR 8 migration only — no new actions added)', () => {
     const gm = new GmailConnector();
     const names = gm.actions.map((a) => a.name).sort();
-    assert.deepStrictEqual(names, [
-      'create_draft', 'list_emails', 'read_email', 'search_emails', 'send_email',
-    ]);
+    assert.deepStrictEqual(names, ['create_draft', 'list_emails', 'read_email', 'search_emails', 'send_email']);
   });
 
   it('declares vaultKeyName explicitly', () => {
@@ -52,41 +50,46 @@ describe('GmailConnector — per-verb capability labels', () => {
   }
 
   it('list_emails: read-only + account-access + net-fetch', () => {
-    assert.deepStrictEqual(
-      getAction('list_emails').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'read-only'],
-    );
+    assert.deepStrictEqual(getAction('list_emails').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'read-only',
+    ]);
   });
 
   it('read_email: read-only + account-access + net-fetch', () => {
-    assert.deepStrictEqual(
-      getAction('read_email').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'read-only'],
-    );
+    assert.deepStrictEqual(getAction('read_email').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'read-only',
+    ]);
   });
 
   it('search_emails: read-only + account-access + net-fetch', () => {
-    assert.deepStrictEqual(
-      getAction('search_emails').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'read-only'],
-    );
+    assert.deepStrictEqual(getAction('search_emails').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'read-only',
+    ]);
   });
 
   it('send_email: account-access + net-fetch + send-on-behalf', () => {
-    assert.deepStrictEqual(
-      getAction('send_email').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'send-on-behalf'],
-    );
+    assert.deepStrictEqual(getAction('send_email').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'send-on-behalf',
+    ]);
   });
 
   it('create_draft: account-access + net-fetch + send-on-behalf', () => {
     // create_draft is labeled send-on-behalf (not just account-access) because
     // it creates remote account state under the user's identity. Preview +
     // redaction therefore apply per §8.
-    assert.deepStrictEqual(
-      getAction('create_draft').capabilities?.slice().sort(),
-      ['account-access', 'net-fetch', 'send-on-behalf'],
-    );
+    assert.deepStrictEqual(getAction('create_draft').capabilities?.slice().sort(), [
+      'account-access',
+      'net-fetch',
+      'send-on-behalf',
+    ]);
   });
 
   it('read-only verbs do NOT declare preview/idempotency/redact', () => {
@@ -94,7 +97,11 @@ describe('GmailConnector — per-verb capability labels', () => {
       const a = getAction(name);
       assert.strictEqual(a.preview, undefined, `${name}.preview must be undefined for read-only verb`);
       assert.strictEqual(a.idempotency, undefined, `${name}.idempotency must be undefined for read-only verb`);
-      assert.strictEqual(a.redactArgsForAudit, undefined, `${name}.redactArgsForAudit must be undefined for read-only verb`);
+      assert.strictEqual(
+        a.redactArgsForAudit,
+        undefined,
+        `${name}.redactArgsForAudit must be undefined for read-only verb`,
+      );
     }
   });
 });
@@ -121,38 +128,26 @@ describe('GmailConnector — send_email preview', () => {
     );
     assert.match(result.summary, /alice@example\.com/);
     assert.match(result.summary, /Subject Line/);
-    assert.match(result.summary, /11 chars/);             // 'hello world' is 11
+    assert.match(result.summary, /11 chars/); // 'hello world' is 11
     assert.match(result.summary, /sha256:[a-f0-9]+/);
   });
 
   it('summary includes Cc when present, omits when absent', async () => {
-    const withCc = await getSend().preview!(
-      { to: 'a@x', subject: 's', body: 'b', cc: 'c@x' },
-      'creds',
-    );
+    const withCc = await getSend().preview!({ to: 'a@x', subject: 's', body: 'b', cc: 'c@x' }, 'creds');
     assert.match(withCc.summary, /Cc:\s+c@x/);
 
-    const withoutCc = await getSend().preview!(
-      { to: 'a@x', subject: 's', body: 'b' },
-      'creds',
-    );
+    const withoutCc = await getSend().preview!({ to: 'a@x', subject: 's', body: 'b' }, 'creds');
     assert.doesNotMatch(withoutCc.summary, /Cc:/);
   });
 
   it('summary does NOT mention attachments (verb does not support them today)', async () => {
     // Per Alex's PR 8 review: don't render fields the verb doesn't support.
-    const result = await getSend().preview!(
-      { to: 'a@x', subject: 's', body: 'b' },
-      'creds',
-    );
+    const result = await getSend().preview!({ to: 'a@x', subject: 's', body: 'b' }, 'creds');
     assert.doesNotMatch(result.summary, /attachment/i);
   });
 
   it('details object exposes structured fields', async () => {
-    const result = await getSend().preview!(
-      { to: 'alice@example.com', subject: 'Subject', body: 'hello' },
-      'creds',
-    );
+    const result = await getSend().preview!({ to: 'alice@example.com', subject: 'Subject', body: 'hello' }, 'creds');
     const d = result.details as Record<string, unknown>;
     assert.strictEqual(d.to, 'alice@example.com');
     assert.strictEqual(d.subject, 'Subject');
@@ -164,10 +159,7 @@ describe('GmailConnector — send_email preview', () => {
     // We exercise this by passing a token that would 401 if used. The
     // preview function doesn't call gmailFetch, so the call must not
     // throw and must not return any HTTP error indicators.
-    const result = await getSend().preview!(
-      { to: 'a@x', subject: 's', body: 'b' },
-      'definitely-not-a-real-token',
-    );
+    const result = await getSend().preview!({ to: 'a@x', subject: 's', body: 'b' }, 'definitely-not-a-real-token');
     assert.match(result.summary, /Would send/);
     assert.doesNotMatch(result.summary, /[Ee]rror/);
   });
@@ -180,10 +172,7 @@ describe('GmailConnector — create_draft preview', () => {
   }
 
   it('summary makes clear this is a draft, NOT a send', async () => {
-    const result = await getDraft().preview!(
-      { to: 'a@x', subject: 's', body: 'hello' },
-      'creds',
-    );
+    const result = await getDraft().preview!({ to: 'a@x', subject: 's', body: 'hello' }, 'creds');
     assert.match(result.summary, /draft/i);
     assert.match(result.summary, /not sent/i);
   });
@@ -200,10 +189,7 @@ describe('GmailConnector — create_draft preview', () => {
   });
 
   it('preview makes NO network call', async () => {
-    const result = await getDraft().preview!(
-      { to: 'a@x', subject: 's', body: 'b' },
-      'definitely-not-a-real-token',
-    );
+    const result = await getDraft().preview!({ to: 'a@x', subject: 's', body: 'b' }, 'definitely-not-a-real-token');
     assert.doesNotMatch(result.summary, /[Ee]rror/);
   });
 });
@@ -221,8 +207,11 @@ describe('GmailConnector — redactArgsForAudit (mutating verbs only)', () => {
     assert.strictEqual(redacted.to, 'alice@example.com', 'recipient stays in audit');
     assert.strictEqual(redacted.cc, 'bob@example.com', 'cc stays in audit');
     assert.strictEqual(redacted.subject, 'Subject Line', 'subject stays in audit');
-    assert.match(String(redacted.body), /^<redacted sha256:[a-f0-9]+ len:\d+>$/,
-      'body must be redacted to hash+length');
+    assert.match(
+      String(redacted.body),
+      /^<redacted sha256:[a-f0-9]+ len:\d+>$/,
+      'body must be redacted to hash+length',
+    );
   });
 
   it('create_draft: body redacted; to/subject preserved', () => {

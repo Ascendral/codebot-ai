@@ -5,14 +5,7 @@
  * speed and can optionally persist to KV for cross-isolate consistency.
  */
 
-import {
-  KVNamespace,
-  RateLimitConfig,
-  RateLimitEntry,
-  RateLimitResult,
-  TIER_RATE_LIMITS,
-  LicenseTier,
-} from './types';
+import { KVNamespace, RateLimitConfig, RateLimitEntry, RateLimitResult, TIER_RATE_LIMITS, LicenseTier } from './types';
 
 export class RateLimiter {
   private store = new Map<string, RateLimitEntry>();
@@ -26,11 +19,7 @@ export class RateLimiter {
    * Check and consume one request for the given key.
    * Returns whether the request is allowed plus remaining quota.
    */
-  async check(
-    key: string,
-    tier: LicenseTier,
-    now: number = Date.now(),
-  ): Promise<RateLimitResult> {
+  async check(key: string, tier: LicenseTier, now: number = Date.now()): Promise<RateLimitResult> {
     const config = TIER_RATE_LIMITS[tier];
     return this.checkWithConfig(key, config, now);
   }
@@ -38,11 +27,7 @@ export class RateLimiter {
   /**
    * Core rate limit logic with explicit config (useful for testing).
    */
-  async checkWithConfig(
-    key: string,
-    config: RateLimitConfig,
-    now: number = Date.now(),
-  ): Promise<RateLimitResult> {
+  async checkWithConfig(key: string, config: RateLimitConfig, now: number = Date.now()): Promise<RateLimitResult> {
     const windowMs = config.windowSeconds * 1000;
     let entry = await this.getEntry(key);
 
@@ -115,11 +100,7 @@ export class RateLimiter {
     return null;
   }
 
-  private async setEntry(
-    key: string,
-    entry: RateLimitEntry,
-    ttlSeconds: number,
-  ): Promise<void> {
+  private async setEntry(key: string, entry: RateLimitEntry, ttlSeconds: number): Promise<void> {
     this.store.set(key, entry);
 
     if (this.kv) {

@@ -63,7 +63,7 @@ export interface SessionReplayData {
   messages: Message[];
   assistantMessages: Message[];
   userMessages: Message[];
-  toolResults: Map<string, string>;  // tool_call_id → recorded output
+  toolResults: Map<string, string>; // tool_call_id → recorded output
 }
 
 /**
@@ -93,13 +93,15 @@ export function loadSessionForReplay(sessionId: string): SessionReplayData | nul
       delete obj._model;
       delete obj._sig;
       messages.push(obj as Message);
-    } catch { continue; }
+    } catch {
+      continue;
+    }
   }
 
   if (messages.length === 0) return null;
 
-  const assistantMessages = messages.filter(m => m.role === 'assistant');
-  const userMessages = messages.filter(m => m.role === 'user');
+  const assistantMessages = messages.filter((m) => m.role === 'assistant');
+  const userMessages = messages.filter((m) => m.role === 'user');
   const toolResults = new Map<string, string>();
 
   for (const msg of messages) {
@@ -133,12 +135,8 @@ export function compareOutputs(recorded: string, actual: string): string | null 
   if (normRecorded === normActual) return null;
 
   const maxShow = 200;
-  const expectedSnippet = normRecorded.length > maxShow
-    ? normRecorded.substring(0, maxShow) + '...'
-    : normRecorded;
-  const actualSnippet = normActual.length > maxShow
-    ? normActual.substring(0, maxShow) + '...'
-    : normActual;
+  const expectedSnippet = normRecorded.length > maxShow ? normRecorded.substring(0, maxShow) + '...' : normRecorded;
+  const actualSnippet = normActual.length > maxShow ? normActual.substring(0, maxShow) + '...' : normActual;
 
   return `Expected: ${expectedSnippet}\nActual:   ${actualSnippet}`;
 }
@@ -157,16 +155,17 @@ export function listReplayableSessions(limit: number = 10): Array<{
   const sessionsDir = codebotPath('sessions');
   if (!fs.existsSync(sessionsDir)) return [];
 
-  const files = fs.readdirSync(sessionsDir)
-    .filter(f => f.endsWith('.jsonl'))
-    .map(f => {
+  const files = fs
+    .readdirSync(sessionsDir)
+    .filter((f) => f.endsWith('.jsonl'))
+    .map((f) => {
       const stat = fs.statSync(path.join(sessionsDir, f));
       return { name: f, mtime: stat.mtime };
     })
     .sort((a, b) => b.mtime.getTime() - a.mtime.getTime())
     .slice(0, limit);
 
-  return files.map(f => {
+  return files.map((f) => {
     const id = f.name.replace('.jsonl', '');
     const fullPath = path.join(sessionsDir, f.name);
     try {
@@ -180,7 +179,9 @@ export function listReplayableSessions(limit: number = 10): Array<{
             preview = msg.content.substring(0, 80);
             break;
           }
-        } catch { continue; }
+        } catch {
+          continue;
+        }
       }
       return { id, preview, messageCount: lines.length, date: f.mtime.toISOString() };
     } catch {

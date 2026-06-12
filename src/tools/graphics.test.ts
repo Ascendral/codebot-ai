@@ -68,13 +68,20 @@ describe('GraphicsTool — Issue #17: projectRoot as policy boundary', () => {
     // Sanity-check: assertions below depend on the outer file actually
     // existing on disk and being outside isolated.
     assert.ok(fs.existsSync(outerFile), 'precondition: outer file must exist');
-    assert.ok(!outerFile.startsWith(isolated),
-      'precondition: outer file must be outside projectRoot');
+    assert.ok(!outerFile.startsWith(isolated), 'precondition: outer file must be outside projectRoot');
   });
 
   after(() => {
-    try { fs.rmSync(isolated, { recursive: true, force: true }); } catch { /* ignore */ }
-    try { fs.rmSync(outerDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(isolated, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+    try {
+      fs.rmSync(outerDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('input outside agent projectRoot is rejected (default cwd from constructor)', () => {
@@ -83,8 +90,7 @@ describe('GraphicsTool — Issue #17: projectRoot as policy boundary', () => {
     // not process.cwd(). The outer file is a real, existing path; only
     // containment can save us.
     const plan = tool.buildMagickPlan('info', { input: outerFile });
-    assert.ok('error' in plan,
-      `expected containment rejection; got plan: ${JSON.stringify(plan)}`);
+    assert.ok('error' in plan, `expected containment rejection; got plan: ${JSON.stringify(plan)}`);
     if ('error' in plan) {
       assert.match(plan.error, /input escapes project root/);
     }
@@ -98,8 +104,7 @@ describe('GraphicsTool — Issue #17: projectRoot as policy boundary', () => {
     __setMagickFlavorForTest('v7');
     try {
       const plan = tool.buildMagickPlan('info', { input: inside });
-      assert.ok(!('error' in plan),
-        `expected plan; got error: ${'error' in plan ? plan.error : ''}`);
+      assert.ok(!('error' in plan), `expected plan; got error: ${'error' in plan ? plan.error : ''}`);
     } finally {
       __setMagickFlavorForTest(null);
     }
@@ -114,20 +119,27 @@ describe('GraphicsTool — Issue #17: projectRoot as policy boundary', () => {
     const innerFile = path.join(innerInRepo, 'in.png');
     fs.writeFileSync(innerFile, 'x');
     try {
-      const tool = new GraphicsTool();  // no arg — back-compat path
+      const tool = new GraphicsTool(); // no arg — back-compat path
       __setMagickFlavorForTest('v7');
       try {
         const plan = tool.buildMagickPlan('info', { input: innerFile });
         // Must NOT reject for containment, since innerFile is under process.cwd().
         if ('error' in plan) {
-          assert.doesNotMatch(plan.error, /escapes project root/,
-            `back-compat path rejected an in-cwd file: ${plan.error}`);
+          assert.doesNotMatch(
+            plan.error,
+            /escapes project root/,
+            `back-compat path rejected an in-cwd file: ${plan.error}`,
+          );
         }
       } finally {
         __setMagickFlavorForTest(null);
       }
     } finally {
-      try { fs.rmSync(innerInRepo, { recursive: true, force: true }); } catch { /* ignore */ }
+      try {
+        fs.rmSync(innerInRepo, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 });
@@ -155,13 +167,18 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
   after(() => {
     __setMagickFlavorForTest(null);
     process.chdir(originalCwd);
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('resize: input/output resolved absolute, geometry built from validated ints', () => {
     const tool = new GraphicsTool();
     fs.writeFileSync(path.join(workDir, 'in.png'), 'not-a-real-png');
-    const plan = tool.buildMagickPlan('resize',
+    const plan = tool.buildMagickPlan(
+      'resize',
       { action: 'resize', input: 'in.png', width: 100, height: 50, output: 'out.png' },
       workDir,
     );
@@ -173,24 +190,23 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
     }
     if (plan.backend === 'magick') {
       // command is 'magick' (v7) or 'convert' (v6). argv shape is identical.
-      assert.ok(['magick', 'convert'].includes(plan.command),
-        `expected magick or convert, got ${plan.command}`);
+      assert.ok(['magick', 'convert'].includes(plan.command), `expected magick or convert, got ${plan.command}`);
       assert.deepStrictEqual(plan.argv, [
         path.resolve(workDir, 'in.png'),
-        '-resize', '100x50!',
+        '-resize',
+        '100x50!',
         path.resolve(workDir, 'out.png'),
       ]);
     } else {
       assert.strictEqual(plan.command, 'sips');
-      assert.deepStrictEqual(plan.argv, [
-        '-z', '50', '100', path.resolve(workDir, 'out.png'),
-      ]);
+      assert.deepStrictEqual(plan.argv, ['-z', '50', '100', path.resolve(workDir, 'out.png')]);
     }
   });
 
   it('resize: rejects string "100; rm -rf ~" as width (not a number)', () => {
     const tool = new GraphicsTool();
-    const plan = tool.buildMagickPlan('resize',
+    const plan = tool.buildMagickPlan(
+      'resize',
       { action: 'resize', input: 'in.png', width: '100; rm -rf ~', output: 'out.png' },
       workDir,
     );
@@ -200,7 +216,8 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
 
   it('resize: rejects string "100" as width (P3: strict number, no coercion)', () => {
     const tool = new GraphicsTool();
-    const plan = tool.buildMagickPlan('resize',
+    const plan = tool.buildMagickPlan(
+      'resize',
       { action: 'resize', input: 'in.png', width: '100', height: 50 },
       workDir,
     );
@@ -210,7 +227,8 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
 
   it('resize: rejects "1e3" as width (P3: no exponential coercion)', () => {
     const tool = new GraphicsTool();
-    const plan = tool.buildMagickPlan('resize',
+    const plan = tool.buildMagickPlan(
+      'resize',
       { action: 'resize', input: 'in.png', width: '1e3', height: 50 },
       workDir,
     );
@@ -219,7 +237,8 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
 
   it('resize: rejects non-integer number as width', () => {
     const tool = new GraphicsTool();
-    const plan = tool.buildMagickPlan('resize',
+    const plan = tool.buildMagickPlan(
+      'resize',
       { action: 'resize', input: 'in.png', width: 100.5, height: 50 },
       workDir,
     );
@@ -228,7 +247,8 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
 
   it('resize: rejects output that escapes cwd', () => {
     const tool = new GraphicsTool();
-    const plan = tool.buildMagickPlan('resize',
+    const plan = tool.buildMagickPlan(
+      'resize',
       { action: 'resize', input: 'in.png', width: 50, output: '../../etc/passwd' },
       workDir,
     );
@@ -239,7 +259,8 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
   it('resize: rejects sibling-prefix output (not true containment)', () => {
     const tool = new GraphicsTool();
     const sibling = workDir + '-evil';
-    const plan = tool.buildMagickPlan('resize',
+    const plan = tool.buildMagickPlan(
+      'resize',
       { action: 'resize', input: 'in.png', width: 50, output: sibling },
       workDir,
     );
@@ -250,7 +271,8 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
   it('watermark: text is one argv element, never pre-quoted', () => {
     const tool = new GraphicsTool();
     const payload = 'hi"; touch /tmp/should-not-happen; echo "';
-    const plan = tool.buildMagickPlan('watermark',
+    const plan = tool.buildMagickPlan(
+      'watermark',
       { action: 'watermark', input: 'in.png', text: payload, output: 'wm.png' },
       workDir,
     );
@@ -258,10 +280,11 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
       assert.match(plan.error, /ImageMagick not found|input|text/);
       return;
     }
-    assert.ok(plan.argv.includes(payload),
-      `text must be its own argv element; got argv: ${JSON.stringify(plan.argv)}`);
-    assert.ok(!plan.argv.some(a => a.startsWith('-annotate +') && a.includes(';')),
-      'text must NOT be pre-joined into a flag argument');
+    assert.ok(plan.argv.includes(payload), `text must be its own argv element; got argv: ${JSON.stringify(plan.argv)}`);
+    assert.ok(
+      !plan.argv.some((a) => a.startsWith('-annotate +') && a.includes(';')),
+      'text must NOT be pre-joined into a flag argument',
+    );
     const annotateIdx = plan.argv.indexOf('-annotate');
     assert.ok(annotateIdx >= 0);
     assert.strictEqual(plan.argv[annotateIdx + 1], '+10+10');
@@ -271,7 +294,8 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
   it('crop: validates width/height/x/y as non-negative finite ints', () => {
     const tool = new GraphicsTool();
     fs.writeFileSync(path.join(workDir, 'cr.png'), 'x');
-    const plan = tool.buildMagickPlan('crop',
+    const plan = tool.buildMagickPlan(
+      'crop',
       { action: 'crop', input: 'cr.png', width: 100, height: 50, x: 10, y: 20, output: 'cr-out.png' },
       workDir,
     );
@@ -280,14 +304,19 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
     if (plan.backend === 'magick') {
       assert.deepStrictEqual(plan.argv, [
         path.resolve(workDir, 'cr.png'),
-        '-crop', '100x50+10+20',
+        '-crop',
+        '100x50+10+20',
         '+repage',
         path.resolve(workDir, 'cr-out.png'),
       ]);
     } else {
       assert.deepStrictEqual(plan.argv, [
-        '-c', '50', '100',
-        '--cropOffset', '20', '10',
+        '-c',
+        '50',
+        '100',
+        '--cropOffset',
+        '20',
+        '10',
         path.resolve(workDir, 'cr-out.png'),
       ]);
     }
@@ -295,7 +324,8 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
 
   it('crop: rejects malicious width string', () => {
     const tool = new GraphicsTool();
-    const plan = tool.buildMagickPlan('crop',
+    const plan = tool.buildMagickPlan(
+      'crop',
       { action: 'crop', input: 'cr.png', width: '100; touch /tmp/pwned;#', height: 50 },
       workDir,
     );
@@ -305,10 +335,7 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
 
   it('convert: rejects malicious format string', () => {
     const tool = new GraphicsTool();
-    const plan = tool.buildMagickPlan('convert',
-      { action: 'convert', input: 'in.png', format: 'jpg; ls' },
-      workDir,
-    );
+    const plan = tool.buildMagickPlan('convert', { action: 'convert', input: 'in.png', format: 'jpg; ls' }, workDir);
     assert.ok('error' in plan);
     if ('error' in plan) assert.match(plan.error, /format must be one of/);
   });
@@ -316,7 +343,8 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
   it('convert: accepts the allowed format list', () => {
     const tool = new GraphicsTool();
     for (const fmt of ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'ico']) {
-      const plan = tool.buildMagickPlan('convert',
+      const plan = tool.buildMagickPlan(
+        'convert',
         { action: 'convert', input: 'in.png', format: fmt, output: `out.${fmt}` },
         workDir,
       );
@@ -327,10 +355,7 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
   it('info: input must be inside cwd (no /etc read primitive)', () => {
     const tool = new GraphicsTool();
     const escapeTarget = process.platform === 'win32' ? 'C:\\Windows\\win.ini' : '/etc/passwd';
-    const plan = tool.buildMagickPlan('info',
-      { action: 'info', input: escapeTarget },
-      workDir,
-    );
+    const plan = tool.buildMagickPlan('info', { action: 'info', input: escapeTarget }, workDir);
     assert.ok('error' in plan);
     if ('error' in plan) assert.match(plan.error, /input escapes project root/);
   });
@@ -339,7 +364,8 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
     const tool = new GraphicsTool();
     fs.writeFileSync(path.join(workDir, 'a.png'), 'x');
     fs.writeFileSync(path.join(workDir, 'b.png'), 'x');
-    const plan = tool.buildMagickPlan('combine',
+    const plan = tool.buildMagickPlan(
+      'combine',
       { action: 'combine', inputs: 'a.png, b.png', direction: 'horizontal', output: 'ab.png' },
       workDir,
     );
@@ -359,7 +385,8 @@ describe('GraphicsTool — argv shape (via buildMagickPlan)', () => {
   it('combine: rejects an input that escapes cwd', () => {
     const tool = new GraphicsTool();
     const escapeTarget = process.platform === 'win32' ? 'C:\\Windows\\win.ini' : '/etc/passwd';
-    const plan = tool.buildMagickPlan('combine',
+    const plan = tool.buildMagickPlan(
+      'combine',
       { action: 'combine', inputs: `a.png,${escapeTarget}`, output: 'out.png' },
       workDir,
     );
@@ -399,14 +426,17 @@ describe('GraphicsTool — flavor-aware planning (P2)', () => {
   after(() => {
     __setMagickFlavorForTest(null);
     process.chdir(originalCwd);
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('planInfo under v7: command="magick", argv starts with "identify"', () => {
     __setMagickFlavorForTest('v7');
     const tool = new GraphicsTool();
-    const plan = tool.buildMagickPlan('info',
-      { action: 'info', input: 'f.png' }, workDir);
+    const plan = tool.buildMagickPlan('info', { action: 'info', input: 'f.png' }, workDir);
     assert.ok(!('error' in plan));
     if ('error' in plan) return;
     assert.strictEqual(plan.command, 'magick');
@@ -416,23 +446,23 @@ describe('GraphicsTool — flavor-aware planning (P2)', () => {
   it('planInfo under v6: command="identify" directly (not "convert identify")', () => {
     __setMagickFlavorForTest('v6');
     const tool = new GraphicsTool();
-    const plan = tool.buildMagickPlan('info',
-      { action: 'info', input: 'f.png' }, workDir);
+    const plan = tool.buildMagickPlan('info', { action: 'info', input: 'f.png' }, workDir);
     assert.ok(!('error' in plan));
     if ('error' in plan) return;
     // This is the P2 fix. Pre-patch, command would have been 'convert' and
     // argv[0] would have been 'identify' — which breaks on v6 hosts.
-    assert.strictEqual(plan.command, 'identify',
-      'under v6, info MUST exec identify directly, not convert');
+    assert.strictEqual(plan.command, 'identify', 'under v6, info MUST exec identify directly, not convert');
     assert.deepStrictEqual(plan.argv, ['-verbose', path.resolve(workDir, 'f.png')]);
   });
 
   it('planCombine grid under v7: command="magick", argv starts with "montage"', () => {
     __setMagickFlavorForTest('v7');
     const tool = new GraphicsTool();
-    const plan = tool.buildMagickPlan('combine',
+    const plan = tool.buildMagickPlan(
+      'combine',
       { action: 'combine', inputs: 'a.png,b.png', direction: 'grid', output: 'g.png' },
-      workDir);
+      workDir,
+    );
     assert.ok(!('error' in plan));
     if ('error' in plan) return;
     assert.strictEqual(plan.command, 'magick');
@@ -442,23 +472,29 @@ describe('GraphicsTool — flavor-aware planning (P2)', () => {
   it('planCombine grid under v6: command="montage" directly', () => {
     __setMagickFlavorForTest('v6');
     const tool = new GraphicsTool();
-    const plan = tool.buildMagickPlan('combine',
+    const plan = tool.buildMagickPlan(
+      'combine',
       { action: 'combine', inputs: 'a.png,b.png', direction: 'grid', output: 'g.png' },
-      workDir);
+      workDir,
+    );
     assert.ok(!('error' in plan));
     if ('error' in plan) return;
-    assert.strictEqual(plan.command, 'montage',
-      'under v6, combine grid MUST exec montage directly');
-    assert.notStrictEqual(plan.argv[0], 'montage',
-      'argv must NOT double-prefix montage when command is already montage');
+    assert.strictEqual(plan.command, 'montage', 'under v6, combine grid MUST exec montage directly');
+    assert.notStrictEqual(
+      plan.argv[0],
+      'montage',
+      'argv must NOT double-prefix montage when command is already montage',
+    );
   });
 
   it('planCombine horizontal under v6: command="convert", argv has no subcommand prefix', () => {
     __setMagickFlavorForTest('v6');
     const tool = new GraphicsTool();
-    const plan = tool.buildMagickPlan('combine',
+    const plan = tool.buildMagickPlan(
+      'combine',
       { action: 'combine', inputs: 'a.png,b.png', direction: 'horizontal', output: 'h.png' },
-      workDir);
+      workDir,
+    );
     assert.ok(!('error' in plan));
     if ('error' in plan) return;
     assert.strictEqual(plan.command, 'convert');
@@ -474,14 +510,16 @@ describe('GraphicsTool — flavor-aware planning (P2)', () => {
     const tool = new GraphicsTool();
 
     __setMagickFlavorForTest('v7');
-    let plan = tool.buildMagickPlan('resize',
-      { action: 'resize', input: 'f.png', width: 32, output: 'o.png' }, workDir);
+    let plan = tool.buildMagickPlan(
+      'resize',
+      { action: 'resize', input: 'f.png', width: 32, output: 'o.png' },
+      workDir,
+    );
     assert.ok(!('error' in plan));
     if (!('error' in plan)) assert.strictEqual(plan.command, 'magick');
 
     __setMagickFlavorForTest('v6');
-    plan = tool.buildMagickPlan('resize',
-      { action: 'resize', input: 'f.png', width: 32, output: 'o.png' }, workDir);
+    plan = tool.buildMagickPlan('resize', { action: 'resize', input: 'f.png', width: 32, output: 'o.png' }, workDir);
     assert.ok(!('error' in plan));
     if (!('error' in plan)) assert.strictEqual(plan.command, 'convert');
   });
@@ -504,14 +542,20 @@ describe('GraphicsTool — favicon sizes parser (P3 carve-out)', () => {
 
   after(() => {
     process.chdir(originalCwd);
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('rejects a non-digit token in sizes', async () => {
     const tool = new GraphicsTool();
     fs.writeFileSync(path.join(workDir, 'src.png'), 'x');
     const result = await tool.execute({
-      action: 'favicon', input: 'src.png', sizes: '16,32,bad',
+      action: 'favicon',
+      input: 'src.png',
+      sizes: '16,32,bad',
     });
     assert.match(result, /sizes entry "bad" must be a positive integer/);
   });
@@ -520,7 +564,9 @@ describe('GraphicsTool — favicon sizes parser (P3 carve-out)', () => {
     const tool = new GraphicsTool();
     fs.writeFileSync(path.join(workDir, 'src.png'), 'x');
     const result = await tool.execute({
-      action: 'favicon', input: 'src.png', sizes: '16; ls',
+      action: 'favicon',
+      input: 'src.png',
+      sizes: '16; ls',
     });
     assert.match(result, /sizes entry .* must be a positive integer/);
   });
@@ -542,7 +588,11 @@ describe('GraphicsTool — color/text validation (svg + og_image)', () => {
 
   after(() => {
     process.chdir(originalCwd);
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('svg: rejects non-hex bg_color (no silent fallback)', async () => {
@@ -555,8 +605,7 @@ describe('GraphicsTool — color/text validation (svg + og_image)', () => {
       output: 'icon.svg',
     });
     assert.match(result, /bg_color must be a hex color/);
-    assert.ok(!fs.existsSync(path.join(workDir, 'icon.svg')),
-      'no file should be written when validation fails');
+    assert.ok(!fs.existsSync(path.join(workDir, 'icon.svg')), 'no file should be written when validation fails');
   });
 
   it('svg: rejects non-hex accent_color', async () => {
@@ -592,10 +641,8 @@ describe('GraphicsTool — color/text validation (svg + og_image)', () => {
     });
     assert.match(result, /SVG \(icon\) saved/);
     const written = fs.readFileSync(path.join(workDir, 'hostile.svg'), 'utf-8');
-    assert.ok(!written.includes('<script>'),
-      `SVG must not contain raw <script>; got: ${written}`);
-    assert.ok(written.includes('&lt;script&gt;'),
-      'SVG text must be XML-escaped');
+    assert.ok(!written.includes('<script>'), `SVG must not contain raw <script>; got: ${written}`);
+    assert.ok(written.includes('&lt;script&gt;'), 'SVG text must be XML-escaped');
   });
 
   it('svg_content (raw): output outside cwd is rejected', async () => {
@@ -631,7 +678,11 @@ describe('GraphicsTool — shell-injection canaries (real exec)', () => {
 
   after(() => {
     process.chdir(originalCwd);
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('resize/output: shell metacharacters in output are NEVER interpreted', async () => {
@@ -701,11 +752,7 @@ describe('GraphicsTool — shell-injection canaries (real exec)', () => {
       format: `png; node -e "require('fs').writeFileSync('${marker.replace(/\\/g, '\\\\')}','pwned')" #`,
     });
 
-    assert.strictEqual(
-      fs.existsSync(marker),
-      false,
-      `SHELL INJECTION REGRESSION: ${marker} was created via format.`,
-    );
+    assert.strictEqual(fs.existsSync(marker), false, `SHELL INJECTION REGRESSION: ${marker} was created via format.`);
   });
 });
 
@@ -725,7 +772,11 @@ describe('GraphicsTool — happy-path regression', () => {
 
   after(() => {
     process.chdir(originalCwd);
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('svg action creates SVG icon with escaped text', async () => {
@@ -774,7 +825,8 @@ describe('GraphicsTool — happy-path regression', () => {
 
   it('svg action saves raw svg_content inside cwd', async () => {
     const tool = new GraphicsTool();
-    const svgContent = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="red"/></svg>';
+    const svgContent =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="red"/></svg>';
     const result = await tool.execute({
       action: 'svg',
       svg_content: svgContent,

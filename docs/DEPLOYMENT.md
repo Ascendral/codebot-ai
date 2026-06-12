@@ -3,17 +3,20 @@
 ## Local Installation
 
 ### npm (recommended)
+
 ```bash
 npm install -g codebot-ai
 codebot --setup
 ```
 
 ### npx (no install)
+
 ```bash
 npx codebot-ai "explain this codebase"
 ```
 
 ### From source
+
 ```bash
 git clone https://github.com/Ascendral/codebot-ai.git
 cd codebot-ai
@@ -48,15 +51,16 @@ jobs:
 
 ### Action Tasks
 
-| Task | Description |
-|------|-------------|
-| `review` | Analyze PR diff and post review comments |
-| `fix` | Attempt to fix failing CI tests |
-| `scan` | Security scan with SARIF output for Code Scanning |
+| Task     | Description                                       |
+| -------- | ------------------------------------------------- |
+| `review` | Analyze PR diff and post review comments          |
+| `fix`    | Attempt to fix failing CI tests                   |
+| `scan`   | Security scan with SARIF output for Code Scanning |
 
 ## Docker
 
 ### Using Docker for sandboxed execution
+
 CodeBot automatically detects Docker and runs shell commands in disposable containers:
 
 ```bash
@@ -68,6 +72,7 @@ codebot --sandbox docker
 ```
 
 ### Running CodeBot itself in Docker
+
 ```bash
 docker run -v $(pwd):/workspace -w /workspace \
   -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
@@ -77,23 +82,26 @@ docker run -v $(pwd):/workspace -w /workspace \
 ## Configuration
 
 ### Environment Variables
-| Variable | Description |
-|----------|-------------|
-| `CODEBOT_MODEL` | Default model name |
-| `CODEBOT_PROVIDER` | Default provider |
-| `CODEBOT_BASE_URL` | LLM API base URL |
-| `CODEBOT_API_KEY` | API key (fallback) |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
-| `OPENAI_API_KEY` | OpenAI API key |
-| `GEMINI_API_KEY` | Google Gemini API key |
-| `DEEPSEEK_API_KEY` | DeepSeek API key |
-| `GROQ_API_KEY` | Groq API key |
-| `MISTRAL_API_KEY` | Mistral API key |
-| `XAI_API_KEY` | xAI API key |
+
+| Variable                      | Description                            |
+| ----------------------------- | -------------------------------------- |
+| `CODEBOT_MODEL`               | Default model name                     |
+| `CODEBOT_PROVIDER`            | Default provider                       |
+| `CODEBOT_BASE_URL`            | LLM API base URL                       |
+| `CODEBOT_API_KEY`             | API key (fallback)                     |
+| `ANTHROPIC_API_KEY`           | Anthropic API key                      |
+| `OPENAI_API_KEY`              | OpenAI API key                         |
+| `GEMINI_API_KEY`              | Google Gemini API key                  |
+| `DEEPSEEK_API_KEY`            | DeepSeek API key                       |
+| `GROQ_API_KEY`                | Groq API key                           |
+| `MISTRAL_API_KEY`             | Mistral API key                        |
+| `XAI_API_KEY`                 | xAI API key                            |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry collector URL (optional) |
 
 ### Config File
+
 Saved at `~/.codebot/config.json` after `codebot --setup`.
 
 ### Policy File
+
 Project-level: `.codebot/policy.json` (see [Policy Guide](POLICY_GUIDE.md))

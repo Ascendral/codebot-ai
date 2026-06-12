@@ -42,9 +42,7 @@ describe('WebSearchTool', () => {
     assert.ok(result.length > 0);
     // Either contains search results or an error
     assert.ok(
-      result.includes('Search results for') ||
-      result.includes('Search error:') ||
-      result.includes('No results found'),
+      result.includes('Search results for') || result.includes('Search error:') || result.includes('No results found'),
     );
   });
 

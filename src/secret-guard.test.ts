@@ -61,10 +61,7 @@ describe('checkSecretsForWrite — policy enforcement', () => {
 
   it('scan_on_write=false: no scan at all', () => {
     fs.mkdirSync(path.join(tmp, '.codebot'), { recursive: true });
-    fs.writeFileSync(
-      path.join(tmp, '.codebot', 'policy.json'),
-      JSON.stringify({ secrets: { scan_on_write: false } }),
-    );
+    fs.writeFileSync(path.join(tmp, '.codebot', 'policy.json'), JSON.stringify({ secrets: { scan_on_write: false } }));
     const off = new PolicyEnforcer(loadPolicy(tmp), tmp);
     const content = 'const K = "sk_test_1234567890ABCDEFGHIJKLMNOPQRST";';
     const r = checkSecretsForWrite(content, off, 'foo.ts');

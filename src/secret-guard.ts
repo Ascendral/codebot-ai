@@ -59,9 +59,7 @@ export function checkSecretsForWrite(
     return { block: false, warning: '', secrets };
   }
 
-  const summary = secrets
-    .map((s) => `  Line ${s.line}: ${s.type} — ${s.snippet}`)
-    .join('\n');
+  const summary = secrets.map((s) => `  Line ${s.line}: ${s.type} — ${s.snippet}`).join('\n');
   const shouldBlock = policyEnforcer ? policyEnforcer.shouldBlockSecrets() : false;
 
   if (shouldBlock) {

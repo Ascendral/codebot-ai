@@ -13,12 +13,12 @@
 import * as crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 16;        // 128-bit IV for GCM
-const TAG_LENGTH = 16;       // 128-bit auth tag
-const SALT_LENGTH = 32;      // 256-bit salt for PBKDF2
-const KEY_LENGTH = 32;       // 256-bit key
+const IV_LENGTH = 16; // 128-bit IV for GCM
+const TAG_LENGTH = 16; // 128-bit auth tag
+const SALT_LENGTH = 32; // 256-bit salt for PBKDF2
+const KEY_LENGTH = 32; // 256-bit key
 const PBKDF2_ITERATIONS = 100_000;
-const HEADER = 'CBE1';       // CodeBot Encrypted v1 — 4-byte magic header
+const HEADER = 'CBE1'; // CodeBot Encrypted v1 — 4-byte magic header
 
 export interface EncryptionConfig {
   /** Enable encryption at rest */
@@ -74,20 +74,11 @@ export function encrypt(plaintext: string, passphrase: string): string | null {
     const iv = crypto.randomBytes(IV_LENGTH);
 
     const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-    const encrypted = Buffer.concat([
-      cipher.update(plaintext, 'utf-8'),
-      cipher.final(),
-    ]);
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf-8'), cipher.final()]);
     const tag = cipher.getAuthTag();
 
     // Pack: header + salt + iv + tag + ciphertext
-    const packed = Buffer.concat([
-      Buffer.from(HEADER, 'ascii'),
-      salt,
-      iv,
-      tag,
-      encrypted,
-    ]);
+    const packed = Buffer.concat([Buffer.from(HEADER, 'ascii'), salt, iv, tag, encrypted]);
 
     return packed.toString('base64');
   } catch {
@@ -123,10 +114,7 @@ export function decrypt(encoded: string, passphrase: string): string | null {
     const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(tag);
 
-    const decrypted = Buffer.concat([
-      decipher.update(ciphertext),
-      decipher.final(),
-    ]);
+    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 
     return decrypted.toString('utf-8');
   } catch {

@@ -29,6 +29,7 @@ I do not get credit for doing the work myself and calling it "the system."
 If I write code that solves the problem directly, I am the solution, not the system. That's theater. That's theft.
 
 ### Before claiming anything works
+
 1. State what I'm measuring
 2. Show baseline (before)
 3. Show result (after)
@@ -37,6 +38,7 @@ If I write code that solves the problem directly, I am the solution, not the sys
 No measurement = no claim. No commit hash = not done.
 
 ### Prohibited
+
 - Hand-coded solutions called "learned"
 - Pointing to files as evidence without proving they're on the execution path
 - "Done" / "shipped" without verification output
@@ -47,6 +49,7 @@ No measurement = no claim. No commit hash = not done.
 - Adding npm dependencies without explicit approval
 
 ### Required
+
 - "I don't know" when I don't
 - "It didn't work" when it didn't
 - Stop and ask before any shortcut
@@ -65,16 +68,19 @@ No measurement = no claim. No commit hash = not done.
 ## COMMANDS
 
 ### Root
+
 - Build: `npm run build` (tsc)
 - Test: `npm test` (jest)
 - Lint: check existing scripts before assuming
 
 ### Electron app (`cd electron`)
+
 - Sync local install: `npm run sync` (or commit — post-commit hook auto-syncs)
 - Release DMG: `npm run release:dmg`
 - Install git hook (one-time per clone): `npm run sync:install-hook`
 
 ### GitHub Action (`cd actions/codebot`)
+
 - Build: `npm run build`
 - Bundle: `npm run bundle` (ncc, minified)
 - Test: `npm test`
@@ -84,6 +90,7 @@ No measurement = no claim. No commit hash = not done.
 Production app at `~/Applications/CodeBot AI.app` MUST reflect code changes. Otherwise Alex tests stale code while I claim "it works."
 
 After any change to `src/` or `electron/`:
+
 1. `cd electron && npm run sync` (or commit — hook handles it)
 2. Verify: `defaults read "$HOME/Applications/CodeBot AI.app/Contents/Info.plist" CFBundleShortVersionString` and confirm recent mtime
 3. If version bump or security fix: `npm run release:dmg` then `gh release upload v<VERSION> "electron/dist/CodeBot AI-<VERSION>-arm64.dmg" --clobber`
@@ -102,6 +109,7 @@ After any change to `src/` or `electron/`:
 ## CONNECTOR §8 CONTRACT
 
 When migrating or adding a connector:
+
 - Use the validator + ConnectorReauthError pattern (PR 7 foundation)
 - Optional fields per the discriminated union (PR 7 follow-up)
 - Each action must pass clean: "N actions, N/N clean" in commit message

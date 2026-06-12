@@ -32,18 +32,24 @@ import type { CapabilityLabel } from './types';
 describe('LABEL_TO_PERMISSION — §7 mapping is complete', () => {
   // Exhaustive list of labels in the union (mirrors src/types.ts).
   const ALL_LABELS: CapabilityLabel[] = [
-    'read-only', 'write-fs', 'run-cmd',
-    'browser-read', 'browser-write', 'net-fetch',
-    'account-access', 'send-on-behalf', 'delete-data',
-    'spend-money', 'move-money',
+    'read-only',
+    'write-fs',
+    'run-cmd',
+    'browser-read',
+    'browser-write',
+    'net-fetch',
+    'account-access',
+    'send-on-behalf',
+    'delete-data',
+    'spend-money',
+    'move-money',
   ];
 
   it('every label has a required permission declared', () => {
     for (const label of ALL_LABELS) {
       const p = LABEL_TO_PERMISSION[label];
       assert.ok(p, `LABEL_TO_PERMISSION missing label "${label}"`);
-      assert.ok(['auto', 'prompt', 'always-ask'].includes(p),
-        `label "${label}" has invalid permission "${p}"`);
+      assert.ok(['auto', 'prompt', 'always-ask'].includes(p), `label "${label}" has invalid permission "${p}"`);
     }
   });
 
@@ -101,18 +107,22 @@ describe('strictestPermissionForCapabilityLabels — §7 combine rule', () => {
   });
 
   it('combines without always-ask (read-only + write-fs → prompt)', () => {
-    assert.strictEqual(
-      strictestPermissionForCapabilityLabels(['read-only', 'write-fs']),
-      'prompt',
-    );
+    assert.strictEqual(strictestPermissionForCapabilityLabels(['read-only', 'write-fs']), 'prompt');
   });
 
   it('delegate-style 10-label union escalates to always-ask', () => {
     // Mirrors PR 3's delegate label set; pins the design call that
     // delegate is naive-union always-ask under PR 4.
     const labels: CapabilityLabel[] = [
-      'read-only', 'write-fs', 'run-cmd', 'browser-read', 'browser-write',
-      'net-fetch', 'account-access', 'send-on-behalf', 'delete-data',
+      'read-only',
+      'write-fs',
+      'run-cmd',
+      'browser-read',
+      'browser-write',
+      'net-fetch',
+      'account-access',
+      'send-on-behalf',
+      'delete-data',
       'spend-money',
     ];
     assert.strictEqual(strictestPermissionForCapabilityLabels(labels), 'always-ask');
@@ -181,15 +191,14 @@ describe('escalatePermissionFromCapabilityLabels — monotonic up only', () => {
   it('triggering labels are only the ones at the escalated level (audit clarity)', () => {
     // auto → always-ask via send-on-behalf+delete-data; write-fs is along
     // for the ride but didn't drive the escalation.
-    const r = escalatePermissionFromCapabilityLabels(
-      'auto',
-      ['write-fs', 'send-on-behalf', 'delete-data'],
-    );
+    const r = escalatePermissionFromCapabilityLabels('auto', ['write-fs', 'send-on-behalf', 'delete-data']);
     assert.strictEqual(r.escalated, true);
     assert.strictEqual(r.permission, 'always-ask');
     assert.deepStrictEqual(r.triggeringLabels.sort(), ['delete-data', 'send-on-behalf']);
-    assert.ok(!r.triggeringLabels.includes('write-fs'),
-      'write-fs is prompt-level; it should NOT be listed as triggering an always-ask escalation');
+    assert.ok(
+      !r.triggeringLabels.includes('write-fs'),
+      'write-fs is prompt-level; it should NOT be listed as triggering an always-ask escalation',
+    );
   });
 
   it('handles empty / undefined labels by leaving permission untouched', () => {

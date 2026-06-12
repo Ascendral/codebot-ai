@@ -9,7 +9,7 @@ describe('Skills System', () => {
   it('loadSkills returns built-in skills when no dir exists', () => {
     const skills = loadSkills();
     assert.ok(skills.length >= 3, 'Should have at least 3 built-in skills');
-    const names = skills.map(s => s.name);
+    const names = skills.map((s) => s.name);
     assert.ok(names.includes('pr-review-notify'));
     assert.ok(names.includes('bug-report'));
     assert.ok(names.includes('standup-summary'));

@@ -3,6 +3,7 @@
 ## [2.10.1] — 2026-05-09
 
 ### Added
+
 - **Session permission approval** — interactive REPL now supports `[A]` (always) in addition to `[y]/[n]`. One approval auto-approves that tool for the rest of the session, resets on exit. Kills permission fatigue without permanent config changes.
 - **`CODEBOT_AUTO_APPROVE` env var** — set once in your shell profile to run fully headless without `--autonomous` on every invocation. Documented in `--help`.
 - **`--solve` defaults to autonomous** — `codebot --solve <url>` is an explicit opt-in to unattended operation; permission prompts are suppressed by default. Override with `--no-auto-approve` if you want to watch.
@@ -22,6 +23,7 @@
 - **`--solve` terminal demo in README** — real output block showing all 8 phases including the final SOLVE RESULT box with Audit + Chain lines.
 
 ### Changed
+
 - **README Quick Start rewritten** — env-var path shown first (no `--setup` needed if key is already set), all 7 supported API key env vars listed.
 - **README test badge** — 1630 → 2218 passing tests.
 - **cli.ts `main()` complexity** — 67 → 22 (extracted helpers: `resolveVaultModeOpts`, `handleFirstRunSetup`, `displayStartupBanner`, `launchDashboard`, `runInputDispatch`). Under the 30-gate.
@@ -31,6 +33,7 @@
 - **SWE-bench Verified** — updated headline: 17 resolved → 24 resolved (34% → 48%) on 50-task slice. COMPARISON.md updated.
 
 ### Fixed
+
 - **39 production unused-vars warnings** eliminated from TypeScript build.
 - **UTF-16 surrogate stripping** — lone surrogates in provider request bodies scrubbed before JSON serialization (Anthropic + OpenAI both strict-reject them).
 - **API key resolver dead code** — provider-specific keys (`openaiApiKey`, `anthropicApiKey`, etc.) now actually read from saved config.
@@ -41,6 +44,7 @@
 - **`.spark/` database files** no longer included in `--solve` PR commits.
 
 ### Security
+
 - Shell-injection closed in `SshRemoteTool`, `DatabaseTool`, `GraphicsTool`, `TestRunnerTool`.
 - `DockerTool` + `PackageManagerTool` argv-ized (no shell interpolation).
 - `/api/command/exec` routed through agent gate chain (previously bypassed CORD).
@@ -51,6 +55,7 @@
 ## [2.10.0] — 2026-04-15
 
 ### Added
+
 - **Experiential memory system** — `CrossSessionLearning` records episodes (sessionId, tools used, success, patterns, token usage), aggregates them into a pattern index, and feeds top patterns back into future system prompts via `buildPromptBlock()`
 - **Episode auto-rotation** — `recordEpisode` prunes by age (default 30 days, `CODEBOT_EPISODES_MAX_AGE_DAYS`) and count (default 200, `CODEBOT_EPISODES_MAX_COUNT`)
 - **Goal decomposition engine** — multi-step goal breakdown with HTML demo page (28 tests)
@@ -64,6 +69,7 @@
 - **Anti-theater protocol** documented in `CLAUDE.md`
 
 ### Changed
+
 - **Dashboard redesigned** with premium glassmorphism dark theme, Inter font, glass panels
 - **Dashboard body limit** raised from 1MB → 50MB to support base64 image uploads
 - **Provider request bodies** are now sanitized for lone UTF-16 surrogates before `JSON.stringify` (Anthropic + OpenAI both strict-reject these even when escaped)
@@ -71,6 +77,7 @@
 - Tests: 1,265 → 1,493 (+228 new tests across the new memory/goal/dashboard/electron paths)
 
 ### Fixed
+
 - **`CrossSessionLearning` test fixture** — replaced hardcoded `2026-03-15` dates with `new Date().toISOString()` so default fixtures aren't auto-pruned by the 30-day age limit (fixed 5 failing tests)
 - **Electron copy/paste** — multiple iterations: right-click context menu with `cut`/`copy`/`paste`/`selectAll` roles, manual clipboard shortcut handlers for macOS, default titlebar instead of `hiddenInset`, force `user-select` on all elements
 - **Dashboard 60+ bugs** — XSS, a11y, focus-visible, SSE heartbeats, DONE sentinel, timeout handling, command-api null checks, CSS duplicates and responsive issues, app.js logic bugs
@@ -85,43 +92,51 @@
 - **`.spark/` database files** no longer leak into `--solve` PR commits
 
 ### Security
+
 - **Electron 41.0.2 → 41.2.0** (npm audit vulnerabilities cleared)
 - `flatted` 3.4.2 (high-severity vuln fix)
 
 ### Known Issues
+
 - macOS Electron build is signed with the Developer ID Application cert, but full notarization requires `CODEBOT_FORCE_NOTARIZE=1` and a `codebot-notarize` keychain profile. Local builds skip notarization by default — see `electron/notarize.js`.
 
 ## [2.9.0] — 2026-03-14
 
 ### Added
+
 - **Offline fallback cache** for web_fetch (1h TTL) and web_search (2h TTL) — serves cached results when network fails
 - **Plugin schema validation** — JSON Schema validation for tool parameters (type checking, enum, required cross-referencing)
 - **Risk Scoring dashboard panel** — distribution bars, per-tool risk scores, block rate metrics, high-risk action feed
 
 ### Changed
+
 - **Agent decomposition complete** — agent.ts reduced from 837 to 677 lines; tool-executor.ts (216 lines) extracted with cache, rate limiting, metrics, audit, SPARK, and concurrency-limited batching
 - Browser decomposition already complete from prior work (3-file split)
 
 ## [2.8.0] — 2026-03-14
 
 ### Added
+
 - **Dashboard Models panel** — VRAM detection card, quantization advisor, local model browser
 - **CodeAGI continuous mode** — auto-run mission cycles on a timer with SSE streaming, error-based auto-stop
 - **"Who This Is For" section** in README — clear user segments (security teams, regulated industries, solo devs)
 - **Dynamic badges** — npm downloads, GitHub stars, last commit
 
 ### Changed
+
 - Tests: 1,217 → 1,265 (48 new tests across swarm strategies, router, scorer)
 - Removed swarm references from public docs (feature retained internally)
 - README restructured: cleaner messaging, safety and governance front-and-center
 - All version surfaces bumped to 2.8.0 (root, extension, action)
 
 ### Fixed
+
 - ROADMAP and README test/suite counts synchronized to actual values (1,265 tests / 242 suites)
 
 ## [2.7.7] — 2026-03-07
 
 ### Fixed
+
 - **Config persistence** — saved config (`~/.codebot/config.json`) now takes priority over environment variables so setup isn't overridden by stale env vars
 - **API key validation** — setup now validates API keys against the provider before saving, catching bad/expired keys immediately
 - **Dashboard error display** — errors from the agent (e.g. 401 auth failures) now show the actual error message instead of "(no response)"
@@ -129,6 +144,7 @@
 ## [2.7.0] — 2026-03-07
 
 ### Added
+
 - **Constitutional AI Safety Layer** — integrated CORD engine (14-dimension risk scoring) and VIGIL threat patrol (behavioral memory, canary tokens, 7-layer deobfuscation, 110+ threat patterns)
 - **Hard-block enforcement** for moral violations, protocol drift, and prompt injection
 - **Dashboard Security panel** with live decision feed, block rate metrics, risk dimension breakdown, and VIGIL status
@@ -137,18 +153,20 @@
 - **CLI flag**: `--no-constitutional` to disable safety layer
 
 ### Changed
+
 - Tests: 1151 → 1168 (17 new constitutional adapter + integration tests)
 - First production dependency: `cord-engine` (same author, zero transitive deps)
 
 ### Security
+
 - VIGIL outer ring scans all input/output for injection, canary leaks, PII exfiltration
 - CORD middle ring evaluates all tool actions with 14-dimension weighted scoring
 - Hard blocks bypass permission system entirely for critical threats
 
-
 ## [2.5.2] — 2026-03-04
 
 ### Added
+
 - **Command Center** — fully functional interactive dashboard tab with 4 sub-features:
   - **Terminal** — execute shell commands with live streaming output, command history (arrow keys)
   - **Quick Actions** — 8 one-click buttons (Git Status, Run Tests, Git Log, Git Diff, Health Check, List Tools, List Files, NPM Outdated)
@@ -161,32 +179,35 @@
 - **Concurrency guard** — prevents parallel agent.run() calls (409 Conflict)
 
 ### Changed
+
 - Dashboard Command tab defaults to Terminal in standalone mode
 - Chat and Tool Runner tabs gracefully disabled (greyed out) without agent
 - Version alignment: cli.ts, index.ts, and package.json now all report 2.5.2
 - Tests: 1125 → 1135+ (command-api standalone tests added)
 
 ### Security
+
 - Terminal commands filtered against BLOCKED_PATTERNS (dangerous command rejection)
 - Environment variables sanitized before child process spawn (API keys stripped)
 - 30-second timeout on all terminal commands with SIGTERM
 
-
 ## [2.5.1] — 2026-03-03
 
 ### Added
+
 - **Graphics toolchain** — OpenAI DALL-E image generation, Replicate ML model connector, graphics processing tool
 - **OpenAI Images connector** — generate, edit, and create variations via DALL-E 2/3
 - **Replicate connector** — run any ML model on Replicate's API with automatic polling
 - **Graphics tool** — resize, crop, rotate, flip, convert, compress, watermark, thumbnail generation
 
 ### Fixed
-- `pollPrediction` return type in replicate.ts — added missing `id` field
 
+- `pollPrediction` return type in replicate.ts — added missing `id` field
 
 ## [2.5.0] — 2026-03-03
 
 ### Added
+
 - **App connectors** — GitHub, Jira, Linear, Slack integrations with OAuth/API key auth
 - **Credential vault** — encrypted storage for API keys and tokens (AES-256-GCM)
 - **Skills system** — reusable prompt-based workflows with parameter templating
@@ -194,12 +215,13 @@
 - **`app-connector` tool** — unified interface for all connector operations
 
 ### Changed
-- Tests: 1035 → 1114 (connector + vault + skills tests)
 
+- Tests: 1035 → 1114 (connector + vault + skills tests)
 
 ## [2.3.0] — 2026-03-02
 
 ### Added
+
 - **TUI mode** (`--tui`) — full terminal UI with plan/output/details panels, keyboard-driven navigation (Tab=cycle, arrows=scroll, y/n=approve/deny, q=quit), real-time step tracking
 - **Web dashboard** (`--dashboard`) — local browser UI on port 3120 with session history, audit chain viewer with integrity verification, metrics summary, and SARIF export
 - **Theme system** (`--theme <name>`) — dark, light, and mono themes with semantic color roles; respects `NO_COLOR` env; persisted in config; `/theme` slash command
@@ -212,6 +234,7 @@
 - **`--no-stream` flag** — disable streaming token display
 
 ### Changed
+
 - CLI help text updated with all new flags (`--tui`, `--dashboard`, `--doctor`, `--theme`, `--no-stream`)
 - UI component library: hardcoded colors replaced with theme-aware `getTheme().colors`
 - Banner system: local color constants replaced with theme integration
@@ -220,15 +243,16 @@
 - Tests: 907 → 1035+ (128 new tests across 12 test files)
 
 ### Security
+
 - Dashboard server binds to `127.0.0.1` only (no network exposure)
 - Dashboard static file serving prevents directory traversal
 - Dashboard frontend uses `escapeHtml()` for all user-data rendering (XSS prevention)
 - Audit chain verification endpoint validates SHA-256 hash chains
 
-
 ## [2.2.0] — 2026-03-02
 
 ### Added
+
 - **907 comprehensive tests** — every tool has dedicated test file, 0 failures
 - **UI component library** (`src/ui.ts`) — `box()`, `riskBar()`, `permissionCard()`, `spinner()`, `progressStep()`, `diffPreview()`, `sessionHeader()`, `summaryBox()` for premium CLI output
 - **Permission cards** — bordered cards with tool name, risk bar, risk factors, sandbox/network status, approve/deny action bar
@@ -246,6 +270,7 @@
 - **Multi-agent orchestration** — parent/child task delegation with `Orchestrator` and `DelegateTool`
 
 ### Changed
+
 - CLI tool results: color-coded risk indicators (green/yellow/orange/red), multi-line args display, compact output with `--verbose` hint
 - Session summary: boxed output with `summaryBox()`, risk average display
 - Permission prompts: full permission cards with risk scoring and sandbox status
@@ -256,19 +281,21 @@
 - Tests: 586 → 907 (321 new tests across 20 test files)
 
 ### Security
+
 - Permission cards display risk score, exact arguments, sandbox status before tool execution
 - Browser tool respects `CHROME_PATH` env var for reproducible CI environments
-
 
 ## [2.1.6] — 2026-03-01
 
 ### Added
+
 - **Prompt caching** — Anthropic: `cache_control` on system prompt and tool definitions with `anthropic-beta: prompt-caching-2024-07-31` header; OpenAI: `stream_options.include_usage` for cache token tracking; cache metrics (`cache_creation_tokens_total`, `cache_read_tokens_total`, `cache_hits_total`) in MetricsCollector
 - **Vision / multimodal** — `ImageAttachment` type on messages; Anthropic `image` content blocks with base64 source; OpenAI `image_url` content blocks with data URIs; browser screenshots auto-attached to tool messages for vision-capable models; image-aware token estimation (~1000 tokens/image) in ContextManager
 - **Model routing** — `src/router.ts`: heuristic task classifier (fast/standard/powerful tiers); auto-detects tier models from provider family (Anthropic, OpenAI, Gemini, DeepSeek, Groq); `classifyComplexity()` and `classifyToolTier()` for per-turn model selection
 - **JSON mode / structured output** — `buildToolCallSchema()` generates JSON schema for tool calling; `parseJsonModeResponse()` parses structured tool responses; OpenAI provider uses `response_format` with JSON schema when native tools unavailable; integrated as first fallback in `parseToolCalls()`
 
 ### Changed
+
 - `UsageStats` extended with `cacheCreationTokens` and `cacheReadTokens` fields
 - `ModelInfo` extended with `supportsCaching`, `supportsVision`, `supportsJsonMode`, and `tier` fields
 - `Message` type extended with `images?: ImageAttachment[]` for multimodal content
@@ -278,24 +305,29 @@
 ## [2.1.5] — 2026-02-28
 
 ### Security
+
 - **RBAC consistency sweep** — all 14 `PolicyEnforcer` methods now use `getEffectivePolicy()` instead of reading `this.policy` directly. Role overrides are now applied universally across filesystem, execution, git, secrets, MCP, and limits checks
 - **Execute tool hardened** — uses `PolicyEnforcer` with RBAC instead of raw `loadPolicy()`, sandbox/network/memory settings now respect role overrides
 - **Browser tool safety** — `killExistingChrome()` gated behind policy check; uses SIGTERM before SIGKILL for graceful shutdown; RBAC enforcement added to `BrowserTool.execute()`
 
 ### Added
+
 - **Encryption at rest wired in** — `encryptLine`/`decryptLine` integrated into `SessionManager` (save, saveAll, load, verifyIntegrity, list) and `AuditLogger` (log, query); `encryptContent`/`decryptContent` integrated into `MemoryManager` (readGlobal, readProject, writeGlobal, writeProject, readDir). Opt-in via `CODEBOT_ENCRYPTION_KEY` env var
 
 ### Changed
+
 - Version bumped to 2.1.5
 
 ## [2.1.4] — 2026-02-28
 
 ### Fixed
+
 - **Animation visibility** — increased timing presets (~2x) so terminal animations are perceptible; changed CLI from 'fast' to 'normal' speed; added phase pauses between animation stages
 
 ## [2.1.3] — 2026-02-28
 
 ### Added
+
 - **Terminal animation system** — 6 animation functions: `animateReveal`, `animateVisorScan`, `animateEyeBoot`, `animateBootSequence`, `animateTyping`, `animateSessionEnd`
 - **`--no-animate` flag** — disable startup animations
 - `shouldAnimate()` — auto-detects TTY, CI, dumb terminal
@@ -305,12 +337,14 @@
 ## [2.1.2] — 2026-02-28
 
 ### Changed
+
 - Updated mascot ASCII art tests to match v3 enterprise block-character designs
 - Updated BRANDING.md with final design names (Core, Terminal, Sentinel) and accurate ASCII art
 
 ## [2.1.1] — 2026-02-28
 
 ### Changed
+
 - Mascot ASCII art redesigned — third iteration using solid block characters (█ ▄ ▀ ░ ▒ ▓) for enterprise-grade terminal presence
 - Three canonical designs: Core (primary), Terminal (IDE), Sentinel (autonomous/CI)
 - Inline status indicators using geometric symbols
@@ -318,6 +352,7 @@
 ## [2.1.0] — 2026-03-01
 
 ### Added
+
 - **Role-Based Access Control (RBAC)** — `PolicyRole`, `PolicyRbac` interfaces, user-to-role mapping, role-scoped tool permissions, filesystem restrictions, and cost/iteration limits. Three built-in roles: `admin`, `developer`, `reviewer`
 - **Encryption at rest** (`src/encryption.ts`) — AES-256-GCM encryption for audit logs, session files, and memory. PBKDF2-SHA512 key derivation (100K iterations). Opt-in via `CODEBOT_ENCRYPTION_KEY` env var or policy config
 - **Distributed tracing** — `Span`, `SpanEvent` interfaces, `startSpan()`, `endSpan()`, `addSpanEvent()`, `exportTraces()` on `MetricsCollector`. OTLP `/v1/traces` HTTP export alongside existing `/v1/metrics`
@@ -326,6 +361,7 @@
 - 48 new tests (427 total: 379 core + 48 enterprise)
 
 ### Changed
+
 - `PolicyEnforcer` methods (`isToolAllowed`, `getToolPermission`, `getToolCapabilities`, `checkCapability`) now use RBAC-aware effective policy
 - `MetricsCollector` OTLP scope version bumped from `1.9.0` to `2.1.0`
 - `generateDefaultPolicyFile()` includes RBAC example configuration
@@ -334,6 +370,7 @@
 ## [2.0.1] — 2026-03-01
 
 ### Added
+
 - **SOC 2 compliance guide** (`docs/SOC2_COMPLIANCE.md`) — full Trust Services Criteria mapping, readiness checklists, sample policies, auditor evidence guide
 - **GitHub Copilot comparison** — in-depth head-to-head in `docs/COMPARISON.md` covering architecture, security, cost, extensibility
 - **Auto-GPT comparison** — feature matrix and analysis vs CrewAI, LangChain, MetaGPT
@@ -343,17 +380,20 @@
 - 13 new npm keywords for discoverability
 
 ### Changed
+
 - Enhanced CI workflow with npm caching and extension/action test job
 - Updated ROADMAP with completed milestones and v2.1/v2.2 plans
 - Excluded `src/games/` from TypeScript compilation
 
 ### Fixed
+
 - VERSION export in `src/index.ts` now matches `package.json`
 - CONTRIBUTING.md test count updated from 376 to 483
 
 ## [2.0.0] — 2026-02-28
 
 ### Added
+
 - **VS Code Extension** (`codebot-ai-vscode`) — sidebar chat panel, inline diff preview, status bar (tokens, cost, risk level), webview with VS Code theme integration
 - **GitHub Action** (`@codebot-ai/action`) — PR review, auto-fix CI failures, security scan with SARIF upload to GitHub Code Scanning
 - **Library API: `projectRoot`** — Agent constructor accepts optional `projectRoot` for embedding in VS Code, GitHub Actions, or custom integrations
@@ -363,12 +403,14 @@
 - 104 new tests (483 total: 379 core + 104 extension/action)
 
 ### Changed
+
 - Agent constructor: `process.cwd()` replaced with configurable `projectRoot` (backward-compatible)
 - Package version bumped to 2.0.0
 
 ## [1.9.0] — 2026-02-28
 
 ### Added
+
 - **Structured metrics** — `MetricsCollector` with counters, histograms, JSONL persistence, optional OpenTelemetry OTLP export
 - **Risk scoring** — `RiskScorer` with 6-factor weighted assessment (0-100): permission level, file path sensitivity, command destructiveness, network access, data volume, cumulative session risk
 - **SARIF 2.1.0 export** — `exportSarif()` converts audit entries to SARIF for GitHub Code Scanning, Azure DevOps, SonarQube
@@ -383,6 +425,7 @@
 ## [1.1.0] — 2026-02-26
 
 ### Added
+
 - **Diff preview** on file edits — shows before/after context before writing
 - **Undo support** — automatic file snapshots before edits, `/undo` command to restore
 - **Multi-file batch editing** — new `batch_edit` tool for atomic multi-file changes
@@ -393,11 +436,13 @@
 - Hardened command blocklist with 20+ dangerous patterns
 
 ### Fixed
+
 - npm bin script path warning on publish
 
 ## [1.0.2] — 2026-02-26
 
 ### Security
+
 - Fixed **CRITICAL** selector injection XSS in browser tool
 - Fixed **CRITICAL** path traversal in memory tool
 - Fixed **HIGH** SSRF in web fetch — blocks private IPs, file://, metadata endpoints
@@ -410,6 +455,7 @@
 ## [1.0.1] — 2026-02-26
 
 ### Fixed
+
 - Garbled streaming output from qwen3/deepseek models — `<think>` tag filtering
 - Setup wizard showing hardcoded model list instead of actual Ollama models
 
@@ -418,6 +464,7 @@
 Initial release.
 
 ### Features
+
 - **Agent Loop**: Streaming async generator with tool execution, permission system, and XML/JSON fallback parsing
 - **10 Tools**: read_file, write_file, edit_file, execute, glob, grep, think, memory, web_fetch, browser
 - **8 LLM Providers**: Ollama, LM Studio, vLLM (local), Anthropic, OpenAI, Gemini, DeepSeek, Groq, Mistral, xAI (cloud)

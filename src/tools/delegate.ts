@@ -11,7 +11,18 @@ export class DelegateTool implements Tool {
   name = 'delegate';
   description = 'Spawn child agent(s) to handle subtasks.';
   permission: Tool['permission'] = 'prompt';
-  capabilities: CapabilityLabel[] = ['read-only', 'write-fs', 'run-cmd', 'browser-read', 'browser-write', 'net-fetch', 'account-access', 'send-on-behalf', 'delete-data', 'spend-money'];
+  capabilities: CapabilityLabel[] = [
+    'read-only',
+    'write-fs',
+    'run-cmd',
+    'browser-read',
+    'browser-write',
+    'net-fetch',
+    'account-access',
+    'send-on-behalf',
+    'delete-data',
+    'spend-money',
+  ];
   parameters = {
     type: 'object',
     properties: {
@@ -71,7 +82,7 @@ export class DelegateTool implements Tool {
 
     // Batch mode
     if (args.tasks && Array.isArray(args.tasks)) {
-      const tasks: AgentTask[] = (args.tasks as Array<Record<string, unknown>>).map(t => ({
+      const tasks: AgentTask[] = (args.tasks as Array<Record<string, unknown>>).map((t) => ({
         id: generateTaskId(),
         description: t.task as string,
         context: t.files as string[] | undefined,
@@ -88,7 +99,9 @@ export class DelegateTool implements Tool {
     return 'Error: Provide either "task" (string) for a single child agent, or "tasks" (array) for parallel delegation.';
   }
 
-  private createChildExecutor(): (task: AgentTask) => Promise<{ output: string; toolCalls: string[]; filesModified: string[] }> {
+  private createChildExecutor(): (
+    task: AgentTask,
+  ) => Promise<{ output: string; toolCalls: string[]; filesModified: string[] }> {
     return async (task: AgentTask) => {
       return {
         output: 'Child agent completed: ' + task.description,
@@ -118,5 +131,4 @@ export class DelegateTool implements Tool {
 
     return output;
   }
-
 }

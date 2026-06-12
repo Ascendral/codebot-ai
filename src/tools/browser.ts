@@ -1,9 +1,6 @@
 import { Tool, CapabilityLabel } from '../types';
 import { PolicyEnforcer } from '../policy';
-import {
-  BrowserSession,
-  lastScreenshotData,
-} from './browser/connection';
+import { BrowserSession, lastScreenshotData } from './browser/connection';
 import {
   navigate,
   getContent,
@@ -27,7 +24,8 @@ export { BrowserSession, lastScreenshotData };
 
 export class BrowserTool implements Tool {
   name = 'browser';
-  description = 'Control a web browser. Navigate to URLs, read page content, click elements, type text, scroll, press keys, find elements by text, hover, manage tabs, run JavaScript, and take screenshots. Use for web browsing, social media, email, research, testing, and automation.';
+  description =
+    'Control a web browser. Navigate to URLs, read page content, click elements, type text, scroll, press keys, find elements by text, hover, manage tabs, run JavaScript, and take screenshots. Use for web browsing, social media, email, research, testing, and automation.';
   permission: Tool['permission'] = 'prompt';
   capabilities: CapabilityLabel[] = ['browser-read', 'browser-write', 'net-fetch'];
   parameters = {
@@ -37,16 +35,32 @@ export class BrowserTool implements Tool {
         type: 'string',
         description: 'Action to perform',
         enum: [
-          'navigate', 'content', 'screenshot', 'click', 'type', 'evaluate',
-          'tabs', 'close', 'scroll', 'wait', 'press_key', 'hover',
-          'find_by_text', 'switch_tab', 'new_tab',
+          'navigate',
+          'content',
+          'screenshot',
+          'click',
+          'type',
+          'evaluate',
+          'tabs',
+          'close',
+          'scroll',
+          'wait',
+          'press_key',
+          'hover',
+          'find_by_text',
+          'switch_tab',
+          'new_tab',
         ],
       },
       url: { type: 'string', description: 'URL to navigate to (for navigate/new_tab)' },
       selector: { type: 'string', description: 'CSS selector for element (for click/type/scroll/hover)' },
       text: { type: 'string', description: 'Text to type (type) or text to search for (find_by_text)' },
       expression: { type: 'string', description: 'JavaScript to evaluate (for evaluate action)' },
-      direction: { type: 'string', description: 'Scroll direction: up, down, left, right (for scroll)', enum: ['up', 'down', 'left', 'right'] },
+      direction: {
+        type: 'string',
+        description: 'Scroll direction: up, down, left, right (for scroll)',
+        enum: ['up', 'down', 'left', 'right'],
+      },
       amount: { type: 'number', description: 'Scroll pixels (default 400) or wait ms (default 1000)' },
       key: { type: 'string', description: 'Key to press: Enter, Escape, Tab, ArrowDown, etc. (for press_key)' },
       tag: { type: 'string', description: 'HTML tag to filter: button, a, div, etc. (for find_by_text)' },
@@ -65,7 +79,9 @@ export class BrowserTool implements Tool {
       if (!toolCheck.allowed) {
         return `Blocked by policy: ${toolCheck.reason}`;
       }
-    } catch { /* no policy — proceed with defaults */ }
+    } catch {
+      /* no policy — proceed with defaults */
+    }
 
     try {
       switch (action) {
@@ -86,9 +102,13 @@ export class BrowserTool implements Tool {
         case 'close':
           return closeBrowser();
         case 'scroll':
-          return await scroll(args.selector as string | undefined, args.direction as string || 'down', args.amount as number || 400);
+          return await scroll(
+            args.selector as string | undefined,
+            (args.direction as string) || 'down',
+            (args.amount as number) || 400,
+          );
         case 'wait':
-          return await wait(args.amount as number || 1000);
+          return await wait((args.amount as number) || 1000);
         case 'press_key':
           return await pressKey(args.key as string, args.selector as string | undefined);
         case 'hover':

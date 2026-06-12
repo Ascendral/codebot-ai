@@ -184,9 +184,10 @@ export async function handleInboundEvent(
   let body: Record<string, unknown>;
   try {
     const parsed = JSON.parse(rawBody);
-    body = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : { value: parsed };
+    body =
+      parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : { value: parsed };
   } catch {
     body = { raw: rawBody };
   }
@@ -289,18 +290,22 @@ export class EventListener {
           const result = await handleInboundEvent(body, headers, this.opts);
           res.statusCode = result.status;
           res.setHeader('content-type', 'application/json');
-          res.end(JSON.stringify({
-            ok: result.status >= 200 && result.status < 300,
-            reason: result.reason,
-            receiveAuditHash: result.receiveAuditHash,
-            dispatchAuditHash: result.dispatchAuditHash,
-          }));
+          res.end(
+            JSON.stringify({
+              ok: result.status >= 200 && result.status < 300,
+              reason: result.reason,
+              receiveAuditHash: result.receiveAuditHash,
+              dispatchAuditHash: result.dispatchAuditHash,
+            }),
+          );
         } catch (err) {
           // Last-resort guard. handleInboundEvent doesn't throw, but the
           // server-level wrapping must not crash the process.
           if (!res.writableEnded) {
             res.statusCode = 500;
-            try { res.end('Internal Server Error'); } catch {}
+            try {
+              res.end('Internal Server Error');
+            } catch {}
           }
           // Best-effort audit; if even this fails we swallow.
           try {
@@ -331,7 +336,9 @@ export class EventListener {
   }
 
   /** Expose for tests so they can verify "is the server actually listening" without timing. */
-  isListening(): boolean { return this.server !== null && this.server.listening; }
+  isListening(): boolean {
+    return this.server !== null && this.server.listening;
+  }
 }
 
 /** Helper for senders + tests: produce the headers a valid request needs. */

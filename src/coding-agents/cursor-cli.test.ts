@@ -35,8 +35,16 @@ before(() => {
 after(() => {
   if (prevHome === undefined) delete process.env.CODEBOT_HOME;
   else process.env.CODEBOT_HOME = prevHome;
-  try { fs.rmSync(codebotHome, { recursive: true, force: true }); } catch { /* noop */ }
-  try { fs.rmSync(scratchDir, { recursive: true, force: true }); } catch { /* noop */ }
+  try {
+    fs.rmSync(codebotHome, { recursive: true, force: true });
+  } catch {
+    /* noop */
+  }
+  try {
+    fs.rmSync(scratchDir, { recursive: true, force: true });
+  } catch {
+    /* noop */
+  }
 });
 
 /** Write a fake `agent` script that prints `lines` then exits with `code`. */
@@ -136,7 +144,7 @@ describe('CursorCliAgentProvider — stream-json parser', () => {
     const { reg } = setupRegistry(fake);
     const handle = await reg.submit(makeSpec());
     const events = await drain(handle.events());
-    const types = events.map(e => e.type);
+    const types = events.map((e) => e.type);
     assert.deepStrictEqual(types, ['status', 'output', 'result']);
     const out = events[1];
     if (out.type !== 'output') throw new Error('expected output');
@@ -154,11 +162,15 @@ describe('CursorCliAgentProvider — stream-json parser', () => {
     const { reg } = setupRegistry(fake);
     const handle = await reg.submit(makeSpec());
     const events = await drain(handle.events());
-    const fcs = events.filter(e => e.type === 'file_change');
+    const fcs = events.filter((e) => e.type === 'file_change');
     assert.strictEqual(fcs.length, 3);
     assert.deepStrictEqual(
-      fcs.map(e => (e.type === 'file_change' ? [e.path, e.op] : null)),
-      [['src/foo.ts', 'modify'], ['NEW.md', 'create'], ['old.txt', 'delete']],
+      fcs.map((e) => (e.type === 'file_change' ? [e.path, e.op] : null)),
+      [
+        ['src/foo.ts', 'modify'],
+        ['NEW.md', 'create'],
+        ['old.txt', 'delete'],
+      ],
     );
   });
 
@@ -171,7 +183,7 @@ describe('CursorCliAgentProvider — stream-json parser', () => {
     const { reg } = setupRegistry(fake);
     const handle = await reg.submit(makeSpec());
     const events = await drain(handle.events());
-    const cmds = events.filter(e => e.type === 'command');
+    const cmds = events.filter((e) => e.type === 'command');
     assert.strictEqual(cmds.length, 2);
     assert.strictEqual((cmds[0] as { command: string; exitCode: number }).command, 'npm test');
     assert.strictEqual((cmds[0] as { command: string; exitCode: number }).exitCode, 0);
@@ -180,15 +192,11 @@ describe('CursorCliAgentProvider — stream-json parser', () => {
   });
 
   it('budget cap flips ok=true to ok=false when tokens exceed cap', async () => {
-    const fake = makeFakeAgent([
-      JSON.stringify({ type: 'result', ok: true, summary: 'fine', tokens: 5000 }),
-    ]);
+    const fake = makeFakeAgent([JSON.stringify({ type: 'result', ok: true, summary: 'fine', tokens: 5000 })]);
     const { reg } = setupRegistry(fake);
-    const handle = await reg.submit(
-      makeSpec({ permissions: { allow: ['read-only'], budget: { tokens: 1000 } } }),
-    );
+    const handle = await reg.submit(makeSpec({ permissions: { allow: ['read-only'], budget: { tokens: 1000 } } }));
     const events = await drain(handle.events());
-    const result = events.find(e => e.type === 'result');
+    const result = events.find((e) => e.type === 'result');
     if (!result || result.type !== 'result') throw new Error('expected result');
     assert.strictEqual(result.ok, false);
     assert.match(result.summary, /BUDGET EXCEEDED: 5000 > 1000 tokens/);
@@ -203,7 +211,7 @@ describe('CursorCliAgentProvider — stream-json parser', () => {
     const { reg } = setupRegistry(fake);
     const handle = await reg.submit(makeSpec());
     const events = await drain(handle.events());
-    const result = events.find(e => e.type === 'result');
+    const result = events.find((e) => e.type === 'result');
     if (!result || result.type !== 'result') throw new Error('expected synthesized result');
     assert.strictEqual(result.ok, false);
     assert.match(result.summary, /exited 1 without result row/);
@@ -218,7 +226,7 @@ describe('CursorCliAgentProvider — stream-json parser', () => {
     const { reg } = setupRegistry(fake);
     const handle = await reg.submit(makeSpec());
     const events = await drain(handle.events());
-    const out = events.find(e => e.type === 'output');
+    const out = events.find((e) => e.type === 'output');
     if (!out || out.type !== 'output') throw new Error('expected output');
     assert.strictEqual(out.text.length, 2000);
     assert.strictEqual(handle.status(), 'succeeded');
@@ -239,11 +247,11 @@ process.exit(0);
     const { reg } = setupRegistry(file);
     const handle = await reg.submit(makeSpec());
     const events = await drain(handle.events());
-    const warn = events.find(e => e.type === 'log' && e.level === 'warn');
+    const warn = events.find((e) => e.type === 'log' && e.level === 'warn');
     if (!warn || warn.type !== 'log') throw new Error('expected warn log for bad JSON');
     assert.match(warn.message, /unparseable stream-json/);
     // Subsequent valid line still parses.
-    const result = events.find(e => e.type === 'result');
+    const result = events.find((e) => e.type === 'result');
     assert.ok(result, 'parser should recover after a bad line');
   });
 });

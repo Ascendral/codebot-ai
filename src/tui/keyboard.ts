@@ -8,8 +8,8 @@
  */
 
 export interface KeyEvent {
-  name: string;          // Human-readable key name
-  sequence: string;      // Raw escape sequence
+  name: string; // Human-readable key name
+  sequence: string; // Raw escape sequence
   ctrl: boolean;
   shift: boolean;
   alt: boolean;
@@ -139,34 +139,64 @@ export function parseKeypress(data: Buffer): KeyEvent {
 
 /** TUI action names for common shortcuts */
 export type TuiAction =
-  | 'scroll_up' | 'scroll_down' | 'scroll_left' | 'scroll_right'
-  | 'focus_next' | 'focus_prev'
-  | 'approve' | 'deny' | 'skip' | 'retry'
-  | 'quit' | 'help' | 'toggle_expand'
-  | 'enter' | 'escape' | 'unknown';
+  | 'scroll_up'
+  | 'scroll_down'
+  | 'scroll_left'
+  | 'scroll_right'
+  | 'focus_next'
+  | 'focus_prev'
+  | 'approve'
+  | 'deny'
+  | 'skip'
+  | 'retry'
+  | 'quit'
+  | 'help'
+  | 'toggle_expand'
+  | 'enter'
+  | 'escape'
+  | 'unknown';
 
 /** Map a KeyEvent to a TUI action */
 export function keyToAction(event: KeyEvent): TuiAction {
   switch (event.name) {
-    case 'up': return 'scroll_up';
-    case 'down': return 'scroll_down';
-    case 'left': return 'scroll_left';
-    case 'right': return 'scroll_right';
-    case 'tab': return 'focus_next';
-    case 'shift-tab': return 'focus_prev';
-    case 'y': return 'approve';
-    case 'n': return 'deny';
-    case 's': return 'skip';
-    case 'r': return 'retry';
-    case 'q': return 'quit';
-    case 'ctrl-c': return 'quit';
-    case 'ctrl-d': return 'quit';
-    case '?': return 'help';
-    case 'h': return 'help';
-    case 'space': return 'toggle_expand';
-    case 'enter': return 'enter';
-    case 'escape': return 'escape';
-    default: return 'unknown';
+    case 'up':
+      return 'scroll_up';
+    case 'down':
+      return 'scroll_down';
+    case 'left':
+      return 'scroll_left';
+    case 'right':
+      return 'scroll_right';
+    case 'tab':
+      return 'focus_next';
+    case 'shift-tab':
+      return 'focus_prev';
+    case 'y':
+      return 'approve';
+    case 'n':
+      return 'deny';
+    case 's':
+      return 'skip';
+    case 'r':
+      return 'retry';
+    case 'q':
+      return 'quit';
+    case 'ctrl-c':
+      return 'quit';
+    case 'ctrl-d':
+      return 'quit';
+    case '?':
+      return 'help';
+    case 'h':
+      return 'help';
+    case 'space':
+      return 'toggle_expand';
+    case 'enter':
+      return 'enter';
+    case 'escape':
+      return 'escape';
+    default:
+      return 'unknown';
   }
 }
 
@@ -226,7 +256,7 @@ export function createKeyboardListener(): {
       if (queue.length > 0) {
         yield queue.shift()!;
       } else {
-        const event = await new Promise<IteratorResult<KeyEvent>>(resolve => {
+        const event = await new Promise<IteratorResult<KeyEvent>>((resolve) => {
           resolveNext = resolve;
         });
         if (event.done) return;

@@ -91,8 +91,8 @@ describe('MODEL_REGISTRY', () => {
   it('has models for all cloud providers', () => {
     const providers = new Set(
       Object.values(MODEL_REGISTRY)
-        .map(info => info.provider)
-        .filter(Boolean)
+        .map((info) => info.provider)
+        .filter(Boolean),
     );
     assert.ok(providers.has('anthropic'));
     assert.ok(providers.has('openai'));

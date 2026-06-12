@@ -36,7 +36,8 @@ function isContained(root: string, target: string): boolean {
 
 export class TestRunnerTool implements Tool {
   name = 'test_runner';
-  description = 'Run tests with auto-detected framework. Actions: run (execute tests), detect (show detected framework), list (list test files).';
+  description =
+    'Run tests with auto-detected framework. Actions: run (execute tests), detect (show detected framework), list (list test files).';
   permission: Tool['permission'] = 'prompt';
   capabilities: CapabilityLabel[] = ['read-only', 'write-fs', 'run-cmd'];
   /**
@@ -82,16 +83,21 @@ export class TestRunnerTool implements Tool {
     }
 
     switch (action) {
-      case 'detect': return this.detectFramework(cwd);
-      case 'list': return this.listTestFiles(cwd);
-      case 'run': return this.runTests(cwd, args);
-      default: return `Error: unknown action "${action}". Use: run, detect, list`;
+      case 'detect':
+        return this.detectFramework(cwd);
+      case 'list':
+        return this.listTestFiles(cwd);
+      case 'run':
+        return this.runTests(cwd, args);
+      default:
+        return `Error: unknown action "${action}". Use: run, detect, list`;
     }
   }
 
   private detectFramework(cwd: string): string {
     const fw = this.detect(cwd);
-    if (!fw) return 'No test framework detected. Checked for: jest, vitest, mocha, node:test, pytest, go test, cargo test.';
+    if (!fw)
+      return 'No test framework detected. Checked for: jest, vitest, mocha, node:test, pytest, go test, cargo test.';
     const shown = [fw.command, ...fw.args].join(' ');
     return `Detected: ${fw.name}\nCommand: ${shown}\nTest files: ${fw.filePattern}`;
   }
@@ -102,7 +108,7 @@ export class TestRunnerTool implements Tool {
 
     this.findTests(cwd, files, skip, 0, 4);
     if (files.length === 0) return 'No test files found.';
-    return `Test files (${files.length}):\n${files.map(f => `  ${f}`).join('\n')}`;
+    return `Test files (${files.length}):\n${files.map((f) => `  ${f}`).join('\n')}`;
   }
 
   /**
@@ -180,21 +186,32 @@ export class TestRunnerTool implements Tool {
         const deps = { ...pkg.dependencies, ...pkg.devDependencies };
 
         if (typeof scripts.test === 'string') {
-          if (scripts.test.includes('vitest')) return { name: 'vitest', command: 'npx', args: ['vitest', 'run'], filePattern: '*.test.ts' };
-          if (scripts.test.includes('jest')) return { name: 'jest', command: 'npx', args: ['jest'], filePattern: '*.test.ts' };
-          if (scripts.test.includes('mocha')) return { name: 'mocha', command: 'npx', args: ['mocha'], filePattern: '*.test.ts' };
-          if (scripts.test.includes('node --test')) return { name: 'node:test', command: 'npm', args: ['test'], filePattern: '*.test.*' };
+          if (scripts.test.includes('vitest'))
+            return { name: 'vitest', command: 'npx', args: ['vitest', 'run'], filePattern: '*.test.ts' };
+          if (scripts.test.includes('jest'))
+            return { name: 'jest', command: 'npx', args: ['jest'], filePattern: '*.test.ts' };
+          if (scripts.test.includes('mocha'))
+            return { name: 'mocha', command: 'npx', args: ['mocha'], filePattern: '*.test.ts' };
+          if (scripts.test.includes('node --test'))
+            return { name: 'node:test', command: 'npm', args: ['test'], filePattern: '*.test.*' };
           // Generic npm test — let npm itself handle scripts.test. We do
           // NOT paste scripts.test into our argv.
           return { name: 'npm test', command: 'npm', args: ['test'], filePattern: '*.test.*' };
         }
-        if (deps['vitest']) return { name: 'vitest', command: 'npx', args: ['vitest', 'run'], filePattern: '*.test.ts' };
+        if (deps['vitest'])
+          return { name: 'vitest', command: 'npx', args: ['vitest', 'run'], filePattern: '*.test.ts' };
         if (deps['jest']) return { name: 'jest', command: 'npx', args: ['jest'], filePattern: '*.test.ts' };
-      } catch { /* invalid package.json */ }
+      } catch {
+        /* invalid package.json */
+      }
     }
 
     // Python
-    if (fs.existsSync(path.join(cwd, 'pytest.ini')) || fs.existsSync(path.join(cwd, 'setup.py')) || fs.existsSync(path.join(cwd, 'pyproject.toml'))) {
+    if (
+      fs.existsSync(path.join(cwd, 'pytest.ini')) ||
+      fs.existsSync(path.join(cwd, 'setup.py')) ||
+      fs.existsSync(path.join(cwd, 'pyproject.toml'))
+    ) {
       return { name: 'pytest', command: 'python', args: ['-m', 'pytest', '-v'], filePattern: 'test_*.py' };
     }
 
@@ -231,7 +248,11 @@ export class TestRunnerTool implements Tool {
   private findTests(dir: string, files: string[], skip: Set<string>, depth: number, maxDepth: number): void {
     if (depth >= maxDepth) return;
     let entries: fs.Dirent[];
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
 
     for (const entry of entries) {
       if (entry.name.startsWith('.') || skip.has(entry.name)) continue;
@@ -239,7 +260,11 @@ export class TestRunnerTool implements Tool {
 
       if (entry.isDirectory()) {
         this.findTests(full, files, skip, depth + 1, maxDepth);
-      } else if (/\.(test|spec)\.\w+$/.test(entry.name) || /^test_.*\.py$/.test(entry.name) || /_test\.go$/.test(entry.name)) {
+      } else if (
+        /\.(test|spec)\.\w+$/.test(entry.name) ||
+        /^test_.*\.py$/.test(entry.name) ||
+        /_test\.go$/.test(entry.name)
+      ) {
         files.push(full);
       }
     }

@@ -1,35 +1,23 @@
-import React from "react";
-import {
-  AbsoluteFill,
-  interpolate,
-  spring,
-  useCurrentFrame,
-  useVideoConfig,
-  Sequence,
-} from "remotion";
+import React from 'react';
+import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig, Sequence } from 'remotion';
 
-const CYAN = "#00d4ff";
-const BG = "#0a0a0f";
-const WHITE = "#ffffff";
-const DIM = "#666677";
-const GREEN = "#22c55e";
+const CYAN = '#00d4ff';
+const BG = '#0a0a0f';
+const WHITE = '#ffffff';
+const DIM = '#666677';
+const GREEN = '#22c55e';
 
-const FadeIn: React.FC<{ children: React.ReactNode; delay?: number }> = ({
-  children,
-  delay = 0,
-}) => {
+const FadeIn: React.FC<{ children: React.ReactNode; delay?: number }> = ({ children, delay = 0 }) => {
   const frame = useCurrentFrame();
   const opacity = interpolate(frame - delay, [0, 15], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
   });
   const y = interpolate(frame - delay, [0, 15], [30, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
   });
-  return (
-    <div style={{ opacity, transform: `translateY(${y}px)` }}>{children}</div>
-  );
+  return <div style={{ opacity, transform: `translateY(${y}px)` }}>{children}</div>;
 };
 
 // Scene 1: Logo + Title
@@ -42,16 +30,16 @@ const TitleScene: React.FC = () => {
     <AbsoluteFill
       style={{
         background: BG,
-        justifyContent: "center",
-        alignItems: "center",
+        justifyContent: 'center',
+        alignItems: 'center',
       }}
     >
-      <div style={{ textAlign: "center", transform: `scale(${scale})` }}>
+      <div style={{ textAlign: 'center', transform: `scale(${scale})` }}>
         <div
           style={{
             fontSize: 120,
             fontWeight: 900,
-            fontFamily: "system-ui",
+            fontFamily: 'system-ui',
             color: WHITE,
             letterSpacing: -3,
           }}
@@ -63,7 +51,7 @@ const TitleScene: React.FC = () => {
             style={{
               fontSize: 36,
               color: DIM,
-              fontFamily: "system-ui",
+              fontFamily: 'system-ui',
               marginTop: 20,
             }}
           >
@@ -75,10 +63,10 @@ const TitleScene: React.FC = () => {
             style={{
               fontSize: 22,
               color: CYAN,
-              fontFamily: "system-ui",
+              fontFamily: 'system-ui',
               marginTop: 30,
               letterSpacing: 4,
-              textTransform: "uppercase",
+              textTransform: 'uppercase',
             }}
           >
             by Ascendral
@@ -95,8 +83,8 @@ const ProblemScene: React.FC = () => {
     <AbsoluteFill
       style={{
         background: BG,
-        justifyContent: "center",
-        alignItems: "center",
+        justifyContent: 'center',
+        alignItems: 'center',
         padding: 120,
       }}
     >
@@ -105,8 +93,8 @@ const ProblemScene: React.FC = () => {
           style={{
             fontSize: 28,
             color: CYAN,
-            fontFamily: "system-ui",
-            textTransform: "uppercase",
+            fontFamily: 'system-ui',
+            textTransform: 'uppercase',
             letterSpacing: 6,
             marginBottom: 40,
           }}
@@ -120,53 +108,49 @@ const ProblemScene: React.FC = () => {
             fontSize: 52,
             fontWeight: 700,
             color: WHITE,
-            fontFamily: "system-ui",
-            textAlign: "center",
+            fontFamily: 'system-ui',
+            textAlign: 'center',
             lineHeight: 1.3,
           }}
         >
-          AI coding tools are either{" "}
-          <span style={{ color: "#ff4444" }}>autonomous but ungoverned</span>
+          AI coding tools are either <span style={{ color: '#ff4444' }}>autonomous but ungoverned</span>
           <br />
-          or{" "}
-          <span style={{ color: "#ffaa00" }}>governed but not autonomous</span>
+          or <span style={{ color: '#ffaa00' }}>governed but not autonomous</span>
         </div>
       </FadeIn>
       <FadeIn delay={40}>
         <div
           style={{
-            display: "flex",
+            display: 'flex',
             gap: 60,
             marginTop: 60,
           }}
         >
           <div
             style={{
-              padding: "30px 50px",
-              border: "2px solid #ff4444",
+              padding: '30px 50px',
+              border: '2px solid #ff4444',
               borderRadius: 16,
-              textAlign: "center",
+              textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: 28, color: "#ff4444", fontWeight: 700, fontFamily: "system-ui" }}>
-              Devin
-            </div>
-            <div style={{ fontSize: 18, color: DIM, marginTop: 8, fontFamily: "system-ui" }}>
+            <div style={{ fontSize: 28, color: '#ff4444', fontWeight: 700, fontFamily: 'system-ui' }}>Devin</div>
+            <div style={{ fontSize: 18, color: DIM, marginTop: 8, fontFamily: 'system-ui' }}>
               Black box · $500/mo · Code leaves your machine
             </div>
           </div>
           <div
             style={{
-              padding: "30px 50px",
-              border: "2px solid #ffaa00",
+              padding: '30px 50px',
+              border: '2px solid #ffaa00',
               borderRadius: 16,
-              textAlign: "center",
+              textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: 28, color: "#ffaa00", fontWeight: 700, fontFamily: "system-ui" }}>
+            <div style={{ fontSize: 28, color: '#ffaa00', fontWeight: 700, fontFamily: 'system-ui' }}>
               Cursor / Copilot
             </div>
-            <div style={{ fontSize: 18, color: DIM, marginTop: 8, fontFamily: "system-ui" }}>
+            <div style={{ fontSize: 18, color: DIM, marginTop: 8, fontFamily: 'system-ui' }}>
               You still drive · Just autocomplete · No audit trail
             </div>
           </div>
@@ -179,15 +163,15 @@ const ProblemScene: React.FC = () => {
 // Scene 3: The Solution (terminal)
 const SolutionScene: React.FC = () => {
   const frame = useCurrentFrame();
-  const cmd = "codebot --solve github.com/acme/api/issues/42";
+  const cmd = 'codebot --solve github.com/acme/api/issues/42';
   const charsVisible = Math.min(frame - 10, cmd.length);
 
   return (
     <AbsoluteFill
       style={{
         background: BG,
-        justifyContent: "center",
-        alignItems: "center",
+        justifyContent: 'center',
+        alignItems: 'center',
         padding: 120,
       }}
     >
@@ -196,8 +180,8 @@ const SolutionScene: React.FC = () => {
           style={{
             fontSize: 28,
             color: CYAN,
-            fontFamily: "system-ui",
-            textTransform: "uppercase",
+            fontFamily: 'system-ui',
+            textTransform: 'uppercase',
             letterSpacing: 6,
             marginBottom: 40,
           }}
@@ -207,45 +191,48 @@ const SolutionScene: React.FC = () => {
       </FadeIn>
       <div
         style={{
-          background: "#111118",
+          background: '#111118',
           borderRadius: 16,
           padding: 50,
           width: 1200,
           border: `1px solid #222233`,
         }}
       >
-        <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-          <div style={{ width: 14, height: 14, borderRadius: "50%", background: "#ff5f57" }} />
-          <div style={{ width: 14, height: 14, borderRadius: "50%", background: "#ffbd2e" }} />
-          <div style={{ width: 14, height: 14, borderRadius: "50%", background: "#28c840" }} />
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+          <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#ff5f57' }} />
+          <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#ffbd2e' }} />
+          <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#28c840' }} />
         </div>
-        <div style={{ fontFamily: "monospace", fontSize: 28 }}>
-          <span style={{ color: GREEN }}>$</span>{" "}
-          <span style={{ color: WHITE }}>
-            {charsVisible > 0 ? cmd.slice(0, charsVisible) : ""}
-          </span>
-          {frame % 30 < 15 && (
-            <span style={{ color: CYAN, fontWeight: 700 }}>▋</span>
-          )}
+        <div style={{ fontFamily: 'monospace', fontSize: 28 }}>
+          <span style={{ color: GREEN }}>$</span>{' '}
+          <span style={{ color: WHITE }}>{charsVisible > 0 ? cmd.slice(0, charsVisible) : ''}</span>
+          {frame % 30 < 15 && <span style={{ color: CYAN, fontWeight: 700 }}>▋</span>}
         </div>
 
         {frame > 70 && (
           <FadeIn delay={70}>
-            <div style={{ marginTop: 30, fontFamily: "monospace", fontSize: 22 }}>
+            <div style={{ marginTop: 30, fontFamily: 'monospace', fontSize: 22 }}>
               {[
-                { label: "Parsing issue...", color: CYAN, delay: 0 },
-                { label: "Cloning repo...", color: CYAN, delay: 8 },
-                { label: "Analyzing codebase...", color: CYAN, delay: 16 },
-                { label: "Generating fix...", color: CYAN, delay: 24 },
-                { label: "Running tests... PASSED", color: GREEN, delay: 32 },
-                { label: "Self-review: APPROVE", color: GREEN, delay: 40 },
-                { label: "PR #42 opened ✓", color: GREEN, delay: 48 },
+                { label: 'Parsing issue...', color: CYAN, delay: 0 },
+                { label: 'Cloning repo...', color: CYAN, delay: 8 },
+                { label: 'Analyzing codebase...', color: CYAN, delay: 16 },
+                { label: 'Generating fix...', color: CYAN, delay: 24 },
+                { label: 'Running tests... PASSED', color: GREEN, delay: 32 },
+                { label: 'Self-review: APPROVE', color: GREEN, delay: 40 },
+                { label: 'PR #42 opened ✓', color: GREEN, delay: 48 },
               ].map((line, i) =>
                 frame > 70 + line.delay ? (
-                  <div key={i} style={{ color: line.color, marginBottom: 6, opacity: interpolate(frame - 70 - line.delay, [0, 8], [0, 1], { extrapolateRight: "clamp" }) }}>
-                    {"  >"} {line.label}
+                  <div
+                    key={i}
+                    style={{
+                      color: line.color,
+                      marginBottom: 6,
+                      opacity: interpolate(frame - 70 - line.delay, [0, 8], [0, 1], { extrapolateRight: 'clamp' }),
+                    }}
+                  >
+                    {'  >'} {line.label}
                   </div>
-                ) : null
+                ) : null,
               )}
             </div>
           </FadeIn>
@@ -258,20 +245,20 @@ const SolutionScene: React.FC = () => {
 // Scene 4: Features
 const FeaturesScene: React.FC = () => {
   const features = [
-    { icon: "🛡️", title: "Constitutional Safety", desc: "Every action risk-scored by CORD" },
-    { icon: "📋", title: "Full Audit Trail", desc: "Every decision logged to JSON" },
-    { icon: "💻", title: "Runs Locally", desc: "Code never leaves your machine" },
-    { icon: "🔍", title: "Self-Review", desc: "Agent reviews its own diff" },
-    { icon: "🔧", title: "32 Tools", desc: "Git, web, Docker, SSH, and more" },
-    { icon: "🤖", title: "Multi-LLM", desc: "Claude, GPT, or local models" },
+    { icon: '🛡️', title: 'Constitutional Safety', desc: 'Every action risk-scored by CORD' },
+    { icon: '📋', title: 'Full Audit Trail', desc: 'Every decision logged to JSON' },
+    { icon: '💻', title: 'Runs Locally', desc: 'Code never leaves your machine' },
+    { icon: '🔍', title: 'Self-Review', desc: 'Agent reviews its own diff' },
+    { icon: '🔧', title: '32 Tools', desc: 'Git, web, Docker, SSH, and more' },
+    { icon: '🤖', title: 'Multi-LLM', desc: 'Claude, GPT, or local models' },
   ];
 
   return (
     <AbsoluteFill
       style={{
         background: BG,
-        justifyContent: "center",
-        alignItems: "center",
+        justifyContent: 'center',
+        alignItems: 'center',
         padding: 100,
       }}
     >
@@ -280,11 +267,11 @@ const FeaturesScene: React.FC = () => {
           style={{
             fontSize: 28,
             color: CYAN,
-            fontFamily: "system-ui",
-            textTransform: "uppercase",
+            fontFamily: 'system-ui',
+            textTransform: 'uppercase',
             letterSpacing: 6,
             marginBottom: 50,
-            textAlign: "center",
+            textAlign: 'center',
           }}
         >
           Built Different
@@ -292,10 +279,10 @@ const FeaturesScene: React.FC = () => {
       </FadeIn>
       <div
         style={{
-          display: "flex",
-          flexWrap: "wrap",
+          display: 'flex',
+          flexWrap: 'wrap',
           gap: 30,
-          justifyContent: "center",
+          justifyContent: 'center',
           maxWidth: 1400,
         }}
       >
@@ -303,21 +290,17 @@ const FeaturesScene: React.FC = () => {
           <FadeIn key={i} delay={10 + i * 10}>
             <div
               style={{
-                background: "#111118",
-                border: "1px solid #222233",
+                background: '#111118',
+                border: '1px solid #222233',
                 borderRadius: 16,
-                padding: "35px 40px",
+                padding: '35px 40px',
                 width: 380,
-                textAlign: "center",
+                textAlign: 'center',
               }}
             >
               <div style={{ fontSize: 42, marginBottom: 12 }}>{f.icon}</div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: WHITE, fontFamily: "system-ui" }}>
-                {f.title}
-              </div>
-              <div style={{ fontSize: 18, color: DIM, marginTop: 8, fontFamily: "system-ui" }}>
-                {f.desc}
-              </div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: WHITE, fontFamily: 'system-ui' }}>{f.title}</div>
+              <div style={{ fontSize: 18, color: DIM, marginTop: 8, fontFamily: 'system-ui' }}>{f.desc}</div>
             </div>
           </FadeIn>
         ))}
@@ -337,17 +320,17 @@ const CTAScene: React.FC = () => {
     <AbsoluteFill
       style={{
         background: BG,
-        justifyContent: "center",
-        alignItems: "center",
+        justifyContent: 'center',
+        alignItems: 'center',
       }}
     >
-      <div style={{ textAlign: "center", transform: `scale(${scale})` }}>
+      <div style={{ textAlign: 'center', transform: `scale(${scale})` }}>
         <div
           style={{
             fontSize: 72,
             fontWeight: 900,
             color: WHITE,
-            fontFamily: "system-ui",
+            fontFamily: 'system-ui',
             letterSpacing: -2,
           }}
         >
@@ -358,7 +341,7 @@ const CTAScene: React.FC = () => {
             style={{
               fontSize: 32,
               color: WHITE,
-              fontFamily: "system-ui",
+              fontFamily: 'system-ui',
               marginTop: 30,
             }}
           >
@@ -369,15 +352,17 @@ const CTAScene: React.FC = () => {
           <div
             style={{
               marginTop: 40,
-              padding: "18px 50px",
+              padding: '18px 50px',
               background: CYAN,
               color: BG,
               fontSize: 28,
               fontWeight: 800,
               borderRadius: 12,
-              fontFamily: "system-ui",
-              display: "inline-block",
-              boxShadow: `0 0 40px ${CYAN}${Math.round(glowOpacity * 255).toString(16).padStart(2, "0")}`,
+              fontFamily: 'system-ui',
+              display: 'inline-block',
+              boxShadow: `0 0 40px ${CYAN}${Math.round(glowOpacity * 255)
+                .toString(16)
+                .padStart(2, '0')}`,
             }}
           >
             ascendral.github.io/codebot-ai
@@ -388,7 +373,7 @@ const CTAScene: React.FC = () => {
             style={{
               fontSize: 22,
               color: DIM,
-              fontFamily: "system-ui",
+              fontFamily: 'system-ui',
               marginTop: 30,
             }}
           >

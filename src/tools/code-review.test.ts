@@ -80,10 +80,13 @@ describe('CodeReviewTool', () => {
 
   it('should filter issues by severity level', async () => {
     const filePath = path.join(tmpDir, 'mixed.js');
-    fs.writeFileSync(filePath, [
-      'eval("bad");',           // error
-      'console.log("debug");',  // info
-    ].join('\n'));
+    fs.writeFileSync(
+      filePath,
+      [
+        'eval("bad");', // error
+        'console.log("debug");', // info
+      ].join('\n'),
+    );
 
     // With severity=error, only eval should appear
     const errorOnly = await tool.execute({ action: 'security', path: filePath, severity: 'error' });

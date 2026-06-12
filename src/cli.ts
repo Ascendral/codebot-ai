@@ -22,10 +22,7 @@ import { registerApiRoutes } from './dashboard/api';
 import { registerCommandRoutes } from './dashboard/command-api';
 import { registerModelRoutes } from './dashboard/models-api';
 import { VERSION } from './index';
-import {
-  ensureHeartbeatConfig,
-  maybePing as heartbeatMaybePing,
-} from './heartbeat';
+import { ensureHeartbeatConfig, maybePing as heartbeatMaybePing } from './heartbeat';
 
 // Decomposed modules
 import { parseArgs, showHelp } from './cli/args';
@@ -74,12 +71,18 @@ function resolveVaultModeOpts(
     console.error(c(`Vault path is not a directory: ${vaultPath}`, 'red'));
     process.exit(2);
   }
-  try { process.chdir(vaultPath); } catch (err) {
+  try {
+    process.chdir(vaultPath);
+  } catch (err) {
     console.error(c(`Could not chdir to vault: ${(err as Error).message}`, 'red'));
     process.exit(2);
   }
   config.autoApprove = true;
-  const opts = { vaultPath, writable: !!(args as any)['vault-writable'], networkAllowed: !!(args as any)['vault-allow-network'] };
+  const opts = {
+    vaultPath,
+    writable: !!(args as any)['vault-writable'],
+    networkAllowed: !!(args as any)['vault-allow-network'],
+  };
   const modeLabel = `${opts.writable ? 'writable' : 'read-only'}, ${opts.networkAllowed ? 'network: on' : 'network: off'}`;
   console.log(c(`  Vault Mode: ${vaultPath} (${modeLabel})`, 'dim'));
   return opts;
@@ -94,7 +97,13 @@ async function handleFirstRunSetup(
   }
   const detected = await autoDetect();
   if (detected.type === 'auto-start' && detected.model) {
-    const autoConfig: any = { model: detected.model, provider: detected.provider, baseUrl: detected.baseUrl, autoApprove: false, firstRunComplete: true };
+    const autoConfig: any = {
+      model: detected.model,
+      provider: detected.provider,
+      baseUrl: detected.baseUrl,
+      autoApprove: false,
+      firstRunComplete: true,
+    };
     if (detected.apiKey) autoConfig.apiKey = detected.apiKey;
     saveSetupConfig(autoConfig);
     return { showGuidedPrompts: true, abort: false };
@@ -106,8 +115,13 @@ async function handleFirstRunSetup(
 
 /** Render the startup banner + greeting. */
 async function displayStartupBanner(opts: {
-  version: string; modelName: string; providerLabel: string;
-  sessionShort: string; isAuto: boolean; resumeId: string | undefined; noAnimate: boolean;
+  version: string;
+  modelName: string;
+  providerLabel: string;
+  sessionShort: string;
+  isAuto: boolean;
+  resumeId: string | undefined;
+  noAnimate: boolean;
 }): Promise<void> {
   const { version: v, modelName, providerLabel, sessionShort, isAuto, resumeId, noAnimate } = opts;
   if (shouldAnimate() && !noAnimate) {
@@ -117,17 +131,15 @@ async function displayStartupBanner(opts: {
   } else {
     console.log(banner(v, modelName, providerLabel, `${sessionShort}...`, isAuto));
     if (resumeId) console.log(c(`   ${randomGreeting('resuming')}`, 'green'));
-    else if (isAuto) { console.log(c(`   ${randomGreeting('confident')}`, 'dim')); console.log(formatReaction('autonomous_start')); }
-    else console.log(c(`   ${randomGreeting()}\n`, 'dim'));
+    else if (isAuto) {
+      console.log(c(`   ${randomGreeting('confident')}`, 'dim'));
+      console.log(formatReaction('autonomous_start'));
+    } else console.log(c(`   ${randomGreeting()}\n`, 'dim'));
   }
 }
 
 /** Start the dashboard server if --dashboard was given. */
-async function launchDashboard(
-  args: ReturnType<typeof parseArgs>,
-  agent: Agent,
-  pidFile: string,
-): Promise<void> {
+async function launchDashboard(args: ReturnType<typeof parseArgs>, agent: Agent, pidFile: string): Promise<void> {
   try {
     const srcStatic = path.resolve(__dirname, '..', 'src', 'dashboard', 'static');
     const distStatic = path.join(__dirname, 'dashboard', 'static');
@@ -145,14 +157,18 @@ async function launchDashboard(
       const pidDir = cbp('');
       if (!fs.existsSync(pidDir)) fs.mkdirSync(pidDir, { recursive: true });
       fs.writeFileSync(pidFile, String(process.pid), 'utf8');
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
     const dashUrl = dashHost === '0.0.0.0' ? `http://localhost:${dashInfo.port}` : dashInfo.url;
     if (!args['no-open'] && !process.env.CODEBOT_NO_OPEN) {
       try {
         const { exec } = require('child_process');
         const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
         exec(`${openCmd} ${dashUrl}`);
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
     }
   } catch (err: unknown) {
     console.log(c(`   Dashboard failed: ${err instanceof Error ? err.message : String(err)}`, 'yellow'));
@@ -179,7 +195,10 @@ async function runInputDispatch(
       return;
     }
     const input = await readStdin();
-    if (input.trim()) { await runOnce(agent, input.trim()); printSessionSummary(agent); }
+    if (input.trim()) {
+      await runOnce(agent, input.trim());
+      printSessionSummary(agent);
+    }
     return;
   }
   const scheduler = new Scheduler(agent, (text) => process.stdout.write(text));
@@ -206,7 +225,11 @@ export async function main() {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`\n\x1b[2mCodeBot shutting down (${signal})...\x1b[0m`);
-    try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
+    try {
+      fs.unlinkSync(pidFile);
+    } catch {
+      /* ignore */
+    }
     process.exit(0);
   };
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
@@ -215,7 +238,9 @@ export async function main() {
   process.on('SIGHUP', () => {
     if (parseArgs(process.argv.slice(2)).dashboard) {
       console.log('\x1b[2mTerminal disconnected — dashboard stays alive.\x1b[0m');
-    } else { gracefulShutdown('SIGHUP'); }
+    } else {
+      gracefulShutdown('SIGHUP');
+    }
   });
 
   // `codebot vault …` short-circuits before banner / agent.
@@ -224,8 +249,14 @@ export async function main() {
   const args = parseArgs(process.argv.slice(2));
   setTheme(typeof args.theme === 'string' ? loadTheme(args.theme) : loadTheme());
 
-  if (args.help) { showHelp(); return; }
-  if (args.version) { console.log(`CodeBot AI v${VERSION}`); return; }
+  if (args.help) {
+    showHelp();
+    return;
+  }
+  if (args.version) {
+    console.log(`CodeBot AI v${VERSION}`);
+    return;
+  }
   if (args.setup) await runSetup();
   if (handleHeartbeat(args)) return;
 
@@ -280,8 +311,13 @@ export async function main() {
     console.log(guidedPrompts(getContextualPrompts(), 'Type /help for commands, /setup to reconfigure'));
     try {
       const saved = loadConfig();
-      if (saved.firstRunComplete) { delete saved.firstRunComplete; saveSetupConfig(saved); }
-    } catch { /* ignore */ }
+      if (saved.firstRunComplete) {
+        delete saved.firstRunComplete;
+        saveSetupConfig(saved);
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   const agent = new Agent({

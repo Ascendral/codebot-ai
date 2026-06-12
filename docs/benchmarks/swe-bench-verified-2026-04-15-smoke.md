@@ -4,18 +4,18 @@
 
 ## Result
 
-| Metric | Value |
-|---|---|
-| Dataset | `princeton-nlp/SWE-bench_Verified`, split `test` |
-| Instances attempted | **1** |
-| Produced non-empty diff | 1 |
-| Resolved (test passes) | **Not yet evaluated** — Docker harness not run |
-| Wall time | 1m 12s |
-| Token usage | 178,581 |
-| Estimated cost | ~$0.08 (gpt-5.4 Responses API) |
-| Model | `gpt-5.4-2026-03-05` (latest gpt-5.4 snapshot at run time) |
-| CodeBot version | 2.10.0 |
-| Run ID | smoke-2026-04-15 |
+| Metric                  | Value                                                      |
+| ----------------------- | ---------------------------------------------------------- |
+| Dataset                 | `princeton-nlp/SWE-bench_Verified`, split `test`           |
+| Instances attempted     | **1**                                                      |
+| Produced non-empty diff | 1                                                          |
+| Resolved (test passes)  | **Not yet evaluated** — Docker harness not run             |
+| Wall time               | 1m 12s                                                     |
+| Token usage             | 178,581                                                    |
+| Estimated cost          | ~$0.08 (gpt-5.4 Responses API)                             |
+| Model                   | `gpt-5.4-2026-03-05` (latest gpt-5.4 snapshot at run time) |
+| CodeBot version         | 2.10.0                                                     |
+| Run ID                  | smoke-2026-04-15                                           |
 
 ## What CodeBot did
 
@@ -42,12 +42,12 @@ Plus two new tests covering the nested-compound case.
 
 Earlier the same task with `gpt-4o-mini` produced an empty diff (1 tool call, agent gave up). With `gpt-5.4` via the new Responses API provider, the agent engaged end-to-end and produced a plausible fix.
 
-| Model | API | Iterations | Tool calls | Diff |
-|---|---|---|---|---|
-| gpt-4o-mini | chat-completions | 2 | 1 | empty |
-| gpt-5-mini | chat-completions | 1 | 0 | empty |
-| gpt-5.1 | chat-completions | 1 | 0 | empty |
-| **gpt-5.4** | **Responses API** | **10** | **16** | **2 KB patch** ✓ |
+| Model       | API               | Iterations | Tool calls | Diff             |
+| ----------- | ----------------- | ---------- | ---------- | ---------------- |
+| gpt-4o-mini | chat-completions  | 2          | 1          | empty            |
+| gpt-5-mini  | chat-completions  | 1          | 0          | empty            |
+| gpt-5.1     | chat-completions  | 1          | 0          | empty            |
+| **gpt-5.4** | **Responses API** | **10**     | **16**     | **2 KB patch** ✓ |
 
 ## What's still missing for a real benchmark number
 

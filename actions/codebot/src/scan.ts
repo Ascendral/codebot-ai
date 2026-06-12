@@ -103,8 +103,8 @@ async function uploadSarif(sarifContent: string): Promise<void> {
     if (message.includes('not enabled') || message.includes('403')) {
       core.warning(
         'GitHub Code Scanning is not enabled for this repository. ' +
-        'SARIF file has been written to disk but could not be uploaded. ' +
-        'Enable GitHub Advanced Security to use code scanning.'
+          'SARIF file has been written to disk but could not be uploaded. ' +
+          'Enable GitHub Advanced Security to use code scanning.',
       );
     } else {
       core.warning(`Failed to upload SARIF results: ${message}`);

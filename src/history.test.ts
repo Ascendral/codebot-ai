@@ -48,9 +48,7 @@ describe('SessionManager', () => {
   it('saveAll overwrites', () => {
     const sm = new SessionManager('test-model');
     sm.save({ role: 'user', content: 'first' });
-    sm.saveAll([
-      { role: 'user', content: 'replaced' },
-    ]);
+    sm.saveAll([{ role: 'user', content: 'replaced' }]);
 
     const loaded = sm.load();
     assert.strictEqual(loaded.length, 1);

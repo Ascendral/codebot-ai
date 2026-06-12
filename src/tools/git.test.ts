@@ -111,7 +111,10 @@ describe('GitTool — safety: git clean blocking', () => {
       args: '&& git clean -f',
     });
     // With injection detection, the && characters are caught first
-    assert.ok(result.includes('Error: arguments contain disallowed characters') || result.includes('Error: git clean -f is blocked'));
+    assert.ok(
+      result.includes('Error: arguments contain disallowed characters') ||
+        result.includes('Error: git clean -f is blocked'),
+    );
   });
 });
 

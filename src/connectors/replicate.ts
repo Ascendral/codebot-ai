@@ -90,9 +90,9 @@ async function apiRequest(
     const opts: RequestInit = {
       method,
       headers: {
-        'Authorization': `Bearer ${credential}`,
+        Authorization: `Bearer ${credential}`,
         'Content-Type': 'application/json',
-        'Prefer': 'wait',
+        Prefer: 'wait',
       },
       signal: controller.signal,
     };
@@ -101,7 +101,11 @@ async function apiRequest(
     clearTimeout(timer);
     let data: unknown = {};
     if (res.status !== 204) {
-      try { data = await res.json(); } catch { data = {}; }
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
+      }
     }
     if (isReplicateAuthError(res.status, data as ReplicateApiError)) {
       throw new ConnectorReauthError('replicate', `Replicate auth failed: HTTP ${res.status}`);
@@ -124,7 +128,7 @@ async function pollPrediction(
     if (pred.status === 'succeeded' || pred.status === 'failed' || pred.status === 'canceled') {
       return pred;
     }
-    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
   }
   return { id, status: 'timeout', output: null, error: 'Prediction timed out' };
 }
@@ -152,10 +156,10 @@ async function downloadImage(url: string, outputDir: string, prefix: string): Pr
 const MODEL_SHORTCUTS: Record<string, string> = {
   'flux-pro': 'black-forest-labs/flux-1.1-pro',
   'flux-schnell': 'black-forest-labs/flux-schnell',
-  'flux': 'black-forest-labs/flux-1.1-pro',
-  'sdxl': 'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc',
+  flux: 'black-forest-labs/flux-1.1-pro',
+  sdxl: 'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc',
   'sdxl-lightning': 'bytedance/sdxl-lightning-4step:5f24084160c9089501c1b3545d9be3c27883ae2239b6f412990e82d4a6210f8f',
-  'sd3': 'stability-ai/stable-diffusion-3',
+  sd3: 'stability-ai/stable-diffusion-3',
 };
 
 // ─── Idempotency declaration constants ────────────────────────────────────
@@ -192,13 +196,13 @@ function redactImageArgs(args: Record<string, unknown>): Record<string, unknown>
 
 function previewGenerate(args: Record<string, unknown>): ConnectorPreview {
   const prompt = String(args.prompt ?? '');
-  const modelKey = (typeof args.model === 'string' && args.model.length > 0) ? args.model : 'flux-schnell';
+  const modelKey = typeof args.model === 'string' && args.model.length > 0 ? args.model : 'flux-schnell';
   const modelId = MODEL_SHORTCUTS[modelKey] || modelKey;
   const negativePrompt = typeof args.negative_prompt === 'string' ? args.negative_prompt : '';
   const width = typeof args.width === 'number' ? args.width : 1024;
   const height = typeof args.height === 'number' ? args.height : 1024;
   const numOutputs = typeof args.num_outputs === 'number' ? args.num_outputs : 1;
-  const outputDir = (typeof args.output_dir === 'string' && args.output_dir.length > 0) ? args.output_dir : process.cwd();
+  const outputDir = typeof args.output_dir === 'string' && args.output_dir.length > 0 ? args.output_dir : process.cwd();
   const promptDigest = prompt.length > 0 ? hashAndLength(prompt) : null;
   const negDigest = negativePrompt.length > 0 ? hashAndLength(negativePrompt) : null;
 
@@ -220,7 +224,9 @@ function previewGenerate(args: Record<string, unknown>): ConnectorPreview {
     details: {
       model: modelKey,
       modelId,
-      width, height, numOutputs,
+      width,
+      height,
+      numOutputs,
       outputDir,
       promptLength: promptDigest?.length ?? 0,
       promptHash: promptDigest?.hash ?? null,
@@ -232,7 +238,10 @@ function previewGenerate(args: Record<string, unknown>): ConnectorPreview {
 function previewUpscale(args: Record<string, unknown>): ConnectorPreview {
   const imagePath = String(args.image ?? '');
   const scale = typeof args.scale === 'number' ? args.scale : 2;
-  const outputDir = (typeof args.output_dir === 'string' && args.output_dir.length > 0) ? args.output_dir : path.dirname(imagePath || '.');
+  const outputDir =
+    typeof args.output_dir === 'string' && args.output_dir.length > 0
+      ? args.output_dir
+      : path.dirname(imagePath || '.');
 
   const lines = [
     `Would upscale image on Replicate (PAID):`,
@@ -251,7 +260,10 @@ function previewUpscale(args: Record<string, unknown>): ConnectorPreview {
 
 function previewRemoveBackground(args: Record<string, unknown>): ConnectorPreview {
   const imagePath = String(args.image ?? '');
-  const outputDir = (typeof args.output_dir === 'string' && args.output_dir.length > 0) ? args.output_dir : path.dirname(imagePath || '.');
+  const outputDir =
+    typeof args.output_dir === 'string' && args.output_dir.length > 0
+      ? args.output_dir
+      : path.dirname(imagePath || '.');
 
   return {
     summary: [
@@ -275,7 +287,11 @@ const generate: ConnectorAction = {
     type: 'object',
     properties: {
       prompt: { type: 'string', description: 'Text description of the image to generate' },
-      model: { type: 'string', description: 'Model: flux-pro, flux-schnell, sdxl, sdxl-lightning, sd3, or full model ID (default: flux-schnell)' },
+      model: {
+        type: 'string',
+        description:
+          'Model: flux-pro, flux-schnell, sdxl, sdxl-lightning, sd3, or full model ID (default: flux-schnell)',
+      },
       negative_prompt: { type: 'string', description: 'What to avoid in the image' },
       width: { type: 'number', description: 'Image width (default: 1024)' },
       height: { type: 'number', description: 'Image height (default: 1024)' },
@@ -324,7 +340,11 @@ const generate: ConnectorAction = {
         if (pred.status === 'failed') return `Error: Generation failed: ${pred.error || 'unknown error'}`;
         if (pred.status !== 'succeeded') return `Error: Generation ${pred.status}`;
         const output = pred.output;
-        const urls: string[] = Array.isArray(output) ? output as string[] : typeof output === 'string' ? [output] : [];
+        const urls: string[] = Array.isArray(output)
+          ? (output as string[])
+          : typeof output === 'string'
+            ? [output]
+            : [];
         if (!urls.length) return 'Error: no images in output';
         const saved: string[] = [];
         for (const url of urls) {
@@ -338,7 +358,7 @@ const generate: ConnectorAction = {
             }
           }
         }
-        return `Generated ${saved.length} image(s) with ${modelKey}:\n${saved.map(p => `  ${p}`).join('\n')}`;
+        return `Generated ${saved.length} image(s) with ${modelKey}:\n${saved.map((p) => `  ${p}`).join('\n')}`;
       }
       const errData = data as { detail?: string; error?: string };
       return `Error: Replicate API ${status}: ${errData.detail || errData.error || JSON.stringify(data).substring(0, 200)}`;
@@ -373,11 +393,13 @@ const listModels: ConnectorAction = {
       try {
         const { status, data } = await apiRequest('GET', `/models?query=${encodeURIComponent(query)}`, cred);
         if (status === 200) {
-          const models = (data as { results: Array<{ owner: string; name: string; description: string; run_count: number }> }).results || [];
+          const models =
+            (data as { results: Array<{ owner: string; name: string; description: string; run_count: number }> })
+              .results || [];
           if (models.length) {
-            const lines = models.slice(0, 10).map(m =>
-              `  ${m.owner}/${m.name} - ${(m.description || '').substring(0, 60)} (${m.run_count} runs)`
-            );
+            const lines = models
+              .slice(0, 10)
+              .map((m) => `  ${m.owner}/${m.name} - ${(m.description || '').substring(0, 60)} (${m.run_count} runs)`);
             result += `\n\nSearch results for "${query}":\n${lines.join('\n')}`;
           }
         }

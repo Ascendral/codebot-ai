@@ -5,7 +5,16 @@ import * as path from 'path';
 import * as os from 'os';
 
 // We test the exported functions from setup.ts
-import { autoDetect, pickBestLocalModel, loadConfig, saveConfig, isFirstRun, pickProviderKey, normalizeProviderBaseUrl, isProviderDisabled } from './setup';
+import {
+  autoDetect,
+  pickBestLocalModel,
+  loadConfig,
+  saveConfig,
+  isFirstRun,
+  pickProviderKey,
+  normalizeProviderBaseUrl,
+  isProviderDisabled,
+} from './setup';
 import type { AutoDetectResult, SavedConfig } from './setup';
 
 describe('normalizeProviderBaseUrl (issue #5 — stale baseUrl on provider switch)', () => {
@@ -139,7 +148,9 @@ describe('pickProviderKey — disabledProviders hard block', () => {
 
   it('can disable multiple providers at once', () => {
     const cfg: SavedConfig = {
-      anthropicApiKey: 'a', openaiApiKey: 'o', geminiApiKey: 'g',
+      anthropicApiKey: 'a',
+      openaiApiKey: 'o',
+      geminiApiKey: 'g',
       disabledProviders: ['anthropic', 'gemini'],
     };
     assert.strictEqual(pickProviderKey(cfg, 'anthropic'), '');
@@ -150,23 +161,14 @@ describe('pickProviderKey — disabledProviders hard block', () => {
 
 describe('isProviderDisabled', () => {
   it('returns true for banned providers', () => {
-    assert.strictEqual(
-      isProviderDisabled({ disabledProviders: ['anthropic'] }, 'anthropic'),
-      true,
-    );
+    assert.strictEqual(isProviderDisabled({ disabledProviders: ['anthropic'] }, 'anthropic'), true);
   });
   it('returns false when provider is absent from the list', () => {
-    assert.strictEqual(
-      isProviderDisabled({ disabledProviders: ['anthropic'] }, 'openai'),
-      false,
-    );
+    assert.strictEqual(isProviderDisabled({ disabledProviders: ['anthropic'] }, 'openai'), false);
   });
   it('returns false when disabledProviders is missing, undefined, or not an array', () => {
     assert.strictEqual(isProviderDisabled({}, 'anthropic'), false);
-    assert.strictEqual(
-      isProviderDisabled({ disabledProviders: undefined as unknown as string[] }, 'anthropic'),
-      false,
-    );
+    assert.strictEqual(isProviderDisabled({ disabledProviders: undefined as unknown as string[] }, 'anthropic'), false);
     assert.strictEqual(
       isProviderDisabled({ disabledProviders: 'not-array' as unknown as string[] }, 'anthropic'),
       false,
@@ -218,8 +220,13 @@ describe('autoDetect', () => {
   const savedEnv: Record<string, string | undefined> = {};
 
   const envKeys = [
-    'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY',
-    'DEEPSEEK_API_KEY', 'GROQ_API_KEY', 'MISTRAL_API_KEY', 'XAI_API_KEY',
+    'ANTHROPIC_API_KEY',
+    'OPENAI_API_KEY',
+    'GEMINI_API_KEY',
+    'DEEPSEEK_API_KEY',
+    'GROQ_API_KEY',
+    'MISTRAL_API_KEY',
+    'XAI_API_KEY',
   ];
 
   beforeEach(() => {
@@ -228,7 +235,9 @@ describe('autoDetect', () => {
       if (fs.existsSync(CONFIG_FILE)) {
         savedConfig = fs.readFileSync(CONFIG_FILE, 'utf-8');
       }
-    } catch { savedConfig = null; }
+    } catch {
+      savedConfig = null;
+    }
 
     // Backup env
     for (const key of envKeys) {

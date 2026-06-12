@@ -141,9 +141,7 @@ export function buildPayload(cfg: HeartbeatConfig, version: string): PingPayload
     version,
     os: `${process.platform}-${process.arch}`,
     node: (process.versions.node || '').split('.')[0] || 'unknown',
-    first_seen_week: cfg.firstSeenDate
-      ? isoWeek(new Date(cfg.firstSeenDate + 'T00:00:00Z'))
-      : isoWeek(),
+    first_seen_week: cfg.firstSeenDate ? isoWeek(new Date(cfg.firstSeenDate + 'T00:00:00Z')) : isoWeek(),
     active_today: true,
   };
 }
@@ -152,10 +150,7 @@ export function buildPayload(cfg: HeartbeatConfig, version: string): PingPayload
  * Send the daily ping if needed. Idempotent within a day. Silent on all
  * errors. Returns true if a ping was actually sent (mainly for tests).
  */
-export async function maybePing(
-  version: string,
-  opts?: { now?: Date; endpoint?: string },
-): Promise<boolean> {
+export async function maybePing(version: string, opts?: { now?: Date; endpoint?: string }): Promise<boolean> {
   if (process.env.CODEBOT_HEARTBEAT_DISABLED === '1') return false;
 
   const cfg = loadHeartbeatConfig();
@@ -206,10 +201,7 @@ export function showFirstRunPrompt(write: (s: string) => void = (s) => process.s
  * Default: DISABLED. The PRIVACY.md commitment is "Default OFF" and we
  * honor it. The first-run prompt explains how to opt in.
  */
-export function ensureHeartbeatConfig(opts?: {
-  defaultEnabled?: boolean;
-  quiet?: boolean;
-}): HeartbeatConfig {
+export function ensureHeartbeatConfig(opts?: { defaultEnabled?: boolean; quiet?: boolean }): HeartbeatConfig {
   const existing = loadHeartbeatConfig();
   if (existing) return existing;
 

@@ -1,6 +1,16 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import * as assert from 'node:assert';
-import { encrypt, decrypt, encryptLine, decryptLine, encryptContent, decryptContent, isEncryptionEnabled, deriveKey, getPassphrase } from './encryption';
+import {
+  encrypt,
+  decrypt,
+  encryptLine,
+  decryptLine,
+  encryptContent,
+  decryptContent,
+  isEncryptionEnabled,
+  deriveKey,
+  getPassphrase,
+} from './encryption';
 import type { EncryptionConfig } from './encryption';
 
 describe('Encryption — deriveKey', () => {

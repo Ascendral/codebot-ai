@@ -12,7 +12,8 @@ const MAX_UNDO = 50;
 
 export class EditFileTool implements Tool {
   name = 'edit_file';
-  description = 'Edit a file by replacing an exact string match with new content. The old_string must appear exactly once in the file. Shows a diff preview and creates an undo snapshot.';
+  description =
+    'Edit a file by replacing an exact string match with new content. The old_string must appear exactly once in the file. Shows a diff preview and creates an undo snapshot.';
   permission: Tool['permission'] = 'prompt';
   capabilities: CapabilityLabel[] = ['write-fs'];
   private projectRoot: string;
@@ -86,7 +87,9 @@ export class EditFileTool implements Tool {
       throw new Error(`String not found in ${filePath}. Make sure old_string matches exactly (including whitespace).`);
     }
     if (count > 1) {
-      throw new Error(`String found ${count} times in ${filePath}. Provide more surrounding context to make it unique.`);
+      throw new Error(
+        `String found ${count} times in ${filePath}. Provide more surrounding context to make it unique.`,
+      );
     }
 
     // Save undo snapshot
@@ -156,7 +159,11 @@ export class EditFileTool implements Tool {
       // Prune old snapshots
       while (manifest.length > MAX_UNDO) {
         const old = manifest.shift()!;
-        try { fs.unlinkSync(path.join(codebotPath('undo'), old.snapshotFile)); } catch { /* ok */ }
+        try {
+          fs.unlinkSync(path.join(codebotPath('undo'), old.snapshotFile));
+        } catch {
+          /* ok */
+        }
       }
 
       fs.writeFileSync(path.join(codebotPath('undo'), 'manifest.json'), JSON.stringify(manifest, null, 2));
@@ -180,8 +187,9 @@ export class EditFileTool implements Tool {
       const manifestPath = path.join(codebotPath('undo'), 'manifest.json');
       if (!fs.existsSync(manifestPath)) return 'No undo history available.';
 
-      const manifest: Array<{ file: string; timestamp: number; snapshotFile: string }> =
-        JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+      const manifest: Array<{ file: string; timestamp: number; snapshotFile: string }> = JSON.parse(
+        fs.readFileSync(manifestPath, 'utf-8'),
+      );
 
       if (manifest.length === 0) return 'No undo history available.';
 
@@ -208,7 +216,11 @@ export class EditFileTool implements Tool {
       fs.writeFileSync(entry.file, content, 'utf-8');
 
       // Cleanup
-      try { fs.unlinkSync(snapshotPath); } catch { /* ok */ }
+      try {
+        fs.unlinkSync(snapshotPath);
+      } catch {
+        /* ok */
+      }
       fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
       return `Restored ${entry.file} to state before last edit.`;

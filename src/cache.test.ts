@@ -19,7 +19,7 @@ describe('ToolCache', () => {
     cache.set('test:key', 'value', 50); // 50ms TTL
     assert.strictEqual(cache.get('test:key'), 'value');
 
-    await new Promise(r => setTimeout(r, 80));
+    await new Promise((r) => setTimeout(r, 80));
     assert.strictEqual(cache.get('test:key'), null);
   });
 

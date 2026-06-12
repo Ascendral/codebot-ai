@@ -111,7 +111,9 @@ export class CrossSessionLearning {
       const maxCount = parsePositiveIntEnv('CODEBOT_EPISODES_MAX_COUNT', DEFAULT_MAX_EPISODES);
       this.pruneByAge(maxAgeDays);
       this.prune(maxCount);
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
   }
 
   /**
@@ -127,7 +129,7 @@ export class CrossSessionLearning {
     outcomes: string[];
     tokenUsage: { input: number; output: number };
   }): Episode {
-    const toolsUsed = [...new Set(opts.toolCalls.map(t => t.tool))];
+    const toolsUsed = [...new Set(opts.toolCalls.map((t) => t.tool))];
     const patterns = this.extractPatterns(opts.toolCalls);
 
     return {
@@ -158,11 +160,11 @@ export class CrossSessionLearning {
     for (let windowSize = 2; windowSize <= Math.min(4, toolCalls.length); windowSize++) {
       for (let i = 0; i <= toolCalls.length - windowSize; i++) {
         const window = toolCalls.slice(i, i + windowSize);
-        const chain = window.map(t => t.tool);
+        const chain = window.map((t) => t.tool);
         const key = chain.join(' → ');
 
         if (!patternMap.has(key)) {
-          const effective = window.every(t => t.success);
+          const effective = window.every((t) => t.success);
           patternMap.set(key, {
             description: `${chain.join(' → ')}`,
             toolChain: chain,
@@ -176,7 +178,7 @@ export class CrossSessionLearning {
     }
 
     // Only keep patterns seen more than once or that are effective
-    return [...patternMap.values()].filter(p => p.frequency > 1 || p.effective);
+    return [...patternMap.values()].filter((p) => p.frequency > 1 || p.effective);
   }
 
   /**
@@ -188,7 +190,7 @@ export class CrossSessionLearning {
 
     // Filter to patterns with enough data and sort by success rate
     return patterns
-      .filter(p => p.totalOccurrences >= 2)
+      .filter((p) => p.totalOccurrences >= 2)
       .sort((a, b) => {
         // Primary: success rate, secondary: total occurrences
         if (b.successRate !== a.successRate) return b.successRate - a.successRate;
@@ -202,14 +204,14 @@ export class CrossSessionLearning {
    */
   getRecentEpisodes(n = 3, projectRoot?: string): Episode[] {
     const episodes = this.listEpisodes()
-      .map(sessionId => this.getEpisode(sessionId))
+      .map((sessionId) => this.getEpisode(sessionId))
       .filter((episode): episode is Episode => !!episode)
       .sort((a, b) => b.endedAt.localeCompare(a.endedAt));
 
     if (!projectRoot) return episodes.slice(0, n);
 
-    const matching = episodes.filter(e => e.projectRoot === projectRoot);
-    const others = episodes.filter(e => e.projectRoot !== projectRoot);
+    const matching = episodes.filter((e) => e.projectRoot === projectRoot);
+    const others = episodes.filter((e) => e.projectRoot !== projectRoot);
     return [...matching, ...others].slice(0, n);
   }
 
@@ -221,7 +223,7 @@ export class CrossSessionLearning {
     const patterns = Object.values(index.patterns);
 
     return patterns
-      .filter(p => p.totalOccurrences >= 3 && p.successRate < 0.3)
+      .filter((p) => p.totalOccurrences >= 3 && p.successRate < 0.3)
       .sort((a, b) => a.successRate - b.successRate)
       .slice(0, n);
   }
@@ -249,14 +251,18 @@ export class CrossSessionLearning {
     if (top.length > 0) {
       lines.push('Effective patterns from previous sessions:');
       for (const p of top) {
-        lines.push(`  - ${p.toolChain.join(' → ')} (${Math.round(p.successRate * 100)}% success, ${p.totalOccurrences} uses)`);
+        lines.push(
+          `  - ${p.toolChain.join(' → ')} (${Math.round(p.successRate * 100)}% success, ${p.totalOccurrences} uses)`,
+        );
       }
     }
 
     if (anti.length > 0) {
       lines.push('Patterns to avoid:');
       for (const p of anti) {
-        lines.push(`  - ${p.toolChain.join(' → ')} (${Math.round(p.successRate * 100)}% success — consider alternatives)`);
+        lines.push(
+          `  - ${p.toolChain.join(' → ')} (${Math.round(p.successRate * 100)}% success — consider alternatives)`,
+        );
       }
     }
 
@@ -271,7 +277,9 @@ export class CrossSessionLearning {
     if (!fs.existsSync(episodePath)) return null;
     try {
       return JSON.parse(fs.readFileSync(episodePath, 'utf-8'));
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -281,11 +289,14 @@ export class CrossSessionLearning {
     if (!fs.existsSync(this.episodesDir)) return [];
 
     try {
-      return fs.readdirSync(this.episodesDir)
-        .filter(f => f.endsWith('.json') && f !== 'index.json')
-        .map(f => f.replace('.json', ''))
+      return fs
+        .readdirSync(this.episodesDir)
+        .filter((f) => f.endsWith('.json') && f !== 'index.json')
+        .map((f) => f.replace('.json', ''))
         .reverse();
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   }
 
   /**
@@ -299,14 +310,14 @@ export class CrossSessionLearning {
     const patternCount = Object.keys(index.patterns).length;
     const topPatterns = this.getTopPatterns(3);
 
-    const lines = [
-      `Cross-Session Learning: ${episodes.length} episodes, ${patternCount} patterns`,
-    ];
+    const lines = [`Cross-Session Learning: ${episodes.length} episodes, ${patternCount} patterns`];
 
     if (topPatterns.length > 0) {
       lines.push('Top patterns:');
       for (const p of topPatterns) {
-        lines.push(`  ${p.toolChain.join(' → ')} — ${Math.round(p.successRate * 100)}% success (${p.totalOccurrences}x)`);
+        lines.push(
+          `  ${p.toolChain.join(' → ')} — ${Math.round(p.successRate * 100)}% success (${p.totalOccurrences}x)`,
+        );
       }
     }
 
@@ -326,7 +337,9 @@ export class CrossSessionLearning {
       try {
         fs.unlinkSync(path.join(this.episodesDir, `${sessionId}.json`));
         pruned++;
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     }
     return pruned;
   }
@@ -353,7 +366,9 @@ export class CrossSessionLearning {
           fs.unlinkSync(episodePath);
           pruned++;
         }
-      } catch { /* corrupt or unreadable — leave it */ }
+      } catch {
+        /* corrupt or unreadable — leave it */
+      }
     }
 
     return pruned;
@@ -368,7 +383,9 @@ export class CrossSessionLearning {
       try {
         this.patternIndex = JSON.parse(fs.readFileSync(this.indexPath, 'utf-8'));
         return this.patternIndex!;
-      } catch { /* fall through */ }
+      } catch {
+        /* fall through */
+      }
     }
 
     this.patternIndex = { patterns: {}, updatedAt: new Date().toISOString() };
@@ -401,9 +418,7 @@ export class CrossSessionLearning {
       } else {
         agg.failureCount += pattern.frequency;
       }
-      agg.successRate = agg.totalOccurrences > 0
-        ? agg.successCount / agg.totalOccurrences
-        : 0;
+      agg.successRate = agg.totalOccurrences > 0 ? agg.successCount / agg.totalOccurrences : 0;
       agg.lastSeen = episode.endedAt;
       if (!agg.sessionIds.includes(episode.sessionId)) {
         agg.sessionIds.push(episode.sessionId);
@@ -419,7 +434,9 @@ export class CrossSessionLearning {
 
     try {
       fs.writeFileSync(this.indexPath, JSON.stringify(index, null, 2));
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
   }
 
   private truncate(text: string, maxLength: number): string {

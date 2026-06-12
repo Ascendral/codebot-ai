@@ -166,7 +166,12 @@ export class Daemon {
   }
 
   /** Enqueue a new job */
-  enqueue(type: DaemonJob['type'], description: string, payload: Record<string, unknown> = {}, priority = 5): DaemonJob {
+  enqueue(
+    type: DaemonJob['type'],
+    description: string,
+    payload: Record<string, unknown> = {},
+    priority = 5,
+  ): DaemonJob {
     const job: DaemonJob = {
       id: `job_${++this.idCounter}_${Date.now().toString(36)}`,
       type,
@@ -212,7 +217,7 @@ export class Daemon {
     if (this.state !== 'running' && this.state !== 'idle') return;
 
     // Check for pending jobs
-    const pendingJobs = this.jobQueue.filter(j => j.status === 'pending');
+    const pendingJobs = this.jobQueue.filter((j) => j.status === 'pending');
     if (pendingJobs.length === 0) {
       // Nothing to do — enter idle with backoff
       this.state = 'idle';
@@ -252,7 +257,7 @@ export class Daemon {
     } finally {
       this.activeJobs.delete(job.id);
       // Remove from queue
-      this.jobQueue = this.jobQueue.filter(j => j.id !== job.id);
+      this.jobQueue = this.jobQueue.filter((j) => j.id !== job.id);
       this.saveJobQueue();
       this.state = 'running';
     }
@@ -262,7 +267,12 @@ export class Daemon {
     try {
       const report = this.monitor.runAll();
       if (report.overall !== 'healthy') {
-        this.log.warn(`Health: ${report.overall} — ${report.checks.filter(c => c.status !== 'healthy').map(c => c.name).join(', ')}`);
+        this.log.warn(
+          `Health: ${report.overall} — ${report.checks
+            .filter((c) => c.status !== 'healthy')
+            .map((c) => c.name)
+            .join(', ')}`,
+        );
 
         // Create fix jobs for critical issues
         for (const action of report.fixActions) {
@@ -315,14 +325,18 @@ export class Daemon {
       const dir = codebotPath('daemon');
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(codebotPath('daemon/pid'), String(process.pid));
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
   }
 
   private removePidFile(): void {
     try {
       const pidFile = codebotPath('daemon/pid');
       if (fs.existsSync(pidFile)) fs.unlinkSync(pidFile);
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
   }
 
   private loadJobQueue(): void {
@@ -335,18 +349,19 @@ export class Daemon {
           if (job.status === 'running') job.status = 'pending';
         }
       }
-    } catch { /* corrupt queue */ }
+    } catch {
+      /* corrupt queue */
+    }
   }
 
   private saveJobQueue(): void {
     try {
       const dir = codebotPath('daemon');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(
-        codebotPath('daemon/queue.json'),
-        JSON.stringify(this.jobQueue, null, 2),
-      );
-    } catch { /* best effort */ }
+      fs.writeFileSync(codebotPath('daemon/queue.json'), JSON.stringify(this.jobQueue, null, 2));
+    } catch {
+      /* best effort */
+    }
   }
 }
 

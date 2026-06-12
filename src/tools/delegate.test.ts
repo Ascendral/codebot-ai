@@ -32,10 +32,7 @@ describe('DelegateTool — execute (v2.2.0-alpha)', () => {
 
   it('executes single task', async () => {
     const tool = new DelegateTool();
-    const orch = new Orchestrator(
-      new PolicyEnforcer(),
-      new MetricsCollector('test'),
-    );
+    const orch = new Orchestrator(new PolicyEnforcer(), new MetricsCollector('test'));
     tool.setOrchestrator(orch);
 
     const result = await tool.execute({
@@ -50,10 +47,7 @@ describe('DelegateTool — execute (v2.2.0-alpha)', () => {
 
   it('executes batch tasks', async () => {
     const tool = new DelegateTool();
-    const orch = new Orchestrator(
-      new PolicyEnforcer(),
-      new MetricsCollector('test'),
-    );
+    const orch = new Orchestrator(new PolicyEnforcer(), new MetricsCollector('test'));
     tool.setOrchestrator(orch);
 
     const result = await tool.execute({
@@ -70,10 +64,7 @@ describe('DelegateTool — execute (v2.2.0-alpha)', () => {
 
   it('returns error with no task or tasks', async () => {
     const tool = new DelegateTool();
-    const orch = new Orchestrator(
-      new PolicyEnforcer(),
-      new MetricsCollector('test'),
-    );
+    const orch = new Orchestrator(new PolicyEnforcer(), new MetricsCollector('test'));
     tool.setOrchestrator(orch);
 
     const result = await tool.execute({});
@@ -82,10 +73,7 @@ describe('DelegateTool — execute (v2.2.0-alpha)', () => {
 
   it('returns error with empty tasks array', async () => {
     const tool = new DelegateTool();
-    const orch = new Orchestrator(
-      new PolicyEnforcer(),
-      new MetricsCollector('test'),
-    );
+    const orch = new Orchestrator(new PolicyEnforcer(), new MetricsCollector('test'));
     tool.setOrchestrator(orch);
 
     const result = await tool.execute({ tasks: [] });

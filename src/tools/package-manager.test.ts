@@ -55,7 +55,11 @@ describe('PackageManagerTool — input validation', () => {
   });
 
   after(() => {
-    try { fs.rmSync(projectRoot, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('returns error when action is missing', async () => {
@@ -81,7 +85,11 @@ describe('PackageManagerTool — detect action', () => {
   });
 
   after(() => {
-    try { fs.rmSync(projectRoot, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   function makeSubdir(name: string): { tool: PackageManagerTool; cwd: string } {
@@ -155,7 +163,11 @@ describe('PackageManagerTool — add/remove require package name', () => {
   });
 
   after(() => {
-    try { fs.rmSync(projectRoot, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('returns error when package name is missing for add', async () => {
@@ -191,7 +203,11 @@ describe('PackageManagerTool — malicious package name blocking (defense-in-dep
   });
 
   after(() => {
-    try { fs.rmSync(projectRoot, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('blocks package name with semicolon', async () => {
@@ -251,7 +267,11 @@ describe('PackageManagerTool — argv shape (Row 9: via buildPlan)', () => {
   });
 
   after(() => {
-    try { fs.rmSync(projectRoot, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   function isRunPlan(p: unknown): p is { command: string; argv: string[]; cwd: string; manager: string } {
@@ -412,7 +432,11 @@ describe('PackageManagerTool — local-shell injection canary (real exec)', () =
 
   after(() => {
     process.chdir(originalCwd);
-    try { fs.rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   });
 
   it('regex rejects $(...) payloads (shell injection blocked at validation)', async () => {
@@ -421,8 +445,11 @@ describe('PackageManagerTool — local-shell injection canary (real exec)', () =
     const payload = `lodash$(node -e "require('fs').writeFileSync('${marker.replace(/\\/g, '\\\\')}','pwned')")`;
     const result = await tool.execute({ action: 'add', package: payload });
     assert.match(result, /invalid package name/, 'regex must reject');
-    assert.strictEqual(fs.existsSync(marker), false,
-      `LOCAL SHELL INJECTION REGRESSION: ${marker} created via package.`);
+    assert.strictEqual(
+      fs.existsSync(marker),
+      false,
+      `LOCAL SHELL INJECTION REGRESSION: ${marker} created via package.`,
+    );
   });
 
   it('regex rejects backtick payloads', async () => {

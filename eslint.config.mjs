@@ -27,7 +27,7 @@ export default [
       'no-console': 'off', // CLI tool — console is expected
       'prefer-const': 'error',
       'no-var': 'error',
-      'eqeqeq': ['error', 'always'],
+      eqeqeq: ['error', 'always'],
       'no-throw-literal': 'error',
       'no-eval': 'error',
       'no-implied-eval': 'error',
@@ -36,7 +36,7 @@ export default [
       // Threshold 30 surfaces the real offenders without burying us in noise.
       // The audit found one function at 139 (cli.ts:main), several at 70-80,
       // and many at 40-50. 30 is the line where "this needs splitting" starts.
-      'complexity': ['warn', 30],
+      complexity: ['warn', 30],
       // 800 LOC trips on agent.ts (1692), command-api.ts (1322), solve.ts (1094),
       // graphics.ts (1036). Surfaces god files; doesn't false-positive on the
       // ~750-line files that exist legitimately.
@@ -56,7 +56,7 @@ export default [
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
-      'complexity': 'off',
+      complexity: 'off',
       'max-lines': 'off',
     },
   },

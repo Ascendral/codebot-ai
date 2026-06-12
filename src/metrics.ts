@@ -101,7 +101,8 @@ const MAX_BUCKETS = 1000; // cap stored observations to prevent memory bloat
 export class MetricsCollector {
   private sessionId: string;
   private counters: Map<string, number> = new Map();
-  private histograms: Map<string, { count: number; sum: number; min: number; max: number; buckets: number[] }> = new Map();
+  private histograms: Map<string, { count: number; sum: number; min: number; max: number; buckets: number[] }> =
+    new Map();
   private traceId: string;
   private spans: Span[] = [];
 
@@ -201,37 +202,43 @@ export class MetricsCollector {
     const lines: string[] = ['Metrics Summary', '─'.repeat(50)];
 
     // Counters
-    const counterEntries = Array.from(this.counters.entries())
-      .sort(([a], [b]) => a.localeCompare(b));
+    const counterEntries = Array.from(this.counters.entries()).sort(([a], [b]) => a.localeCompare(b));
 
     if (counterEntries.length > 0) {
       lines.push('Counters:');
       for (const [key, value] of counterEntries) {
         const { name, labels } = decodeKey(key);
-        const labelStr = Object.keys(labels).length > 0
-          ? ` {${Object.entries(labels).map(([k, v]) => `${k}="${v}"`).join(', ')}}`
-          : '';
+        const labelStr =
+          Object.keys(labels).length > 0
+            ? ` {${Object.entries(labels)
+                .map(([k, v]) => `${k}="${v}"`)
+                .join(', ')}}`
+            : '';
         lines.push(`  ${name}${labelStr}: ${value}`);
       }
     }
 
     // Histograms — per-tool breakdown
-    const histEntries = Array.from(this.histograms.entries())
-      .sort(([a], [b]) => a.localeCompare(b));
+    const histEntries = Array.from(this.histograms.entries()).sort(([a], [b]) => a.localeCompare(b));
 
     if (histEntries.length > 0) {
       lines.push('Histograms:');
       for (const [key, h] of histEntries) {
         const { name, labels } = decodeKey(key);
-        const labelStr = Object.keys(labels).length > 0
-          ? ` {${Object.entries(labels).map(([k, v]) => `${k}="${v}"`).join(', ')}}`
-          : '';
+        const labelStr =
+          Object.keys(labels).length > 0
+            ? ` {${Object.entries(labels)
+                .map(([k, v]) => `${k}="${v}"`)
+                .join(', ')}}`
+            : '';
         const sorted = [...h.buckets].sort((a, b) => a - b);
         const avg = h.count > 0 ? (h.sum / h.count).toFixed(3) : '0';
         const p50 = percentile(sorted, 50).toFixed(3);
         const p95 = percentile(sorted, 95).toFixed(3);
         const p99 = percentile(sorted, 99).toFixed(3);
-        lines.push(`  ${name}${labelStr}: count=${h.count} avg=${avg} p50=${p50} p95=${p95} p99=${p99} min=${h.min.toFixed(3)} max=${h.max.toFixed(3)}`);
+        lines.push(
+          `  ${name}${labelStr}: count=${h.count} avg=${avg} p50=${p50} p95=${p95} p99=${p99} min=${h.min.toFixed(3)} max=${h.max.toFixed(3)}`,
+        );
       }
     }
 
@@ -263,7 +270,7 @@ export class MetricsCollector {
 
   /** End a span, optionally with error status */
   endSpan(spanId: string, error?: string): void {
-    const span = this.spans.find(s => s.spanId === spanId);
+    const span = this.spans.find((s) => s.spanId === spanId);
     if (!span) return;
     span.endTimeUnixNano = Date.now() * 1_000_000;
     if (error) {
@@ -280,14 +287,14 @@ export class MetricsCollector {
 
   /** Add an event to an active span */
   addSpanEvent(spanId: string, name: string, attributes?: Record<string, string | number | boolean>): void {
-    const span = this.spans.find(s => s.spanId === spanId);
+    const span = this.spans.find((s) => s.spanId === spanId);
     if (!span) return;
     span.events.push({ name, timestamp: Date.now() * 1_000_000, attributes });
   }
 
   /** Get completed spans */
   getSpans(): Span[] {
-    return this.spans.filter(s => s.endTimeUnixNano > 0);
+    return this.spans.filter((s) => s.endTimeUnixNano > 0);
   }
 
   /** Export traces to OTLP endpoint */
@@ -313,13 +320,15 @@ export class MetricsCollector {
         timeout: 5000,
       });
 
-      req.on('error', () => { /* silent */ });
+      req.on('error', () => {
+        /* silent */
+      });
       req.on('timeout', () => req.destroy());
       req.write(body);
       req.end();
 
       // Clear exported spans
-      this.spans = this.spans.filter(s => s.endTimeUnixNano === 0);
+      this.spans = this.spans.filter((s) => s.endTimeUnixNano === 0);
     } catch {
       // Trace export failures are non-fatal
     }
@@ -350,7 +359,9 @@ export class MetricsCollector {
         timeout: 5000,
       });
 
-      req.on('error', () => { /* silent */ });
+      req.on('error', () => {
+        /* silent */
+      });
       req.on('timeout', () => req.destroy());
       req.write(body);
       req.end();
@@ -362,46 +373,54 @@ export class MetricsCollector {
   /** Build OTLP-compatible trace payload */
   private buildOtlpTracePayload(spans: Span[]): Record<string, unknown> {
     return {
-      resourceSpans: [{
-        resource: {
-          attributes: [
-            { key: 'service.name', value: { stringValue: 'codebot' } },
-            { key: 'service.version', value: { stringValue: '2.1.0' } },
-            { key: 'session.id', value: { stringValue: this.sessionId } },
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              { key: 'service.name', value: { stringValue: 'codebot' } },
+              { key: 'service.version', value: { stringValue: '2.1.0' } },
+              { key: 'session.id', value: { stringValue: this.sessionId } },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: { name: 'codebot-agent', version: '2.1.0' },
+              spans: spans.map((s) => ({
+                traceId: s.traceId,
+                spanId: s.spanId,
+                parentSpanId: s.parentSpanId || '',
+                name: s.name,
+                kind: s.kind === 'CLIENT' ? 3 : s.kind === 'SERVER' ? 2 : 1,
+                startTimeUnixNano: String(s.startTimeUnixNano),
+                endTimeUnixNano: String(s.endTimeUnixNano),
+                attributes: Object.entries(s.attributes).map(([k, v]) => ({
+                  key: k,
+                  value:
+                    typeof v === 'number'
+                      ? { intValue: v }
+                      : typeof v === 'boolean'
+                        ? { boolValue: v }
+                        : { stringValue: String(v) },
+                })),
+                status: {
+                  code: s.status.code === 2 ? 2 : s.status.code === 1 ? 1 : 0,
+                  message: s.status.message || '',
+                },
+                events: s.events.map((e) => ({
+                  name: e.name,
+                  timeUnixNano: String(e.timestamp),
+                  attributes: e.attributes
+                    ? Object.entries(e.attributes).map(([k, v]) => ({
+                        key: k,
+                        value: typeof v === 'number' ? { intValue: v } : { stringValue: String(v) },
+                      }))
+                    : [],
+                })),
+              })),
+            },
           ],
         },
-        scopeSpans: [{
-          scope: { name: 'codebot-agent', version: '2.1.0' },
-          spans: spans.map(s => ({
-            traceId: s.traceId,
-            spanId: s.spanId,
-            parentSpanId: s.parentSpanId || '',
-            name: s.name,
-            kind: s.kind === 'CLIENT' ? 3 : s.kind === 'SERVER' ? 2 : 1,
-            startTimeUnixNano: String(s.startTimeUnixNano),
-            endTimeUnixNano: String(s.endTimeUnixNano),
-            attributes: Object.entries(s.attributes).map(([k, v]) => ({
-              key: k,
-              value: typeof v === 'number'
-                ? { intValue: v }
-                : typeof v === 'boolean'
-                  ? { boolValue: v }
-                  : { stringValue: String(v) },
-            })),
-            status: { code: s.status.code === 2 ? 2 : s.status.code === 1 ? 1 : 0, message: s.status.message || '' },
-            events: s.events.map(e => ({
-              name: e.name,
-              timeUnixNano: String(e.timestamp),
-              attributes: e.attributes
-                ? Object.entries(e.attributes).map(([k, v]) => ({
-                    key: k,
-                    value: typeof v === 'number' ? { intValue: v } : { stringValue: String(v) },
-                  }))
-                : [],
-            })),
-          })),
-        }],
-      }],
+      ],
     };
   }
 
@@ -413,13 +432,16 @@ export class MetricsCollector {
       metrics.push({
         name: counter.name,
         sum: {
-          dataPoints: [{
-            asInt: counter.value,
-            attributes: Object.entries(counter.labels).map(([k, v]) => ({
-              key: k, value: { stringValue: v },
-            })),
-            timeUnixNano: Date.now() * 1_000_000,
-          }],
+          dataPoints: [
+            {
+              asInt: counter.value,
+              attributes: Object.entries(counter.labels).map(([k, v]) => ({
+                key: k,
+                value: { stringValue: v },
+              })),
+              timeUnixNano: Date.now() * 1_000_000,
+            },
+          ],
           isMonotonic: true,
           aggregationTemporality: 2, // CUMULATIVE
         },
@@ -430,34 +452,41 @@ export class MetricsCollector {
       metrics.push({
         name: hist.name,
         histogram: {
-          dataPoints: [{
-            count: hist.count,
-            sum: hist.sum,
-            min: hist.min,
-            max: hist.max,
-            attributes: Object.entries(hist.labels).map(([k, v]) => ({
-              key: k, value: { stringValue: v },
-            })),
-            timeUnixNano: Date.now() * 1_000_000,
-          }],
+          dataPoints: [
+            {
+              count: hist.count,
+              sum: hist.sum,
+              min: hist.min,
+              max: hist.max,
+              attributes: Object.entries(hist.labels).map(([k, v]) => ({
+                key: k,
+                value: { stringValue: v },
+              })),
+              timeUnixNano: Date.now() * 1_000_000,
+            },
+          ],
           aggregationTemporality: 2,
         },
       });
     }
 
     return {
-      resourceMetrics: [{
-        resource: {
-          attributes: [
-            { key: 'service.name', value: { stringValue: 'codebot' } },
-            { key: 'session.id', value: { stringValue: snap.sessionId } },
+      resourceMetrics: [
+        {
+          resource: {
+            attributes: [
+              { key: 'service.name', value: { stringValue: 'codebot' } },
+              { key: 'session.id', value: { stringValue: snap.sessionId } },
+            ],
+          },
+          scopeMetrics: [
+            {
+              scope: { name: 'codebot-metrics', version: '2.1.0' },
+              metrics,
+            },
           ],
         },
-        scopeMetrics: [{
-          scope: { name: 'codebot-metrics', version: '2.1.0' },
-          metrics,
-        }],
-      }],
+      ],
     };
   }
 }

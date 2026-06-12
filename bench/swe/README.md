@@ -24,6 +24,7 @@ What we DO own:
 - An LLM API key (we'll use whatever is in `~/.codebot/config.json`)
 
 Install:
+
 ```
 cd bench/swe
 python -m venv .venv && source .venv/bin/activate
@@ -41,10 +42,12 @@ python gen_predictions.py \
 ```
 
 Expected output:
+
 - `predictions.json` containing `[{"instance_id": "...", "model_patch": "..."}]`
 - Console log showing CodeBot's tool calls during the solve
 
 Then score:
+
 ```
 bash eval.sh predictions.json
 ```

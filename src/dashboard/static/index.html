@@ -91,9 +91,14 @@
                      Hidden by default; populated by App.vaultRefreshStatus(). -->
                 <div
                   id="vault-chat-banner"
-                  style="display: none; padding: 8px 16px; background: rgba(99, 102, 241, 0.12);
-                         border-bottom: 1px solid rgba(99, 102, 241, 0.25); font-size: 13px;
-                         color: var(--accent);"
+                  style="
+                    display: none;
+                    padding: 8px 16px;
+                    background: rgba(99, 102, 241, 0.12);
+                    border-bottom: 1px solid rgba(99, 102, 241, 0.25);
+                    font-size: 13px;
+                    color: var(--accent);
+                  "
                 ></div>
                 <div id="chat-messages" class="chat-messages"></div>
                 <div class="chat-input-row">
@@ -344,48 +349,51 @@
           <!-- Description (replaces the "Current State" section's h3 + row —
                status is shown inline in the form area instead, saving ~80px
                vertical space so the whole pane fits a single viewport). -->
-          <p style="color: var(--text-secondary); font-size: 0.9em; line-height: 1.55; margin: 0 0 20px;">
-            Point CodeBot at a folder of markdown notes. It answers your
-            questions by reading the files and citing which ones it consulted.
-            Read-only, offline, hash-chained audit log by default.
+          <p style="color: var(--text-secondary); font-size: 0.9em; line-height: 1.55; margin: 0 0 20px">
+            Point CodeBot at a folder of markdown notes. It answers your questions by reading the files and citing which
+            ones it consulted. Read-only, offline, hash-chained audit log by default.
           </p>
 
           <div class="settings-section">
             <h3>Configure</h3>
             <div class="settings-row">
               <label>Vault path</label>
-              <input
-                id="vault-path-input"
-                type="text"
-                placeholder="/Users/you/Documents/notes"
-                style="flex: 1;"
-              />
+              <input id="vault-path-input" type="text" placeholder="/Users/you/Documents/notes" style="flex: 1" />
             </div>
             <div class="settings-row">
               <label>Allow writes</label>
-              <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
-                <input id="vault-writable-toggle" type="checkbox" style="width: 16px; height: 16px; flex: 0 0 auto;" />
-                <span style="color: var(--text-secondary); font-size: 0.85em;">Let CodeBot create or edit notes</span>
+              <div style="flex: 1; display: flex; align-items: center; gap: 8px">
+                <input id="vault-writable-toggle" type="checkbox" style="width: 16px; height: 16px; flex: 0 0 auto" />
+                <span style="color: var(--text-secondary); font-size: 0.85em">Let CodeBot create or edit notes</span>
               </div>
             </div>
             <div class="settings-row">
               <label>Allow network</label>
-              <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
-                <input id="vault-network-toggle" type="checkbox" style="width: 16px; height: 16px; flex: 0 0 auto;" />
-                <span style="color: var(--text-secondary); font-size: 0.85em;">Enable web_fetch / http_client</span>
+              <div style="flex: 1; display: flex; align-items: center; gap: 8px">
+                <input id="vault-network-toggle" type="checkbox" style="width: 16px; height: 16px; flex: 0 0 auto" />
+                <span style="color: var(--text-secondary); font-size: 0.85em">Enable web_fetch / http_client</span>
               </div>
             </div>
-            <div style="display: flex; gap: 8px; margin-top: 14px; align-items: center;">
-              <button id="vault-enable-btn" class="settings-btn primary" style="margin-top: 0;">Enable Vault Mode</button>
-              <button id="vault-disable-btn" class="settings-btn" style="display: none;">Disable</button>
-              <div id="vault-status-display" style="color: var(--text-secondary); font-size: 0.85em; flex: 1; text-align: right;">Not active</div>
+            <div style="display: flex; gap: 8px; margin-top: 14px; align-items: center">
+              <button id="vault-enable-btn" class="settings-btn primary" style="margin-top: 0">
+                Enable Vault Mode
+              </button>
+              <button id="vault-disable-btn" class="settings-btn" style="display: none">Disable</button>
+              <div
+                id="vault-status-display"
+                style="color: var(--text-secondary); font-size: 0.85em; flex: 1; text-align: right"
+              >
+                Not active
+              </div>
             </div>
             <div id="vault-feedback" class="settings-status"></div>
           </div>
 
           <div class="settings-section">
             <h3>What It Does</h3>
-            <ul style="color: var(--text-secondary); font-size: 0.88em; line-height: 1.65; padding-left: 18px; margin: 0;">
+            <ul
+              style="color: var(--text-secondary); font-size: 0.88em; line-height: 1.65; padding-left: 18px; margin: 0"
+            >
               <li>Research-assistant prompt with <em>mandatory citations</em>.</li>
               <li>Strips shell, Docker, SSH, Git tools from the registry.</li>
               <li>Read-only unless <em>Allow writes</em>. Offline unless <em>Allow network</em>.</li>

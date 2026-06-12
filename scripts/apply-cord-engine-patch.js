@@ -71,8 +71,10 @@ function applyToFile(file, oldText, newText, label) {
   if (!src.includes(oldText)) {
     // Upstream changed — patch no longer matches. Don't break the install;
     // just warn so a maintainer notices on next release.
-    process.stderr.write(`[codebot] WARN: ${label} doesn't match expected pre-patch source. ` +
-      `cord-engine may have changed; verify the v4.3.0 path-containment fix is still in place.\n`);
+    process.stderr.write(
+      `[codebot] WARN: ${label} doesn't match expected pre-patch source. ` +
+        `cord-engine may have changed; verify the v4.3.0 path-containment fix is still in place.\n`,
+    );
     return 'skip:mismatch';
   }
   fs.writeFileSync(file, src.replace(oldText, newText));

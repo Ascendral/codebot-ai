@@ -7,24 +7,39 @@ import * as assert from 'node:assert';
 const vscode = {
   window: {
     createStatusBarItem: () => ({
-      text: '', tooltip: '', command: '', show: () => {}, hide: () => {}, dispose: () => {},
-      backgroundColor: undefined, name: '',
+      text: '',
+      tooltip: '',
+      command: '',
+      show: () => {},
+      hide: () => {},
+      dispose: () => {},
+      backgroundColor: undefined,
+      name: '',
     }),
     showInformationMessage: async () => undefined,
     showWarningMessage: async () => undefined,
     showErrorMessage: async () => undefined,
   },
   StatusBarAlignment: { Left: 1, Right: 2 },
-  ThemeColor: class ThemeColor { constructor(public id: string) {} },
+  ThemeColor: class ThemeColor {
+    constructor(public id: string) {}
+  },
   Uri: {
     file: (p: string) => ({ scheme: 'file', path: p, toString: () => `file://${p}` }),
     parse: (s: string) => ({ scheme: s.split(':')[0], path: s.split(':').slice(1).join(':'), toString: () => s }),
   },
   EventEmitter: class EventEmitter<T> {
     private listeners: Array<(e: T) => void> = [];
-    event = (listener: (e: T) => void) => { this.listeners.push(listener); return { dispose: () => {} }; };
-    fire(data: T) { this.listeners.forEach(l => l(data)); }
-    dispose() { this.listeners = []; }
+    event = (listener: (e: T) => void) => {
+      this.listeners.push(listener);
+      return { dispose: () => {} };
+    };
+    fire(data: T) {
+      this.listeners.forEach((l) => l(data));
+    }
+    dispose() {
+      this.listeners = [];
+    }
   },
   commands: { executeCommand: async () => {} },
   workspace: { getConfiguration: () => ({ get: (key: string, def?: unknown) => def }) },

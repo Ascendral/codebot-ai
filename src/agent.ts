@@ -18,7 +18,13 @@ import { ConstitutionalLayer } from './constitutional';
 import { AgentStateEngine } from './spark-soul';
 import { UserProfile } from './user-profile';
 import { validateToolArgs, repairToolCallMessages } from './agent/message-repair';
-import { PreparedCall, ToolExecutorDeps, executeToolBatch, executeSingleTool, TOOL_TYPE_MAP } from './agent/tool-executor';
+import {
+  PreparedCall,
+  ToolExecutorDeps,
+  executeToolBatch,
+  executeSingleTool,
+  TOOL_TYPE_MAP,
+} from './agent/tool-executor';
 import { buildSystemPrompt } from './agent/prompt-builder';
 import { AskPermissionFn, defaultAskPermission } from './agent/permission';
 import { buildToolExecutionSignature } from './agent/serialization';
@@ -256,9 +262,7 @@ export class Agent {
     if (effectiveLimit > 0) this.tokenTracker.setCostLimit(effectiveLimit);
     if (opts.budgetConfig?.warnThresholds) {
       // Validate: drop anything outside (0, 1] to keep audit semantics sane.
-      this.budgetThresholds = opts.budgetConfig.warnThresholds
-        .filter((t) => t > 0 && t <= 1)
-        .sort((a, b) => a - b);
+      this.budgetThresholds = opts.budgetConfig.warnThresholds.filter((t) => t > 0 && t <= 1).sort((a, b) => a - b);
     }
 
     // Load plugins
@@ -503,7 +507,11 @@ export class Agent {
     if (vaultMode) {
       // chdir into the vault so read_file / grep / glob etc. resolve
       // relative paths correctly. Matches CLI --vault behavior.
-      try { process.chdir(vaultMode.vaultPath); } catch { /* caller validated path; ignore */ }
+      try {
+        process.chdir(vaultMode.vaultPath);
+      } catch {
+        /* caller validated path; ignore */
+      }
       this.projectRoot = vaultMode.vaultPath;
       this.vaultMode = { ...vaultMode };
     } else {
@@ -790,11 +798,9 @@ export class Agent {
           continue;
         }
 
-        const { prepared: p, riskAssessment } = await this._prepareToolCall(
-          toolName,
-          args,
-          { interactivePrompt: true },
-        );
+        const { prepared: p, riskAssessment } = await this._prepareToolCall(toolName, args, {
+          interactivePrompt: true,
+        });
         // Preserve the LLM-provided tool_call id so the downstream
         // tool-result message carries the correct tool_call_id for the
         // provider round-trip.
@@ -1040,10 +1046,7 @@ export class Agent {
     // disjunct in needsPermission only checked effectivePermission
     // post-escalation.
     const preEscalationPermission = effectivePermission;
-    const capEscalation = escalatePermissionFromCapabilityLabels(
-      effectivePermission,
-      callCapabilities,
-    );
+    const capEscalation = escalatePermissionFromCapabilityLabels(effectivePermission, callCapabilities);
     let capabilityChallenged = false;
     let capabilityTriggeringLabels: string[] = [];
     let unallowedTriggeringLabels: string[] = [];
@@ -1126,9 +1129,7 @@ export class Agent {
         // CORD BLOCK (above) still applies — that's a hard stop, not
         // a "ask the human" signal, and it's never bypassable by an
         // allowlist. We only soften CHALLENGE.
-        const allLabelsAllowlisted = capEscalation.escalated
-          ? unallowedTriggeringLabels.length === 0
-          : true;
+        const allLabelsAllowlisted = capEscalation.escalated ? unallowedTriggeringLabels.length === 0 : true;
         if (!allLabelsAllowlisted) {
           effectivePermission = 'always-ask';
         } else {
@@ -1186,10 +1187,7 @@ export class Agent {
       // from "User denied permission" in the audit, which was wrong:
       // the user never had a chance to deny anything; the policy did.
       const blockedByUnallowedCapability =
-        this.autoApprove &&
-        capabilityChallenged &&
-        !sparkChallenged &&
-        unallowedTriggeringLabels.length > 0;
+        this.autoApprove && capabilityChallenged && !sparkChallenged && unallowedTriggeringLabels.length > 0;
 
       if (blockedByUnallowedCapability) {
         const reason =
@@ -1265,11 +1263,9 @@ export class Agent {
     reason?: string;
     durationMs?: number;
   }> {
-    const { prepared } = await this._prepareToolCall(
-      toolName,
-      args ?? {},
-      { interactivePrompt: opts.interactivePrompt ?? false },
-    );
+    const { prepared } = await this._prepareToolCall(toolName, args ?? {}, {
+      interactivePrompt: opts.interactivePrompt ?? false,
+    });
 
     if (prepared.error) {
       return {
@@ -1336,11 +1332,9 @@ export class Agent {
     | { blocked: false; error: true; errorCode: string; reason: string }
     | { blocked: false; error: false; exitCode: number; stdoutTail: string; stderrTail: string; timedOut: boolean }
   > {
-    const { prepared } = await this._prepareToolCall(
-      toolName,
-      args ?? {},
-      { interactivePrompt: opts.interactivePrompt ?? false },
-    );
+    const { prepared } = await this._prepareToolCall(toolName, args ?? {}, {
+      interactivePrompt: opts.interactivePrompt ?? false,
+    });
 
     if (prepared.error) {
       if (prepared.denied) {
@@ -1519,9 +1513,7 @@ export class Agent {
         crossSession: this.crossSession,
         experientialMemory: this.experientialMemory,
         taskState: this.taskState,
-        vaultMode: this.vaultMode
-          ? { ...this.vaultMode }
-          : undefined,
+        vaultMode: this.vaultMode ? { ...this.vaultMode } : undefined,
       }),
     };
 
@@ -1554,4 +1546,3 @@ export class Agent {
     });
   }
 }
-

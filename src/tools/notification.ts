@@ -27,41 +27,58 @@ export class NotificationTool implements Tool {
     if (!message) return 'Error: message is required';
 
     // Validate URL
-    try { new URL(url); } catch { return `Error: invalid URL: ${url}`; }
+    try {
+      new URL(url);
+    } catch {
+      return `Error: invalid URL: ${url}`;
+    }
 
     const title = (args.title as string) || '';
     const severity = (args.severity as string) || 'info';
 
     switch (action) {
-      case 'slack': return this.sendSlack(url, message, title, severity);
-      case 'discord': return this.sendDiscord(url, message, title, severity);
-      case 'webhook': return this.sendGeneric(url, message, title, severity);
-      default: return `Error: unknown action "${action}". Use: slack, discord, webhook`;
+      case 'slack':
+        return this.sendSlack(url, message, title, severity);
+      case 'discord':
+        return this.sendDiscord(url, message, title, severity);
+      case 'webhook':
+        return this.sendGeneric(url, message, title, severity);
+      default:
+        return `Error: unknown action "${action}". Use: slack, discord, webhook`;
     }
   }
 
   private async sendSlack(url: string, message: string, title: string, severity: string): Promise<string> {
-    const colors: Record<string, string> = { info: '#2196F3', warning: '#FF9800', error: '#F44336', success: '#4CAF50' };
+    const colors: Record<string, string> = {
+      info: '#2196F3',
+      warning: '#FF9800',
+      error: '#F44336',
+      success: '#4CAF50',
+    };
     const payload = {
-      attachments: [{
-        color: colors[severity] || colors.info,
-        title: title || undefined,
-        text: message,
-        ts: Math.floor(Date.now() / 1000),
-      }],
+      attachments: [
+        {
+          color: colors[severity] || colors.info,
+          title: title || undefined,
+          text: message,
+          ts: Math.floor(Date.now() / 1000),
+        },
+      ],
     };
     return this.post(url, payload);
   }
 
   private async sendDiscord(url: string, message: string, title: string, severity: string): Promise<string> {
-    const colors: Record<string, number> = { info: 0x2196F3, warning: 0xFF9800, error: 0xF44336, success: 0x4CAF50 };
+    const colors: Record<string, number> = { info: 0x2196f3, warning: 0xff9800, error: 0xf44336, success: 0x4caf50 };
     const payload = {
-      embeds: [{
-        title: title || undefined,
-        description: message,
-        color: colors[severity] || colors.info,
-        timestamp: new Date().toISOString(),
-      }],
+      embeds: [
+        {
+          title: title || undefined,
+          description: message,
+          color: colors[severity] || colors.info,
+          timestamp: new Date().toISOString(),
+        },
+      ],
     };
     return this.post(url, payload);
   }

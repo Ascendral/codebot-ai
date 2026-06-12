@@ -28,7 +28,7 @@ describe('CrossSessionLearning', () => {
     // dates pass them via overrides (see the pruneByAge test below).
     const now = new Date().toISOString();
     return {
-      sessionId: `session_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+      sessionId: `session_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       projectRoot: '/tmp/project',
       startedAt: now,
       endedAt: now,
@@ -68,7 +68,7 @@ describe('CrossSessionLearning', () => {
         { tool: 'edit_file', success: false },
       ];
       const patterns = learning.extractPatterns(calls);
-      const failedPattern = patterns.find(p => p.toolChain.includes('edit_file'));
+      const failedPattern = patterns.find((p) => p.toolChain.includes('edit_file'));
       if (failedPattern) {
         assert.strictEqual(failedPattern.effective, false);
       }
@@ -115,12 +115,14 @@ describe('CrossSessionLearning', () => {
       process.env.CODEBOT_HOME = tmpDir;
       const episode = makeEpisode({
         sessionId: 'idx_test',
-        patterns: [{
-          description: 'grep → read_file',
-          toolChain: ['grep', 'read_file'],
-          effective: true,
-          frequency: 3,
-        }],
+        patterns: [
+          {
+            description: 'grep → read_file',
+            toolChain: ['grep', 'read_file'],
+            effective: true,
+            frequency: 3,
+          },
+        ],
       });
       learning.recordEpisode(episode);
 
@@ -132,13 +134,15 @@ describe('CrossSessionLearning', () => {
   describe('getTopPatterns', () => {
     it('returns patterns sorted by success rate', () => {
       process.env.CODEBOT_HOME = tmpDir;
-      learning.recordEpisode(makeEpisode({
-        sessionId: 'top_sess1',
-        patterns: [
-          { description: 'a → b', toolChain: ['a', 'b'], effective: true, frequency: 3 },
-          { description: 'c → d', toolChain: ['c', 'd'], effective: false, frequency: 2 },
-        ],
-      }));
+      learning.recordEpisode(
+        makeEpisode({
+          sessionId: 'top_sess1',
+          patterns: [
+            { description: 'a → b', toolChain: ['a', 'b'], effective: true, frequency: 3 },
+            { description: 'c → d', toolChain: ['c', 'd'], effective: false, frequency: 2 },
+          ],
+        }),
+      );
 
       const top = learning.getTopPatterns(5);
       if (top.length >= 2) {
@@ -148,15 +152,15 @@ describe('CrossSessionLearning', () => {
 
     it('filters patterns with less than 2 occurrences', () => {
       process.env.CODEBOT_HOME = tmpDir;
-      learning.recordEpisode(makeEpisode({
-        sessionId: 'filter_sess',
-        patterns: [
-          { description: 'x → y', toolChain: ['x', 'y'], effective: true, frequency: 1 },
-        ],
-      }));
+      learning.recordEpisode(
+        makeEpisode({
+          sessionId: 'filter_sess',
+          patterns: [{ description: 'x → y', toolChain: ['x', 'y'], effective: true, frequency: 1 }],
+        }),
+      );
 
       const top = learning.getTopPatterns(5);
-      const found = top.find(p => p.toolChain.join(':') === 'x:y');
+      const found = top.find((p) => p.toolChain.join(':') === 'x:y');
       assert.strictEqual(found, undefined);
     });
   });
@@ -172,12 +176,12 @@ describe('CrossSessionLearning', () => {
 
     it('includes effective patterns', () => {
       process.env.CODEBOT_HOME = tmpDir;
-      learning.recordEpisode(makeEpisode({
-        sessionId: 'prompt_test',
-        patterns: [
-          { description: 'grep → edit', toolChain: ['grep', 'edit'], effective: true, frequency: 5 },
-        ],
-      }));
+      learning.recordEpisode(
+        makeEpisode({
+          sessionId: 'prompt_test',
+          patterns: [{ description: 'grep → edit', toolChain: ['grep', 'edit'], effective: true, frequency: 5 }],
+        }),
+      );
 
       const block = learning.buildPromptBlock();
       if (block) {

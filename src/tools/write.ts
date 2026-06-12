@@ -6,11 +6,10 @@ import { checkSecretsForWrite } from '../secret-guard';
 import { PolicyEnforcer } from '../policy';
 import { codebotPath } from '../paths';
 
-
-
 export class WriteFileTool implements Tool {
   name = 'write_file';
-  description = 'Create a new file or overwrite an existing file with the given content. Automatically saves an undo snapshot for existing files.';
+  description =
+    'Create a new file or overwrite an existing file with the given content. Automatically saves an undo snapshot for existing files.';
   permission: Tool['permission'] = 'prompt';
   capabilities: CapabilityLabel[] = ['write-fs'];
   private projectRoot: string;
@@ -55,24 +54,41 @@ export class WriteFileTool implements Tool {
       }
     }
 
-
     // Safety: protect critical project files from accidental overwrite
     const basename = path.basename(filePath);
     const PROTECTED_FILES = new Set([
-      'package.json', 'package-lock.json', 'tsconfig.json', 'tsconfig.build.json',
-      '.env', '.env.local', '.env.production', '.gitignore', '.npmrc',
-      'yarn.lock', 'pnpm-lock.yaml', 'Cargo.lock', 'go.sum',
+      'package.json',
+      'package-lock.json',
+      'tsconfig.json',
+      'tsconfig.build.json',
+      '.env',
+      '.env.local',
+      '.env.production',
+      '.gitignore',
+      '.npmrc',
+      'yarn.lock',
+      'pnpm-lock.yaml',
+      'Cargo.lock',
+      'go.sum',
     ]);
     if (fs.existsSync(filePath) && PROTECTED_FILES.has(basename)) {
       // Only allow overwrite if content looks like an edit (not a complete replacement)
       try {
         const oldContent = fs.readFileSync(filePath, 'utf-8');
         const oldName = JSON.parse(oldContent).name;
-        const newName = (() => { try { return JSON.parse(content).name; } catch { return null; } })();
+        const newName = (() => {
+          try {
+            return JSON.parse(content).name;
+          } catch {
+            return null;
+          }
+        })();
         if (oldName && newName && oldName !== newName) {
           return `Error: Blocked — refusing to overwrite ${basename} (project name would change from "${oldName}" to "${newName}"). This looks like an accidental overwrite, not an edit. Use edit_file for targeted changes.`;
         }
-      } catch { /* not JSON, allow */ }
+      } catch {
+        /* not JSON, allow */
+      }
     }
 
     // Security: secret detection — respect policy.secrets.block_on_detect.
@@ -88,13 +104,14 @@ export class WriteFileTool implements Tool {
 
     const existed = fs.existsSync(filePath);
 
-
     // Save undo snapshot before overwriting
     if (existed) {
       try {
         const oldContent = fs.readFileSync(filePath, 'utf-8');
         this.saveSnapshot(filePath, oldContent);
-      } catch { /* best effort */ }
+      } catch {
+        /* best effort */
+      }
     }
 
     fs.writeFileSync(filePath, content, 'utf-8');
@@ -110,7 +127,9 @@ export class WriteFileTool implements Tool {
       let manifest: Array<{ file: string; timestamp: number; snapshotFile: string }> = [];
       try {
         manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-      } catch { /* empty */ }
+      } catch {
+        /* empty */
+      }
 
       const entry = {
         file: filePath,
@@ -122,10 +141,16 @@ export class WriteFileTool implements Tool {
 
       while (manifest.length > 50) {
         const old = manifest.shift()!;
-        try { fs.unlinkSync(path.join(codebotPath('undo'), old.snapshotFile)); } catch { /* ok */ }
+        try {
+          fs.unlinkSync(path.join(codebotPath('undo'), old.snapshotFile));
+        } catch {
+          /* ok */
+        }
       }
 
       fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
   }
 }

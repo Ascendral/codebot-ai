@@ -6,7 +6,7 @@ Notes on provider costs for sizing CodeBot usage and setting monthly caps.
 
 - **Sonnet 4.6**: $3/M input, $15/M output, $0.30/M cache-read, $3.75/M cache-create
 - **Haiku 4.5**: $1/M input, $5/M output
-- **Opus 4.6**: $15/M input, $75/M output  ← expensive, avoid for routine use
+- **Opus 4.6**: $15/M input, $75/M output ← expensive, avoid for routine use
 - Prepaid credits model. Hit "credit balance too low" error when depleted.
 - Set monthly spend limit at console.anthropic.com/settings/limits.
 
@@ -14,7 +14,7 @@ Notes on provider costs for sizing CodeBot usage and setting monthly caps.
 
 - **gpt-5.4**: lives on /v1/responses endpoint, not chat-completions
 - **gpt-4o**: standard chat-completions, ~$5/M input, $15/M output
-- Project-level keys (sk-proj-*) have per-project budgets — check
+- Project-level keys (sk-proj-\*) have per-project budgets — check
   platform.openai.com/settings/organization/projects.
 
 ## Gemini (Google)

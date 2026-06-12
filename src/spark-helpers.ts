@@ -34,9 +34,12 @@ export function classifyFailure(errorMsg: string): FailureType {
 /** Map a failure type to an outcome descriptor with intensity. */
 export function failureToOutcome(failureType: FailureType): FailureOutcome {
   switch (failureType) {
-    case 'security_block': return { outcome: 'blocked', intensity: 0.8 };
-    case 'input_error': return { outcome: 'partial', intensity: 0.2 };
-    default: return { outcome: 'failure', intensity: 0.6 };
+    case 'security_block':
+      return { outcome: 'blocked', intensity: 0.8 };
+    case 'input_error':
+      return { outcome: 'partial', intensity: 0.2 };
+    default:
+      return { outcome: 'failure', intensity: 0.6 };
   }
 }
 
@@ -99,7 +102,11 @@ export function resolveToolOperation(tool: string, args?: Record<string, unknown
 
 /** Safely call a function, returning undefined on error. */
 export function tryCall<T>(fn: () => T): T | undefined {
-  try { return fn(); } catch { return undefined; }
+  try {
+    return fn();
+  } catch {
+    return undefined;
+  }
 }
 
 /** Build an OutcomeSignal for the SPARK learning pipeline. */
@@ -116,7 +123,7 @@ export function buildOutcomeSignal(
     id: `outcome-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     stepId: prediction.stepId,
     runId: sessionId,
-    actualOutcome: success ? 'success' : (failureInfo ? failureInfo.outcome : 'failure'),
+    actualOutcome: success ? 'success' : failureInfo ? failureInfo.outcome : 'failure',
     actualCordScore: cordScore,
     actualCordDecision: scoreToDecision(cordScore),
     signals: {
@@ -141,10 +148,16 @@ export function makeSafetyDecision(prediction: any, orchestrator: any, category:
   const adjustedScore = prediction.predictedScore ?? 0;
   const sparkDecision = scoreToDecision(adjustedScore);
   if (sparkDecision === 'BLOCK') {
-    return { decision: 'BLOCK', reason: `SPARK blocks ${category}: learned risk score ${adjustedScore} (weight: ${w.toFixed(2)})` };
+    return {
+      decision: 'BLOCK',
+      reason: `SPARK blocks ${category}: learned risk score ${adjustedScore} (weight: ${w.toFixed(2)})`,
+    };
   }
   if (sparkDecision === 'CHALLENGE') {
-    return { decision: 'CHALLENGE', reason: `SPARK learned caution for ${category}: risk score ${adjustedScore} (weight: ${w.toFixed(2)})` };
+    return {
+      decision: 'CHALLENGE',
+      reason: `SPARK learned caution for ${category}: risk score ${adjustedScore} (weight: ${w.toFixed(2)})`,
+    };
   }
   return { decision: 'ALLOW' };
 }
@@ -234,9 +247,13 @@ export function seedCategoryWeights(
     if (existing) continue;
     const bounds = wideBounds[cat] || { lower: 0.7, upper: 1.3 };
     store.saveWeight({
-      category: cat, currentWeight: 1.0, baseWeight: 1.0,
-      lowerBound: bounds.lower, upperBound: bounds.upper,
-      episodeCount: 0, lastAdjustedAt: new Date().toISOString(),
+      category: cat,
+      currentWeight: 1.0,
+      baseWeight: 1.0,
+      lowerBound: bounds.lower,
+      upperBound: bounds.upper,
+      episodeCount: 0,
+      lastAdjustedAt: new Date().toISOString(),
     });
   }
 }

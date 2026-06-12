@@ -76,10 +76,7 @@ interface NotionApiError {
   status?: number;
 }
 
-const NOTION_AUTH_CODES: ReadonlySet<string> = new Set([
-  'unauthorized',
-  'restricted_resource',
-]);
+const NOTION_AUTH_CODES: ReadonlySet<string> = new Set(['unauthorized', 'restricted_resource']);
 const NOTION_NON_AUTH_CODES: ReadonlySet<string> = new Set([
   'rate_limited',
   'validation_error',
@@ -113,7 +110,7 @@ async function notionFetch(
     const res = await fetch(`${NOTION_API}${endpoint}`, {
       method,
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         'Notion-Version': NOTION_VERSION,
       },
@@ -123,7 +120,11 @@ async function notionFetch(
     clearTimeout(timer);
     let data: Record<string, unknown> = {};
     if (res.status !== 204) {
-      try { data = (await res.json()) as Record<string, unknown>; } catch { data = {}; }
+      try {
+        data = (await res.json()) as Record<string, unknown>;
+      } catch {
+        data = {};
+      }
     }
     if (isNotionAuthError(res.status, data as NotionApiError)) {
       const code = (data as NotionApiError).code || 'unknown';
@@ -144,7 +145,7 @@ function extractTitle(page: Record<string, unknown>): string {
   for (const val of Object.values(properties)) {
     if (val.type === 'title') {
       const titleArr = val.title as Array<{ plain_text: string }> | undefined;
-      if (titleArr?.length) return titleArr.map(t => t.plain_text).join('');
+      if (titleArr?.length) return titleArr.map((t) => t.plain_text).join('');
     }
   }
   return '(untitled)';
@@ -189,13 +190,9 @@ function redactUpdatePageArgs(args: Record<string, unknown>): Record<string, unk
 function previewCreatePage(args: Record<string, unknown>): ConnectorPreview {
   const title = String(args.title ?? '');
   const parentId = String(args.parent_id ?? '');
-  const parentType = (typeof args.parent_type === 'string' && args.parent_type.length > 0)
-    ? args.parent_type
-    : 'page';
+  const parentType = typeof args.parent_type === 'string' && args.parent_type.length > 0 ? args.parent_type : 'page';
   const content = typeof args.content === 'string' ? args.content : '';
-  const paragraphCount = content
-    ? content.split('\n').filter(s => s.length > 0).length
-    : 0;
+  const paragraphCount = content ? content.split('\n').filter((s) => s.length > 0).length : 0;
   const digest = content.length > 0 ? hashAndLength(content) : null;
 
   const lines = [
@@ -222,9 +219,7 @@ function previewCreatePage(args: Record<string, unknown>): ConnectorPreview {
 function previewUpdatePage(args: Record<string, unknown>): ConnectorPreview {
   const pageId = String(args.page_id ?? '');
   const content = typeof args.content === 'string' ? args.content : '';
-  const paragraphCount = content
-    ? content.split('\n').filter(s => s.length > 0).length
-    : 0;
+  const paragraphCount = content ? content.split('\n').filter((s) => s.length > 0).length : 0;
   const digest = content.length > 0 ? hashAndLength(content) : null;
 
   const lines = [
@@ -276,7 +271,7 @@ const search: ConnectorAction = {
       const results = (data.results as Array<Record<string, unknown>>) || [];
       if (!results.length) return `No results found for "${query}".`;
 
-      const lines = results.map(r => {
+      const lines = results.map((r) => {
         const type = r.object as string;
         const id = (r.id as string) || '';
         const title = extractTitle(r);
@@ -300,7 +295,10 @@ const createPage: ConnectorAction = {
       title: { type: 'string', description: 'Page title' },
       parent_id: { type: 'string', description: 'Parent page or database ID' },
       parent_type: { type: 'string', description: '"page" or "database" (default "page")' },
-      content: { type: 'string', description: 'Page content (plain text; each non-empty line becomes a paragraph block)' },
+      content: {
+        type: 'string',
+        description: 'Page content (plain text; each non-empty line becomes a paragraph block)',
+      },
     },
     required: ['title', 'parent_id'],
   },
@@ -315,9 +313,7 @@ const createPage: ConnectorAction = {
     const content = (args.content as string) || '';
     if (!title || !parentId) return 'Error: title and parent_id are required';
 
-    const parent = parentType === 'database'
-      ? { database_id: parentId }
-      : { page_id: parentId };
+    const parent = parentType === 'database' ? { database_id: parentId } : { page_id: parentId };
 
     const properties: Record<string, unknown> = {
       title: { title: [{ text: { content: title } }] },
@@ -360,7 +356,10 @@ const updatePage: ConnectorAction = {
     type: 'object',
     properties: {
       page_id: { type: 'string', description: 'Page ID to update' },
-      content: { type: 'string', description: 'Content to append (plain text, each non-empty line becomes a paragraph)' },
+      content: {
+        type: 'string',
+        description: 'Content to append (plain text, each non-empty line becomes a paragraph)',
+      },
     },
     required: ['page_id', 'content'],
   },
@@ -373,21 +372,19 @@ const updatePage: ConnectorAction = {
     const content = args.content as string;
     if (!pageId || !content) return 'Error: page_id and content are required';
 
-    const children = content.split('\n').filter(Boolean).map(line => ({
-      object: 'block' as const,
-      type: 'paragraph' as const,
-      paragraph: {
-        rich_text: [{ type: 'text' as const, text: { content: line } }],
-      },
-    }));
+    const children = content
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => ({
+        object: 'block' as const,
+        type: 'paragraph' as const,
+        paragraph: {
+          rich_text: [{ type: 'text' as const, text: { content: line } }],
+        },
+      }));
 
     try {
-      const { status, data } = await notionFetch(
-        `/blocks/${pageId}/children`,
-        cred,
-        'PATCH',
-        { children },
-      );
+      const { status, data } = await notionFetch(`/blocks/${pageId}/children`, cred, 'PATCH', { children });
       if (status === 200) {
         return `Content appended to page ${pageId}. Added ${children.length} paragraph(s).`;
       }
@@ -418,8 +415,9 @@ const listDatabases: ConnectorAction = {
       });
       if (status !== 200) return `Error: Notion API ${status}: ${JSON.stringify(data).substring(0, 200)}`;
       const databases = (data.results as Array<Record<string, unknown>>) || [];
-      if (!databases.length) return 'No databases found. Make sure your integration has access to at least one database.';
-      const lines = databases.map(db => {
+      if (!databases.length)
+        return 'No databases found. Make sure your integration has access to at least one database.';
+      const lines = databases.map((db) => {
         const title = extractTitle(db);
         const id = (db.id as string) || '';
         const url = (db.url as string) || '';
@@ -450,16 +448,11 @@ const queryDatabase: ConnectorAction = {
     const count = Math.min((args.count as number) || 20, 100);
     if (!dbId) return 'Error: database_id is required';
     try {
-      const { status, data } = await notionFetch(
-        `/databases/${dbId}/query`,
-        cred,
-        'POST',
-        { page_size: count },
-      );
+      const { status, data } = await notionFetch(`/databases/${dbId}/query`, cred, 'POST', { page_size: count });
       if (status !== 200) return `Error: Notion API ${status}: ${JSON.stringify(data).substring(0, 200)}`;
       const results = (data.results as Array<Record<string, unknown>>) || [];
       if (!results.length) return 'No entries in this database.';
-      const lines = results.map(entry => {
+      const lines = results.map((entry) => {
         const title = extractTitle(entry);
         const id = (entry.id as string) || '';
         return `  ${title} [${id.substring(0, 8)}]`;

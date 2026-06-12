@@ -245,10 +245,9 @@ describe('ConstitutionalLayer — metrics', () => {
 describe('cord-engine sibling-prefix bypass — SandboxedExecutor (2026-04-23 patch)', () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { SandboxedExecutor } = require('cord-engine') as {
-    SandboxedExecutor: new (opts: {
-      repoRoot: string;
-      allowPaths?: string[];
-    }) => { validatePath: (p: string) => string };
+    SandboxedExecutor: new (opts: { repoRoot: string; allowPaths?: string[] }) => {
+      validatePath: (p: string) => string;
+    };
   };
   const SCOPE_ROOT = '/tmp/project';
   let sandbox: { validatePath: (p: string) => string };

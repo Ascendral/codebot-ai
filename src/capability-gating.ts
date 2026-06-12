@@ -33,17 +33,17 @@ export type Permission = 'auto' | 'prompt' | 'always-ask';
  *                                            registration rejects first)
  */
 export const LABEL_TO_PERMISSION: Readonly<Record<CapabilityLabel, Permission>> = Object.freeze({
-  'read-only':       'auto',
-  'browser-read':    'auto',
-  'write-fs':        'prompt',
-  'run-cmd':         'prompt',
-  'net-fetch':       'prompt',
-  'account-access':  'prompt',
-  'send-on-behalf':  'always-ask',
-  'delete-data':     'always-ask',
-  'browser-write':   'always-ask',
-  'spend-money':     'always-ask',
-  'move-money':      'always-ask',
+  'read-only': 'auto',
+  'browser-read': 'auto',
+  'write-fs': 'prompt',
+  'run-cmd': 'prompt',
+  'net-fetch': 'prompt',
+  'account-access': 'prompt',
+  'send-on-behalf': 'always-ask',
+  'delete-data': 'always-ask',
+  'browser-write': 'always-ask',
+  'spend-money': 'always-ask',
+  'move-money': 'always-ask',
 });
 
 export function permissionRank(p: Permission): number {
@@ -54,9 +54,7 @@ export function permissionRank(p: Permission): number {
  * Compute the strictest permission implied by a list of capability labels.
  * Returns `'auto'` for an empty list (no escalation).
  */
-export function strictestPermissionForCapabilityLabels(
-  labels: ReadonlyArray<CapabilityLabel> | undefined,
-): Permission {
+export function strictestPermissionForCapabilityLabels(labels: ReadonlyArray<CapabilityLabel> | undefined): Permission {
   if (!labels || labels.length === 0) return 'auto';
   let strictest: Permission = 'auto';
   for (const label of labels) {

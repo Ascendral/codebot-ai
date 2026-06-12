@@ -22,7 +22,9 @@ function checkDistFreshness() {
       console.error('ERROR: dist/ is stale — src/ has newer files. Run \x60npm run build\x60 first.');
       process.exit(1);
     }
-  } catch { /* skip freshness check on error */ }
+  } catch {
+    /* skip freshness check on error */
+  }
 }
 
 function getNewestMtime(dir, ext) {
@@ -69,7 +71,7 @@ const testFiles = findTestFiles('dist');
 // These live alongside the Electron main process source (api-key-resolver,
 // etc.) and are pure node:test — no transpile required.
 if (existsSync('electron')) {
-  testFiles.push(...findTestFiles('electron').filter(f => !f.includes('node_modules') && !f.includes('staging')));
+  testFiles.push(...findTestFiles('electron').filter((f) => !f.includes('node_modules') && !f.includes('staging')));
 }
 
 if (testFiles.length === 0) {

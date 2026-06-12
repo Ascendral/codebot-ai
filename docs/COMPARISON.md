@@ -4,36 +4,36 @@ CodeBot is an autonomous coding agent, not an AI-powered editor. The comparisons
 
 ## CodeBot is NOT trying to replace these
 
-| | What it is | Why CodeBot doesn't compete |
-|---|---|---|
-| **Cursor** | AI-enhanced IDE (VS Code fork) | Cursor wins on tab-completion + in-flow ergonomics. CodeBot has no editor. |
-| **GitHub Copilot** | Inline-suggestion AI in your IDE | Same category as Cursor. Different job than CodeBot. |
-| **Zed + AI** | Next-gen editor with AI built-in | Editor category. CodeBot runs outside the editor. |
-| **Claude Code CLI** | Interactive CLI assistant for Claude | Interactive-first; no autonomous issue-to-PR; no audit trail. |
+|                     | What it is                           | Why CodeBot doesn't compete                                                |
+| ------------------- | ------------------------------------ | -------------------------------------------------------------------------- |
+| **Cursor**          | AI-enhanced IDE (VS Code fork)       | Cursor wins on tab-completion + in-flow ergonomics. CodeBot has no editor. |
+| **GitHub Copilot**  | Inline-suggestion AI in your IDE     | Same category as Cursor. Different job than CodeBot.                       |
+| **Zed + AI**        | Next-gen editor with AI built-in     | Editor category. CodeBot runs outside the editor.                          |
+| **Claude Code CLI** | Interactive CLI assistant for Claude | Interactive-first; no autonomous issue-to-PR; no audit trail.              |
 
-If you want tab completion and inline suggestions *while you type*, pick one of these. CodeBot will not make them obsolete and isn't trying to.
+If you want tab completion and inline suggestions _while you type_, pick one of these. CodeBot will not make them obsolete and isn't trying to.
 
 ## CodeBot IS competing with these
 
-| | Cursor / Copilot | Aider | Devin | **CodeBot** |
-|---|:---:|:---:|:---:|:---:|
-| **Autonomous issue-to-PR** | No | Partial | Yes | **Yes** |
-| **Cryptographic audit trail** (hash-chained) | No | No | No | **Yes** |
-| **Local LLM supported** | No | Yes | No | **Yes** |
-| **Policy + risk-scoring layer** | No | No | Partial | **Yes** |
-| **SARIF 2.1.0 export for CI** | No | No | No | **Yes** |
-| **Constitutional safety engine (CORD)** | No | No | No | **Yes** |
-| **MIT / open source** | No | Yes | No | **Yes** |
-| **Runs fully offline** (with local LLM) | No | Yes | No | **Yes** |
-| **Zero telemetry by default** | No | Yes | No | **Yes** |
-| **Any LLM provider** (7 cloud + local) | GPT only | Yes | Proprietary | **Yes** |
-| **Price** | $20/mo | Free | $500/mo | **Free / MIT** |
+|                                              | Cursor / Copilot |  Aider  |    Devin    |  **CodeBot**   |
+| -------------------------------------------- | :--------------: | :-----: | :---------: | :------------: |
+| **Autonomous issue-to-PR**                   |        No        | Partial |     Yes     |    **Yes**     |
+| **Cryptographic audit trail** (hash-chained) |        No        |   No    |     No      |    **Yes**     |
+| **Local LLM supported**                      |        No        |   Yes   |     No      |    **Yes**     |
+| **Policy + risk-scoring layer**              |        No        |   No    |   Partial   |    **Yes**     |
+| **SARIF 2.1.0 export for CI**                |        No        |   No    |     No      |    **Yes**     |
+| **Constitutional safety engine (CORD)**      |        No        |   No    |     No      |    **Yes**     |
+| **MIT / open source**                        |        No        |   Yes   |     No      |    **Yes**     |
+| **Runs fully offline** (with local LLM)      |        No        |   Yes   |     No      |    **Yes**     |
+| **Zero telemetry by default**                |        No        |   Yes   |     No      |    **Yes**     |
+| **Any LLM provider** (7 cloud + local)       |     GPT only     |   Yes   | Proprietary |    **Yes**     |
+| **Price**                                    |      $20/mo      |  Free   |   $500/mo   | **Free / MIT** |
 
 The headline axes where CodeBot is genuinely differentiated are the first two: **autonomous + auditable**. Every other row is either a cost advantage or a sovereignty advantage — real, but supporting.
 
 ## Why autonomous + auditable matters
 
-**Autonomous**: the agent does end-to-end work. You delegate a task, not a keystroke. It runs tests, iterates until green, opens a PR. Interactive tools make *you* faster; an autonomous agent does *work that otherwise wouldn't happen* because you were busy.
+**Autonomous**: the agent does end-to-end work. You delegate a task, not a keystroke. It runs tests, iterates until green, opens a PR. Interactive tools make _you_ faster; an autonomous agent does _work that otherwise wouldn't happen_ because you were busy.
 
 **Auditable**: every tool call (read, write, execute, git, HTTP) is written to a hash-chained log. Tampering breaks the chain. SARIF export pipes into existing code-scanning dashboards. The question "what did the AI do to our codebase?" has a proof-backed answer, not a hand-wave.
 
@@ -48,6 +48,7 @@ Most AI coding tools ship without this because their buyer (an individual develo
 **Pick Devin if**: you have $500/month per seat, you trust a closed-source agent with your codebase, and "autonomous" is more valuable than "verifiable."
 
 **Pick CodeBot if**:
+
 - You need AI to do coding work end-to-end (not just suggest completions)
 - And you (or your auditor, your CISO, your ops lead) need to verify what it actually did
 - And your codebase can't leave your network, or you don't want to pay for a closed-source agent to run on servers you don't control
@@ -61,4 +62,4 @@ What CodeBot is better at than all of them is the governance + auditability axis
 
 ---
 
-*Last updated: 2026-04-17. Comparisons reflect publicly-documented features as of that date; check the linked vendors' docs for current status.*
+_Last updated: 2026-04-17. Comparisons reflect publicly-documented features as of that date; check the linked vendors' docs for current status._

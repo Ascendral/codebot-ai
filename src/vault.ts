@@ -17,8 +17,6 @@ import { encrypt, decrypt } from './encryption';
 import { codebotHome, codebotPath } from './paths';
 import { warnNonFatal } from './warn';
 
-
-
 export interface VaultCredential {
   name: string;
   type: 'api_key' | 'oauth_token' | 'webhook_url';
@@ -95,7 +93,8 @@ export class VaultManager {
     if (process.env.CODEBOT_ENCRYPTION_KEY) {
       return { passphrase: process.env.CODEBOT_ENCRYPTION_KEY, source: 'env:CODEBOT_ENCRYPTION_KEY' };
     }
-    const derived = crypto.createHash('sha256')
+    const derived = crypto
+      .createHash('sha256')
       .update(`${os.hostname()}:${os.userInfo().username}:${os.platform()}`)
       .digest('hex');
     return { passphrase: derived, source: 'machine-derived' };
@@ -120,10 +119,10 @@ export class VaultManager {
     warnNonFatal(
       'Vault',
       'using machine-derived passphrase (no CODEBOT_VAULT_KEY set). ' +
-      'Credentials are encrypted but the key is derived from your hostname/username/platform, ' +
-      'so they are NOT portable across machines and are recoverable by anyone with local read ' +
-      'on ~/.codebot. For production or shared environments, set CODEBOT_VAULT_KEY to a secret ' +
-      'you manage yourself. Silence this warning with CODEBOT_VAULT_SILENT=1.',
+        'Credentials are encrypted but the key is derived from your hostname/username/platform, ' +
+        'so they are NOT portable across machines and are recoverable by anyone with local read ' +
+        'on ~/.codebot. For production or shared environments, set CODEBOT_VAULT_KEY to a secret ' +
+        'you manage yourself. Silence this warning with CODEBOT_VAULT_SILENT=1.',
     );
   }
 
@@ -140,7 +139,9 @@ export class VaultManager {
   }
 
   /** Reset the one-time warning flag (test hook). */
-  static _resetWarning(): void { VaultManager.machineWarningShown = false; }
+  static _resetWarning(): void {
+    VaultManager.machineWarningShown = false;
+  }
 
   /** Load and decrypt vault data. Returns empty vault on any failure. */
   private load(): VaultData {
@@ -171,19 +172,21 @@ export class VaultManager {
       if (encrypted) {
         fs.writeFileSync(this.vaultFile(), encrypted, 'utf-8');
       }
-    } catch (err) { warnNonFatal('vault.save', err); }
+    } catch (err) {
+      warnNonFatal('vault.save', err);
+    }
   }
 
   /** Get a credential by name. Returns undefined if not found. */
   get(name: string): VaultCredential | undefined {
     const data = this.load();
-    return data.credentials.find(c => c.name === name);
+    return data.credentials.find((c) => c.name === name);
   }
 
   /** Save or update a credential. */
   set(name: string, credential: Omit<VaultCredential, 'name'>): void {
     const data = this.load();
-    const idx = data.credentials.findIndex(c => c.name === name);
+    const idx = data.credentials.findIndex((c) => c.name === name);
     const entry: VaultCredential = { name, ...credential };
 
     if (idx >= 0) {
@@ -197,7 +200,7 @@ export class VaultManager {
   /** Delete a credential. Returns true if it existed. */
   delete(name: string): boolean {
     const data = this.load();
-    const idx = data.credentials.findIndex(c => c.name === name);
+    const idx = data.credentials.findIndex((c) => c.name === name);
     if (idx < 0) return false;
     data.credentials.splice(idx, 1);
     this.save(data);
@@ -207,12 +210,12 @@ export class VaultManager {
   /** List credential names only (never values). */
   list(): string[] {
     const data = this.load();
-    return data.credentials.map(c => c.name);
+    return data.credentials.map((c) => c.name);
   }
 
   /** Check if a credential exists. */
   has(name: string): boolean {
     const data = this.load();
-    return data.credentials.some(c => c.name === name);
+    return data.credentials.some((c) => c.name === name);
   }
 }

@@ -82,7 +82,7 @@ function listSkills(): ForgedSkill[] {
   const skillsDir = codebotPath('skills');
   if (!fs.existsSync(skillsDir)) return [];
 
-  const files = fs.readdirSync(skillsDir).filter(f => f.endsWith('.json'));
+  const files = fs.readdirSync(skillsDir).filter((f) => f.endsWith('.json'));
   const skills: ForgedSkill[] = [];
 
   for (const file of files) {
@@ -92,7 +92,9 @@ function listSkills(): ForgedSkill[] {
       if (skill.name && skill.steps?.length) {
         skills.push(skill);
       }
-    } catch { /* skip invalid */ }
+    } catch {
+      /* skip invalid */
+    }
   }
 
   return skills;
@@ -121,7 +123,8 @@ function reinforceSkill(name: string, success: boolean): string {
 
 export class SkillForgeTool implements Tool {
   name = 'skill_forge';
-  description = 'Create, list, reinforce, or delete reusable multi-step skills. Skills compose existing tools into higher-level workflows that persist across sessions. Both CodeBot and CodeAGI can author and consume skills from the shared store.';
+  description =
+    'Create, list, reinforce, or delete reusable multi-step skills. Skills compose existing tools into higher-level workflows that persist across sessions. Both CodeBot and CodeAGI can author and consume skills from the shared store.';
   permission: 'prompt' = 'prompt';
   capabilities: CapabilityLabel[] = ['write-fs'];
   parameters = {
@@ -222,10 +225,12 @@ export class SkillForgeTool implements Tool {
 
     fs.writeFileSync(skillPath, JSON.stringify(skill, null, 2) + '\n');
 
-    return `Skill "${name}" created at ${skillPath}\n` +
+    return (
+      `Skill "${name}" created at ${skillPath}\n` +
       `Steps: ${skill.steps.length}\n` +
       `Available as tool: skill_${name}\n` +
-      `Will be loaded on next session start.`;
+      `Will be loaded on next session start.`
+    );
   }
 
   private _list(): string {
@@ -234,7 +239,7 @@ export class SkillForgeTool implements Tool {
       return 'No skills found in shared store. Use action "create" to forge a new skill.';
     }
 
-    const lines = skills.map(s => {
+    const lines = skills.map((s) => {
       const meta = [
         `author=${s.author || 'unknown'}`,
         `confidence=${(s.confidence || 0).toFixed(2)}`,
@@ -278,7 +283,9 @@ export class SkillForgeTool implements Tool {
       ];
       for (let i = 0; i < skill.steps.length; i++) {
         const step = skill.steps[i];
-        lines.push(`  ${i + 1}. ${step.tool}(${JSON.stringify(step.args)})${step.condition ? ` [if: ${step.condition}]` : ''}`);
+        lines.push(
+          `  ${i + 1}. ${step.tool}(${JSON.stringify(step.args)})${step.condition ? ` [if: ${step.condition}]` : ''}`,
+        );
       }
       return lines.join('\n');
     } catch (err) {

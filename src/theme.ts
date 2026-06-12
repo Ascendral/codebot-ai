@@ -55,8 +55,14 @@ export interface Theme {
     arrow: string;
     spinner: string[];
     border: {
-      tl: string; tr: string; bl: string; br: string;
-      h: string; v: string; lt: string; rt: string;
+      tl: string;
+      tr: string;
+      bl: string;
+      br: string;
+      h: string;
+      v: string;
+      lt: string;
+      rt: string;
     };
   };
 }
@@ -66,28 +72,28 @@ export interface Theme {
 export const DARK_THEME: Theme = {
   name: 'dark',
   colors: {
-    primary: '\x1b[36m',       // cyan
-    secondary: '\x1b[34m',     // blue
-    success: '\x1b[32m',       // green
-    warning: '\x1b[33m',       // yellow
-    danger: '\x1b[31m',        // red
-    info: '\x1b[96m',          // bright cyan
-    muted: '\x1b[90m',         // gray
+    primary: '\x1b[36m', // cyan
+    secondary: '\x1b[34m', // blue
+    success: '\x1b[32m', // green
+    warning: '\x1b[33m', // yellow
+    danger: '\x1b[31m', // red
+    info: '\x1b[96m', // bright cyan
+    muted: '\x1b[90m', // gray
 
-    border: '\x1b[36m',        // cyan
-    text: '\x1b[37m',          // white
-    textDim: '\x1b[2m',        // dim
-    heading: '\x1b[1m',        // bold
-    highlight: '\x1b[35m',     // magenta
+    border: '\x1b[36m', // cyan
+    text: '\x1b[37m', // white
+    textDim: '\x1b[2m', // dim
+    heading: '\x1b[1m', // bold
+    highlight: '\x1b[35m', // magenta
 
-    added: '\x1b[32m',         // green
-    removed: '\x1b[31m',       // red
-    changed: '\x1b[33m',       // yellow
+    added: '\x1b[32m', // green
+    removed: '\x1b[31m', // red
+    changed: '\x1b[33m', // yellow
 
-    riskLow: '\x1b[32m',       // green
-    riskMedium: '\x1b[33m',    // yellow
+    riskLow: '\x1b[32m', // green
+    riskMedium: '\x1b[33m', // yellow
     riskHigh: '\x1b[38;5;208m', // orange
-    riskCritical: '\x1b[31m',  // red
+    riskCritical: '\x1b[31m', // red
 
     reset: '\x1b[0m',
     bold: '\x1b[1m',
@@ -101,8 +107,14 @@ export const DARK_THEME: Theme = {
     arrow: '\u25b6',
     spinner: ['\u280b', '\u2819', '\u2839', '\u2838', '\u283c', '\u2834', '\u2826', '\u2827', '\u2807', '\u280f'],
     border: {
-      tl: '\u250c', tr: '\u2510', bl: '\u2514', br: '\u2518',
-      h: '\u2500', v: '\u2502', lt: '\u251c', rt: '\u2524',
+      tl: '\u250c',
+      tr: '\u2510',
+      bl: '\u2514',
+      br: '\u2518',
+      h: '\u2500',
+      v: '\u2502',
+      lt: '\u251c',
+      rt: '\u2524',
     },
   },
 };
@@ -112,19 +124,19 @@ export const DARK_THEME: Theme = {
 export const LIGHT_THEME: Theme = {
   name: 'light',
   colors: {
-    primary: '\x1b[34m',       // blue (more visible on light bg)
-    secondary: '\x1b[36m',     // cyan
-    success: '\x1b[32m',       // green
-    warning: '\x1b[33m',       // yellow
-    danger: '\x1b[31m',        // red
-    info: '\x1b[34m',          // blue
-    muted: '\x1b[90m',         // gray
+    primary: '\x1b[34m', // blue (more visible on light bg)
+    secondary: '\x1b[36m', // cyan
+    success: '\x1b[32m', // green
+    warning: '\x1b[33m', // yellow
+    danger: '\x1b[31m', // red
+    info: '\x1b[34m', // blue
+    muted: '\x1b[90m', // gray
 
-    border: '\x1b[34m',        // blue
-    text: '\x1b[30m',          // black
-    textDim: '\x1b[2m',        // dim
-    heading: '\x1b[1m',        // bold
-    highlight: '\x1b[35m',     // magenta
+    border: '\x1b[34m', // blue
+    text: '\x1b[30m', // black
+    textDim: '\x1b[2m', // dim
+    heading: '\x1b[1m', // bold
+    highlight: '\x1b[35m', // magenta
 
     added: '\x1b[32m',
     removed: '\x1b[31m',
@@ -148,11 +160,29 @@ export const LIGHT_THEME: Theme = {
 export const MONO_THEME: Theme = {
   name: 'mono',
   colors: {
-    primary: '', secondary: '', success: '', warning: '', danger: '',
-    info: '', muted: '', border: '', text: '', textDim: '', heading: '',
-    highlight: '', added: '', removed: '', changed: '',
-    riskLow: '', riskMedium: '', riskHigh: '', riskCritical: '',
-    reset: '', bold: '', dim: '', italic: '',
+    primary: '',
+    secondary: '',
+    success: '',
+    warning: '',
+    danger: '',
+    info: '',
+    muted: '',
+    border: '',
+    text: '',
+    textDim: '',
+    heading: '',
+    highlight: '',
+    added: '',
+    removed: '',
+    changed: '',
+    riskLow: '',
+    riskMedium: '',
+    riskHigh: '',
+    riskCritical: '',
+    reset: '',
+    bold: '',
+    dim: '',
+    italic: '',
   },
   symbols: {
     check: '[OK]',
@@ -161,8 +191,14 @@ export const MONO_THEME: Theme = {
     arrow: '>',
     spinner: ['-', '\\', '|', '/'],
     border: {
-      tl: '+', tr: '+', bl: '+', br: '+',
-      h: '-', v: '|', lt: '+', rt: '+',
+      tl: '+',
+      tr: '+',
+      bl: '+',
+      br: '+',
+      h: '-',
+      v: '|',
+      lt: '+',
+      rt: '+',
     },
   },
 };

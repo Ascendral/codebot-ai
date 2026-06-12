@@ -12,12 +12,7 @@
  */
 
 import { RateLimiter } from './rate-limiter';
-import {
-  Env,
-  LicenseValidationResult,
-  LicenseTier,
-  DEFAULT_PROXY_CONFIG,
-} from './types';
+import { Env, LicenseValidationResult, LicenseTier, DEFAULT_PROXY_CONFIG } from './types';
 
 // ── License Validation ──
 

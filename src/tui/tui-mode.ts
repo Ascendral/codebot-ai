@@ -74,9 +74,7 @@ export class TuiMode {
     this.layout.addPanel('diff', 'Details', { maxScrollback: 500 });
 
     // Set initial status
-    this.layout.setStatus(
-      config?.statusText || 'Tab: panel | ↑↓: scroll | y: approve | n: deny | q: quit | ?: help'
-    );
+    this.layout.setStatus(config?.statusText || 'Tab: panel | ↑↓: scroll | y: approve | n: deny | q: quit | ?: help');
 
     // Wire up the agent's permission callback
     this.agent.setAskPermission(this.handlePermission.bind(this));
@@ -206,11 +204,7 @@ export class TuiMode {
         const prefix = isError ? '\x1b[31m✗' : '\x1b[32m✓';
         this.layout.appendLine('logs', `  ${prefix} ${name}\x1b[0m`);
 
-        this.layout.updateContent('diff', [
-          `${prefix} ${name}\x1b[0m`,
-          '',
-          ...resultLines,
-        ]);
+        this.layout.updateContent('diff', [`${prefix} ${name}\x1b[0m`, '', ...resultLines]);
         break;
       }
 
@@ -221,7 +215,7 @@ export class TuiMode {
       case 'stream_progress':
         if (event.streamProgress) {
           this.layout.setStatus(
-            `Streaming: ${event.streamProgress.tokensGenerated} tokens (${event.streamProgress.tokensPerSecond} tok/s) | Tab: panel | q: quit`
+            `Streaming: ${event.streamProgress.tokensGenerated} tokens (${event.streamProgress.tokensPerSecond} tok/s) | Tab: panel | q: quit`,
           );
         }
         break;
@@ -309,10 +303,7 @@ export class TuiMode {
 
   // ── Permission handling ──
 
-  private handlePermission(
-    tool: string,
-    args: Record<string, unknown>,
-  ): Promise<boolean> {
+  private handlePermission(tool: string, args: Record<string, unknown>): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       this.pendingApproval = { tool, args, resolve };
 
@@ -327,9 +318,7 @@ export class TuiMode {
         '\x1b[1m[y]\x1b[0m Approve   \x1b[1m[n]\x1b[0m Deny   \x1b[1m[s]\x1b[0m Skip',
       ]);
 
-      this.layout.setStatus(
-        `⚡ ${tool} — Press y to approve, n to deny, s to skip`
-      );
+      this.layout.setStatus(`⚡ ${tool} — Press y to approve, n to deny, s to skip`);
 
       this.layout.focus('diff');
       this.renderAll();
@@ -362,11 +351,21 @@ export class TuiMode {
       const step = this.steps[i];
       let icon: string;
       switch (step.status) {
-        case 'pending': icon = '\x1b[2m○\x1b[0m'; break;
-        case 'active': icon = '\x1b[36m◉\x1b[0m'; break;
-        case 'done': icon = '\x1b[32m✓\x1b[0m'; break;
-        case 'failed': icon = '\x1b[31m✗\x1b[0m'; break;
-        case 'skipped': icon = '\x1b[33m⊘\x1b[0m'; break;
+        case 'pending':
+          icon = '\x1b[2m○\x1b[0m';
+          break;
+        case 'active':
+          icon = '\x1b[36m◉\x1b[0m';
+          break;
+        case 'done':
+          icon = '\x1b[32m✓\x1b[0m';
+          break;
+        case 'failed':
+          icon = '\x1b[31m✗\x1b[0m';
+          break;
+        case 'skipped':
+          icon = '\x1b[33m⊘\x1b[0m';
+          break;
       }
       lines.push(` ${icon} ${step.label}`);
       if (step.detail) {

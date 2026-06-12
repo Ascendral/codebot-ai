@@ -104,11 +104,18 @@ export class BuildHealthCheck implements HealthCheck {
     if (!fs.existsSync(fullPath)) return null;
 
     try {
-      const result = execSync(`find "${fullPath}" -name "*.ts" -o -name "*.js" | head -50 | xargs stat -f "%m" 2>/dev/null || find "${fullPath}" -name "*.ts" -o -name "*.js" -printf "%T@\n" 2>/dev/null | head -50`, {
-        encoding: 'utf-8',
-        timeout: 5000,
-      });
-      const times = result.trim().split('\n').map(Number).filter(n => !isNaN(n));
+      const result = execSync(
+        `find "${fullPath}" -name "*.ts" -o -name "*.js" | head -50 | xargs stat -f "%m" 2>/dev/null || find "${fullPath}" -name "*.ts" -o -name "*.js" -printf "%T@\n" 2>/dev/null | head -50`,
+        {
+          encoding: 'utf-8',
+          timeout: 5000,
+        },
+      );
+      const times = result
+        .trim()
+        .split('\n')
+        .map(Number)
+        .filter((n) => !isNaN(n));
       return times.length > 0 ? Math.max(...times) : null;
     } catch {
       return null;
@@ -156,7 +163,9 @@ export class TestHealthCheck implements HealthCheck {
           checkedAt: now,
         };
       }
-    } catch { /* corrupt file */ }
+    } catch {
+      /* corrupt file */
+    }
 
     return {
       name: this.name,
@@ -233,10 +242,8 @@ export class APIHealthCheck implements HealthCheck {
     const errorLog = codebotPath('health/api-errors.json');
     try {
       if (fs.existsSync(errorLog)) {
-        const errors: Array<{ timestamp: string; error: string }> = JSON.parse(
-          fs.readFileSync(errorLog, 'utf-8'),
-        );
-        const recent = errors.filter(e => {
+        const errors: Array<{ timestamp: string; error: string }> = JSON.parse(fs.readFileSync(errorLog, 'utf-8'));
+        const recent = errors.filter((e) => {
           const age = Date.now() - new Date(e.timestamp).getTime();
           return age < 5 * 60 * 1000; // last 5 minutes
         });
@@ -264,7 +271,9 @@ export class APIHealthCheck implements HealthCheck {
           };
         }
       }
-    } catch { /* corrupt file */ }
+    } catch {
+      /* corrupt file */
+    }
 
     return { name: this.name, status: 'healthy', message: 'API healthy', checkedAt: now };
   }
@@ -283,7 +292,9 @@ export class APIHealthCheck implements HealthCheck {
       // Keep last 100 errors
       const trimmed = errors.slice(-100);
       fs.writeFileSync(errorLog, JSON.stringify(trimmed, null, 2));
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
   }
 }
 
@@ -378,7 +389,7 @@ export class SelfMonitor {
     // flatMap composes the filter+narrow in one pass — avoids the
     // `.filter(...).map(r => r.fixAction!)` pattern where TS can't see
     // that the filter guarantees non-undefined.
-    const fixActions = results.flatMap(r => (r.fixAction ? [r.fixAction] : []));
+    const fixActions = results.flatMap((r) => (r.fixAction ? [r.fixAction] : []));
 
     const overall = this.computeOverall(results);
 
@@ -400,7 +411,7 @@ export class SelfMonitor {
 
   /** Get the API health check for recording errors */
   getAPICheck(): APIHealthCheck {
-    return this.checks.find(c => c.name === 'api') as APIHealthCheck;
+    return this.checks.find((c) => c.name === 'api') as APIHealthCheck;
   }
 
   /** Get recent health history */
@@ -437,12 +448,14 @@ export class SelfMonitor {
         codebotPath('health/last-test-result.json'),
         JSON.stringify({ total, failures, timestamp: new Date().toISOString() }, null, 2),
       );
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
   }
 
   private computeOverall(results: HealthCheckResult[]): HealthStatus {
-    if (results.some(r => r.status === 'critical')) return 'critical';
-    if (results.some(r => r.status === 'degraded')) return 'degraded';
+    if (results.some((r) => r.status === 'critical')) return 'critical';
+    if (results.some((r) => r.status === 'degraded')) return 'degraded';
     return 'healthy';
   }
 
@@ -450,10 +463,9 @@ export class SelfMonitor {
     try {
       const dir = codebotPath('health');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(
-        codebotPath('health/latest-report.json'),
-        JSON.stringify(report, null, 2),
-      );
-    } catch { /* best effort */ }
+      fs.writeFileSync(codebotPath('health/latest-report.json'), JSON.stringify(report, null, 2));
+    } catch {
+      /* best effort */
+    }
   }
 }

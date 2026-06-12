@@ -1,5 +1,5 @@
 export interface ImageAttachment {
-  data: string;        // base64-encoded image data
+  data: string; // base64-encoded image data
   mediaType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
 }
 
@@ -64,10 +64,10 @@ export type CapabilityLabel =
   | 'browser-write'
   | 'net-fetch'
   | 'account-access'
-  | 'send-on-behalf'   // always-ask (§7)
-  | 'delete-data'      // always-ask (§7)
-  | 'spend-money'      // always-ask + preview required (§7)
-  | 'move-money';      // PROHIBITED — tools/connectors with this label must not be usable (§7)
+  | 'send-on-behalf' // always-ask (§7)
+  | 'delete-data' // always-ask (§7)
+  | 'spend-money' // always-ask + preview required (§7)
+  | 'move-money'; // PROHIBITED — tools/connectors with this label must not be usable (§7)
 
 export interface Tool {
   name: string;
@@ -158,7 +158,17 @@ export interface UsageStats {
 }
 
 export interface AgentEvent {
-  type: 'thinking' | 'text' | 'tool_call' | 'tool_result' | 'done' | 'error' | 'compaction' | 'usage' | 'stream_progress' | 'spark_state';
+  type:
+    | 'thinking'
+    | 'text'
+    | 'tool_call'
+    | 'tool_result'
+    | 'done'
+    | 'error'
+    | 'compaction'
+    | 'usage'
+    | 'stream_progress'
+    | 'spark_state';
   text?: string;
   toolCall?: { name: string; args: Record<string, unknown> };
   toolResult?: { name: string; result: string; is_error?: boolean };

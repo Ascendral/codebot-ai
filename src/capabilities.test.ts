@@ -8,7 +8,9 @@ describe('CapabilityChecker — no restrictions', () => {
   it('allows everything when no capabilities defined for tool', () => {
     const checker = new CapabilityChecker({}, PROJECT);
     assert.deepStrictEqual(checker.checkCapability('execute', 'shell_commands', 'rm -rf /'), { allowed: true });
-    assert.deepStrictEqual(checker.checkCapability('write_file', 'fs_write', '/project/src/index.ts'), { allowed: true });
+    assert.deepStrictEqual(checker.checkCapability('write_file', 'fs_write', '/project/src/index.ts'), {
+      allowed: true,
+    });
   });
 
   it('getToolCapabilities returns undefined for unconfigured tools', () => {
@@ -61,7 +63,10 @@ describe('CapabilityChecker — fs_write', () => {
   it('allows writes to matching glob paths', () => {
     assert.strictEqual(checker.checkCapability('write_file', 'fs_write', '/project/src/index.ts').allowed, true);
     assert.strictEqual(checker.checkCapability('write_file', 'fs_write', '/project/tests/foo.test.ts').allowed, true);
-    assert.strictEqual(checker.checkCapability('write_file', 'fs_write', '/project/src/deep/nested/file.ts').allowed, true);
+    assert.strictEqual(
+      checker.checkCapability('write_file', 'fs_write', '/project/src/deep/nested/file.ts').allowed,
+      true,
+    );
   });
 
   it('blocks writes outside allowed paths', () => {

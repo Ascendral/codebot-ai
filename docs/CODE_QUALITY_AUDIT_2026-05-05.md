@@ -13,30 +13,30 @@ find, custom Python import-graph script. No new dependencies installed.
 
 ## 1. Headline numbers (measured, not estimated)
 
-| Metric | Value | Source |
-|---|---|---|
-| Source LOC | 43,719 across 164 files | `find src -name '*.ts' -not -name '*.test.ts' | xargs wc -l` |
-| Test LOC | 26,581 across 133 files | same with `-name '*.test.ts'` |
-| Test-to-source LOC ratio | 60.8% | computed |
-| Tests passing | **2,205 / 2,205 (100%)** | `npm test` (full suite, 124 s) |
-| Type errors | **0** | `tsc --noEmit` clean |
-| Lint errors | **0** | `npx eslint src/` |
-| Lint warnings (production code) | **74** | filtered, count `non-test` files |
-| Lint warnings (test code) | 435 | mostly `no-non-null-assertion` on test fixtures — config issue, not real debt |
-| `any` types in production code | 59 occurrences across 17 files | `grep -rn ': any\\b\\| as any\\b' src/ --include='*.ts'` |
-| TODO/FIXME/HACK comments | **0 real** (8 markers, all in test fixtures or in `code-review.ts` as the regex it scans for) | `grep -rn 'TODO|FIXME|HACK|XXX' src/` |
-| Runtime dependencies | **1** (`cord-engine`) | `package.json` |
-| Dev dependencies | 10 | `package.json` |
-| Files > 500 LOC | 20 | `find` |
-| Files > 1,000 LOC | **4** | same |
-| Largest file | `src/agent.ts` 1,692 lines, 134 functions | `wc -l`, grep |
+| Metric                          | Value                                                                                         | Source                                                                        |
+| ------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------- | ---- | ---------- |
+| Source LOC                      | 43,719 across 164 files                                                                       | `find src -name '_.ts' -not -name '_.test.ts'                                 | xargs wc -l`                       |
+| Test LOC                        | 26,581 across 133 files                                                                       | same with `-name '*.test.ts'`                                                 |
+| Test-to-source LOC ratio        | 60.8%                                                                                         | computed                                                                      |
+| Tests passing                   | **2,205 / 2,205 (100%)**                                                                      | `npm test` (full suite, 124 s)                                                |
+| Type errors                     | **0**                                                                                         | `tsc --noEmit` clean                                                          |
+| Lint errors                     | **0**                                                                                         | `npx eslint src/`                                                             |
+| Lint warnings (production code) | **74**                                                                                        | filtered, count `non-test` files                                              |
+| Lint warnings (test code)       | 435                                                                                           | mostly `no-non-null-assertion` on test fixtures — config issue, not real debt |
+| `any` types in production code  | 59 occurrences across 17 files                                                                | `grep -rn ': any\\b\\                                                         | as any\\b' src/ --include='\*.ts'` |
+| TODO/FIXME/HACK comments        | **0 real** (8 markers, all in test fixtures or in `code-review.ts` as the regex it scans for) | `grep -rn 'TODO                                                               | FIXME                              | HACK | XXX' src/` |
+| Runtime dependencies            | **1** (`cord-engine`)                                                                         | `package.json`                                                                |
+| Dev dependencies                | 10                                                                                            | `package.json`                                                                |
+| Files > 500 LOC                 | 20                                                                                            | `find`                                                                        |
+| Files > 1,000 LOC               | **4**                                                                                         | same                                                                          |
+| Largest file                    | `src/agent.ts` 1,692 lines, 134 functions                                                     | `wc -l`, grep                                                                 |
 
 ### Coverage (full suite, 2,191 instrumented tests under `--experimental-test-coverage`)
 
-| Dimension | % |
-|---|---|
-| Line coverage | **72.43%** |
-| Branch coverage | **75.21%** |
+| Dimension         | %          |
+| ----------------- | ---------- |
+| Line coverage     | **72.43%** |
+| Branch coverage   | **75.21%** |
 | Function coverage | **71.85%** |
 
 (Discrepancy: 14 tests excluded by coverage flag pattern. Full suite outside coverage = 2,205. Both numbers were measured this session.)
@@ -47,18 +47,18 @@ find, custom Python import-graph script. No new dependencies installed.
 
 Worst-covered modules by line %, real numbers from the coverage report:
 
-| File | Line % | LOC | Notes |
-|---|---:|---:|---|
-| `solve.js` | **17.93%** | 1,094 | 8-phase issue→PR pipeline; mostly E2E paths |
-| `mcp.js` | 27.10% | — | MCP server wiring, hard to unit-test |
-| `solve-audit.js` | 27.85% | — | Audit hooks specific to `--solve` |
-| `proactive.js` | 28.50% | — | |
-| `setup.js` | 29.75% | 987 | Interactive CLI setup, hard to test |
-| `ui.js` | 54.22% | — | TTY rendering — same hardness class |
-| `sandbox.js` | 58.52% | — | |
-| `replay.js` | 60.71% | — | |
-| `daemon.js` | 72.35% | — | |
-| `provider-rate-limiter.js` | 76.12% | — | |
+| File                       |     Line % |   LOC | Notes                                       |
+| -------------------------- | ---------: | ----: | ------------------------------------------- |
+| `solve.js`                 | **17.93%** | 1,094 | 8-phase issue→PR pipeline; mostly E2E paths |
+| `mcp.js`                   |     27.10% |     — | MCP server wiring, hard to unit-test        |
+| `solve-audit.js`           |     27.85% |     — | Audit hooks specific to `--solve`           |
+| `proactive.js`             |     28.50% |     — |                                             |
+| `setup.js`                 |     29.75% |   987 | Interactive CLI setup, hard to test         |
+| `ui.js`                    |     54.22% |     — | TTY rendering — same hardness class         |
+| `sandbox.js`               |     58.52% |     — |                                             |
+| `replay.js`                |     60.71% |     — |                                             |
+| `daemon.js`                |     72.35% |     — |                                             |
+| `provider-rate-limiter.js` |     76.12% |     — |                                             |
 
 The four lowest-covered files (`solve`, `mcp`, `solve-audit`, `proactive`) cover the **most user-visible workflow** (`--solve`). That's the gap with most leverage — these are the paths that produce the SWE-bench number, and 80%+ of `solve.js` is untested.
 
@@ -68,23 +68,23 @@ The four lowest-covered files (`solve`, `mcp`, `solve-audit`, `proactive`) cover
 
 Generated by `npx eslint --rule '{"complexity": ["warn", 20]}' src/`. Top 15 by complexity score:
 
-| Score | File | Function |
-|---:|---|---|
-| **139** | `src/cli.ts` | `main` |
-| **81** | `src/providers/anthropic.ts` | `chat` (async generator) |
-| **80** | `src/solve.ts` | `run` |
-| **78** | `src/cli/args.ts` | `parseArgs` |
-| **74** | `src/providers/openai.ts` | `chat` (async generator) |
-| **73** | `src/agent.ts` | `run` (async generator) |
-| 47 | `src/dashboard/server.ts` | `streamChat` |
-| 47 | `src/cli/commands.ts` | `handleSlashCommand` |
-| 46 | `src/cli/config.ts` | `resolveConfig` |
-| 44 | `src/agent/tool-executor.ts` | `executeSingleTool` |
-| 42 | `src/setup.ts` | `runSetup` |
-| 42 | `src/setup.ts` | `runQuickSetup` |
-| 42 | `src/cli/render.ts` | `renderEvent` |
-| 41 | `src/tools/git.ts` | `execute` |
-| 40 | `src/task-runner.ts` | `runTask` |
+|   Score | File                         | Function                 |
+| ------: | ---------------------------- | ------------------------ |
+| **139** | `src/cli.ts`                 | `main`                   |
+|  **81** | `src/providers/anthropic.ts` | `chat` (async generator) |
+|  **80** | `src/solve.ts`               | `run`                    |
+|  **78** | `src/cli/args.ts`            | `parseArgs`              |
+|  **74** | `src/providers/openai.ts`    | `chat` (async generator) |
+|  **73** | `src/agent.ts`               | `run` (async generator)  |
+|      47 | `src/dashboard/server.ts`    | `streamChat`             |
+|      47 | `src/cli/commands.ts`        | `handleSlashCommand`     |
+|      46 | `src/cli/config.ts`          | `resolveConfig`          |
+|      44 | `src/agent/tool-executor.ts` | `executeSingleTool`      |
+|      42 | `src/setup.ts`               | `runSetup`               |
+|      42 | `src/setup.ts`               | `runQuickSetup`          |
+|      42 | `src/cli/render.ts`          | `renderEvent`            |
+|      41 | `src/tools/git.ts`           | `execute`                |
+|      40 | `src/task-runner.ts`         | `runTask`                |
 
 Anything > 30 is genuinely hard to fully test. > 50 has branches that probably aren't exercised. > 100 (just `cli.ts:main`) is a god-function. **The complexity rule is currently NOT enforced** — these are warnings only because I added the rule for this audit.
 
@@ -96,15 +96,15 @@ Total functions over the threshold of 20: 30+ across the codebase.
 
 59 occurrences in non-test code, distributed across 17 files. Concentrated in:
 
-| File | Count | Justification |
-|---|---:|---|
-| `src/dashboard/command-api.ts` | 11 | Express-style request/response handlers — typing these is real work |
-| `src/dashboard/api.ts` | 11 | Same |
-| `src/spark-helpers.ts` | 10 | SPARK monorepo boundary |
-| `src/experiential-memory.ts` | 6 | `better-sqlite3` returns are `any` — boundary |
-| `src/spark-soul.ts` | 5 | SPARK boundary |
-| `src/dashboard/models-api.ts` | 3 | Same as dashboard |
-| Other | 13 | Tools, CLI, types — mixed |
+| File                           | Count | Justification                                                       |
+| ------------------------------ | ----: | ------------------------------------------------------------------- |
+| `src/dashboard/command-api.ts` |    11 | Express-style request/response handlers — typing these is real work |
+| `src/dashboard/api.ts`         |    11 | Same                                                                |
+| `src/spark-helpers.ts`         |    10 | SPARK monorepo boundary                                             |
+| `src/experiential-memory.ts`   |     6 | `better-sqlite3` returns are `any` — boundary                       |
+| `src/spark-soul.ts`            |     5 | SPARK boundary                                                      |
+| `src/dashboard/models-api.ts`  |     3 | Same as dashboard                                                   |
+| Other                          |    13 | Tools, CLI, types — mixed                                           |
 
 Roughly 35 of the 59 are at legitimate boundaries (SQLite, HTTP, MCP). The remaining ~24 are worth tightening.
 
@@ -125,12 +125,12 @@ No deep chains. **Not a structural problem.** Verified by reading the chains; th
 
 The four files > 1,000 lines:
 
-| File | Lines | Concern |
-|---|---:|---|
-| `src/agent.ts` | 1,692 | 134 functions in one class. `run()` at complexity 73, plus 4 other 20+ methods. Doing too much: prompt assembly, tool dispatch, permission flow, session lifecycle, cross-session, experiential memory orchestration. **Split candidate.** |
-| `src/dashboard/command-api.ts` | 1,322 | HTTP handlers for the dashboard. `streamChat` complexity 47. Likely splittable along resource lines (chat, tasks, audit, models). |
-| `src/solve.ts` | 1,094 | 8-phase `--solve` pipeline. `run()` complexity 80. Each phase could be its own module. Compounding factor: lowest-covered file (17.93%). |
-| `src/tools/graphics.ts` | 1,036 | Graphics tool. Specialized, may justify its size, but should be inspected. |
+| File                           | Lines | Concern                                                                                                                                                                                                                                    |
+| ------------------------------ | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/agent.ts`                 | 1,692 | 134 functions in one class. `run()` at complexity 73, plus 4 other 20+ methods. Doing too much: prompt assembly, tool dispatch, permission flow, session lifecycle, cross-session, experiential memory orchestration. **Split candidate.** |
+| `src/dashboard/command-api.ts` | 1,322 | HTTP handlers for the dashboard. `streamChat` complexity 47. Likely splittable along resource lines (chat, tasks, audit, models).                                                                                                          |
+| `src/solve.ts`                 | 1,094 | 8-phase `--solve` pipeline. `run()` complexity 80. Each phase could be its own module. Compounding factor: lowest-covered file (17.93%).                                                                                                   |
+| `src/tools/graphics.ts`        | 1,036 | Graphics tool. Specialized, may justify its size, but should be inspected.                                                                                                                                                                 |
 
 Other 500–1,000-line files (16 of them) include `setup.ts` (987), `cli.ts` (836), `dashboard/api.ts` (814), `banner.ts` (759), `policy.ts` (708). Most are reasonable for what they do; none of them stand out as urgent split candidates.
 
@@ -149,7 +149,7 @@ Current config (`eslint.config.mjs`) applies the same rules to test and non-test
 
 ## 8. What WAS NOT measured (honest limits)
 
-- **Mutation testing** (e.g., Stryker) — would tell us how *good* the tests are, not just whether they cover lines. Not run; requires install.
+- **Mutation testing** (e.g., Stryker) — would tell us how _good_ the tests are, not just whether they cover lines. Not run; requires install.
 - **Real duplicate-code detection** (`jscpd`) — not run; requires install.
 - **Real circular-dep detection** (`madge`) — not run; my Python heuristic is conservative.
 - **Dead exports** (`ts-prune`, `knip`) — not run; would require install.
@@ -165,21 +165,21 @@ I asked for permission rules before installing tools and stopped at native Node 
 
 ## 9. Composite assessment
 
-| Dimension | Grounding | Grade |
-|---|---|---|
-| Correctness (tests + types) | 2,205/2,205 pass, 0 type errors | **A+** |
-| Test depth (coverage + count) | 72.43% line / 75.21% branch / 71.85% func | **B+** |
-| Dependency hygiene | 1 runtime, 10 dev | **A+** |
-| Tech-debt visibility | 0 real TODOs in 43K LOC | **A** |
-| Type safety | Typecheck clean; 59 `any` in production, ~35 at boundaries | **B+** |
-| Lint hygiene (production) | 0 errors, 74 warnings on 43K LOC | **B+** |
-| Lint config quality | Same rules for tests + prod creates noise; no complexity gate | **C** |
-| Cohesion / structure | 4 files > 1,000 lines; `agent.ts` is a god class | **C+** |
-| Cyclomatic complexity | One function at 139, several > 50, no enforcement | **C** |
-| Documentation | Inline architectural comments + RFC docs + GTM plan | **A-** |
-| Architectural discipline | Capability system, hash chain, CodingAgentProvider boundary | **A** |
-| Anti-theater discipline (process) | Locked Day-0 GTM, named gaps, anti-theater protocol enforced | **A+** |
-| **Composite (weighted average)** | | **B+ / 84%** |
+| Dimension                         | Grounding                                                     | Grade        |
+| --------------------------------- | ------------------------------------------------------------- | ------------ |
+| Correctness (tests + types)       | 2,205/2,205 pass, 0 type errors                               | **A+**       |
+| Test depth (coverage + count)     | 72.43% line / 75.21% branch / 71.85% func                     | **B+**       |
+| Dependency hygiene                | 1 runtime, 10 dev                                             | **A+**       |
+| Tech-debt visibility              | 0 real TODOs in 43K LOC                                       | **A**        |
+| Type safety                       | Typecheck clean; 59 `any` in production, ~35 at boundaries    | **B+**       |
+| Lint hygiene (production)         | 0 errors, 74 warnings on 43K LOC                              | **B+**       |
+| Lint config quality               | Same rules for tests + prod creates noise; no complexity gate | **C**        |
+| Cohesion / structure              | 4 files > 1,000 lines; `agent.ts` is a god class              | **C+**       |
+| Cyclomatic complexity             | One function at 139, several > 50, no enforcement             | **C**        |
+| Documentation                     | Inline architectural comments + RFC docs + GTM plan           | **A-**       |
+| Architectural discipline          | Capability system, hash chain, CodingAgentProvider boundary   | **A**        |
+| Anti-theater discipline (process) | Locked Day-0 GTM, named gaps, anti-theater protocol enforced  | **A+**       |
+| **Composite (weighted average)**  |                                                               | **B+ / 84%** |
 
 **This is lower than the A-/88 I gave on the spot-check.** The drop is honest: the coverage percentage and complexity numbers I had not measured surfaced real concerns. Specifically, `solve.js` at 17.93% coverage, `cli.ts:main` at complexity 139, and the 4 god files together pull the structural and complexity dimensions to C/C+.
 
@@ -203,15 +203,15 @@ What would NOT change the grade meaningfully:
 
 Each step is its own commit. Each has verification criteria. None of them ship without tests passing.
 
-| # | Fix | Effort | Verification |
-|---|---|---|---|
-| 1 | **Tighten lint config** — add `*.test.ts` override disabling `no-non-null-assertion`; add `complexity: ['warn', 30]`; add `max-lines: ['warn', 800]` | 30 min | `npx eslint src/` warning count drops sharply; complexity offenders remain visible |
-| 2 | **Eliminate non-boundary `any` usages** (the ~24 not at SQLite/HTTP/MCP boundaries) | 2–3 hr | Production `any` count drops from 59 to ~35; tests + typecheck still clean |
-| 3 | **Split `agent.ts`** into `agent/loop.ts`, `agent/permission.ts`, `agent/session-finalizer.ts`, `agent/orchestrator.ts` | 1–2 days | `agent.ts` < 600 lines; all 134 functions still reachable; full test suite still 2,205/2,205 |
-| 4 | **Split `solve.ts`** into per-phase modules (`solve/parse.ts`, `solve/clone.ts`, `solve/analyze.ts`, …, `solve/pr.ts`) | 1 day | `solve.ts` < 400 lines; `run()` complexity below 30; coverage measurable per phase |
-| 5 | **Refactor `cli.ts:main`** to dispatch to subcommand handlers | half day | `main` complexity below 30 |
-| 6 | **Lift `solve.js` coverage** above 60% by writing per-phase tests after step 4 | 1–2 days | line coverage on `solve.js` ≥ 60% |
-| 7 | **Inspect & decide on the remaining > 1,000-line files** (`dashboard/command-api.ts`, `tools/graphics.ts`) | 1 hr to decide; split effort separate | Either split commit or "not worth splitting" RFC entry |
+| #   | Fix                                                                                                                                                  | Effort                                | Verification                                                                                 |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 1   | **Tighten lint config** — add `*.test.ts` override disabling `no-non-null-assertion`; add `complexity: ['warn', 30]`; add `max-lines: ['warn', 800]` | 30 min                                | `npx eslint src/` warning count drops sharply; complexity offenders remain visible           |
+| 2   | **Eliminate non-boundary `any` usages** (the ~24 not at SQLite/HTTP/MCP boundaries)                                                                  | 2–3 hr                                | Production `any` count drops from 59 to ~35; tests + typecheck still clean                   |
+| 3   | **Split `agent.ts`** into `agent/loop.ts`, `agent/permission.ts`, `agent/session-finalizer.ts`, `agent/orchestrator.ts`                              | 1–2 days                              | `agent.ts` < 600 lines; all 134 functions still reachable; full test suite still 2,205/2,205 |
+| 4   | **Split `solve.ts`** into per-phase modules (`solve/parse.ts`, `solve/clone.ts`, `solve/analyze.ts`, …, `solve/pr.ts`)                               | 1 day                                 | `solve.ts` < 400 lines; `run()` complexity below 30; coverage measurable per phase           |
+| 5   | **Refactor `cli.ts:main`** to dispatch to subcommand handlers                                                                                        | half day                              | `main` complexity below 30                                                                   |
+| 6   | **Lift `solve.js` coverage** above 60% by writing per-phase tests after step 4                                                                       | 1–2 days                              | line coverage on `solve.js` ≥ 60%                                                            |
+| 7   | **Inspect & decide on the remaining > 1,000-line files** (`dashboard/command-api.ts`, `tools/graphics.ts`)                                           | 1 hr to decide; split effort separate | Either split commit or "not worth splitting" RFC entry                                       |
 
 Steps 1–3 are mechanical and uncontroversial. Steps 4–6 are real architectural work and should be ADRs / RFCs before code is written. Step 7 is decide-then-plan.
 
@@ -241,17 +241,18 @@ If we do steps 1–3 in this session, the bottom line moves from B+ to A-/A. Ste
 
 ## 13. Progress against the plan (updated 2026-05-05, end of session)
 
-| # | Fix | Status | Result |
-|---|---|---|---|
-| 1 | Tighten lint config | **DONE** (`da7460b`) | 507 → 99 warnings; complexity & max-lines gates added; test-file overrides applied |
-| 2 | Eliminate non-boundary `any` usages | **PARTIAL** | Substituted with all-39-unused-vars cleanup (`2ff7ae1`). Non-null + `any` cleanup deferred to a future session. |
-| 3 | Split `agent.ts` | **PARTIAL — 3 slices done** | Slice 1 (`8c20fdb`): permission + serialization. Slice 2 (`0d551b4`): BranchManager. Slice 3 (`5f63ece`): session-finalizer. agent.ts 1692 → 1557 raw (1152 → 1042 effective). Still over 800 gate; remaining work is in `run()` and `_prepareToolCall` which are deeply state-coupled. |
-| 4 | Split `solve.ts` per phase | NOT STARTED | 1 day estimate |
-| 5 | Refactor `cli.ts:main` | **PARTIAL — 2 slices done** | Slice 1 (`9ca3bcf`): extracted vault/verify-audit/replay/daemon. Slice 2 (`9802318`): extracted heartbeat/init-policy/sandbox-info/export-audit/doctor/solve/task. cli.ts 836 → 526 lines, main complexity 139 → 66. Still over the 30 gate; remaining branches are the main agent flow (vault-mode, dashboard, agent construction). |
-| 6 | Lift `solve.js` coverage | NOT STARTED | depends on step 4 |
-| 7 | Decide on `dashboard/command-api.ts` and `tools/graphics.ts` | NOT STARTED | 1 hr |
+| #   | Fix                                                          | Status                      | Result                                                                                                                                                                                                                                                                                                                               |
+| --- | ------------------------------------------------------------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Tighten lint config                                          | **DONE** (`da7460b`)        | 507 → 99 warnings; complexity & max-lines gates added; test-file overrides applied                                                                                                                                                                                                                                                   |
+| 2   | Eliminate non-boundary `any` usages                          | **PARTIAL**                 | Substituted with all-39-unused-vars cleanup (`2ff7ae1`). Non-null + `any` cleanup deferred to a future session.                                                                                                                                                                                                                      |
+| 3   | Split `agent.ts`                                             | **PARTIAL — 3 slices done** | Slice 1 (`8c20fdb`): permission + serialization. Slice 2 (`0d551b4`): BranchManager. Slice 3 (`5f63ece`): session-finalizer. agent.ts 1692 → 1557 raw (1152 → 1042 effective). Still over 800 gate; remaining work is in `run()` and `_prepareToolCall` which are deeply state-coupled.                                              |
+| 4   | Split `solve.ts` per phase                                   | NOT STARTED                 | 1 day estimate                                                                                                                                                                                                                                                                                                                       |
+| 5   | Refactor `cli.ts:main`                                       | **PARTIAL — 2 slices done** | Slice 1 (`9ca3bcf`): extracted vault/verify-audit/replay/daemon. Slice 2 (`9802318`): extracted heartbeat/init-policy/sandbox-info/export-audit/doctor/solve/task. cli.ts 836 → 526 lines, main complexity 139 → 66. Still over the 30 gate; remaining branches are the main agent flow (vault-mode, dashboard, agent construction). |
+| 6   | Lift `solve.js` coverage                                     | NOT STARTED                 | depends on step 4                                                                                                                                                                                                                                                                                                                    |
+| 7   | Decide on `dashboard/command-api.ts` and `tools/graphics.ts` | NOT STARTED                 | 1 hr                                                                                                                                                                                                                                                                                                                                 |
 
 **Lint warnings, full trajectory this session:**
+
 - Pre-audit: 507 (with old config)
 - After step 1: 99 (config split + new gates)
 - After step 2: 60 (all unused-vars eliminated)
@@ -261,6 +262,7 @@ If we do steps 1–3 in this session, the bottom line moves from B+ to A-/A. Ste
 **Test pass rate:** 2,205 / 2,205 throughout. Zero regressions.
 
 **Remaining 60 warnings break down as:**
+
 - 20 `complexity` — the named god functions (cli.ts:main 139, providers/anthropic chat 81, solve.ts run 80, cli/args parseArgs 78, providers/openai chat 74, agent.ts run 73, plus 14 in 30-50 range)
 - 35 `no-non-null-assertion` — production code; each worth individual review (some justified at boundaries, some replaceable with proper type guards)
 - 3 `max-lines` — agent.ts (1106 effective), command-api.ts (910), solve.ts (886)
@@ -271,29 +273,35 @@ If we do steps 1–3 in this session, the bottom line moves from B+ to A-/A. Ste
 Each of these is its own session because each requires careful sequencing and full context to do without breaking tests:
 
 **Session A — Continue agent.ts split (step 3 slices 2-N)**
+
 - Slice 2: extract branch management (`ensureBranch`, `sanitizeSlug`, `branchCreated`, related state) into `src/agent/branch-manager.ts` — ~50 lines out
 - Slice 3: extract finalization cluster (`finishRun`, `recordSessionEpisode`, `finalizeStateEngine`) into `src/agent/session-finalizer.ts` — ~60 lines out
 - Slice 4: consider extracting subsections of `run()` (the highest-complexity method); requires careful state-passing design
 - Goal: agent.ts under 800 effective lines; `run()` complexity below 30
 
 **Session B — `solve.ts` split (step 4)**
+
 - Each of the 8 phases (parse, clone, analyze, install, fix, test, self-review, PR) becomes its own module
 - Goal: `solve.ts` under 400 lines, `run()` complexity below 30, coverage measurable per phase
 
 **Session C — `cli.ts:main` refactor (step 5)**
+
 - Extract subcommand handlers (vault, heartbeat, init-policy, verify-audit, dashboard, etc.) into `src/cli/subcommands/*.ts`
 - Goal: `cli.ts:main` complexity below 30
 
 **Session D — Coverage lift (step 6)**
+
 - After step 4, write per-phase tests for each `solve/*.ts` module
 - Goal: solve.js line coverage above 60%
 
 **Session E — `any` cleanup (deferred step 2)**
+
 - Walk the 35 production `no-non-null-assertion` and 24 non-boundary `any` usages
 - Replace with proper type guards or document the boundary justification
 - Goal: production `any` count under 40 (~15 reduction); non-null assertions under 25
 
 **Session F — Decide and act on dashboard/command-api and tools/graphics (step 7)**
+
 - Either RFC explaining why they stay big, or split commits
 
 Each session is bounded, has a measurable goal, and should ship its own commit set with paired before/after metrics in the commit messages.
@@ -304,15 +312,15 @@ Estimated total remaining effort if all sessions are pursued: **5–7 days of fo
 
 Same dimension table as §9, after this session's commits:
 
-| Dimension | Before session | After session |
-|---|---|---|
-| Lint hygiene (production) | B+ (74 warnings) | A (39 unused-vars eliminated, gates added; ~25 production warnings remain, all real signal) |
-| Lint config quality | C | A- (test/prod split, gates configured) |
-| Tech-debt visibility | A | A (no change; was already exceptional) |
-| Cohesion / structure | C+ | B (agent.ts down 110 effective lines + 4 cleanly-separated submodules; cli.ts down 310 lines) |
-| Cyclomatic complexity | C | B- (cli.ts:main −73 points, all other gods still over) |
-| (other dimensions) | unchanged | unchanged |
-| **Composite** | **B+ / 84** | **A- / 88** |
+| Dimension                 | Before session   | After session                                                                                 |
+| ------------------------- | ---------------- | --------------------------------------------------------------------------------------------- |
+| Lint hygiene (production) | B+ (74 warnings) | A (39 unused-vars eliminated, gates added; ~25 production warnings remain, all real signal)   |
+| Lint config quality       | C                | A- (test/prod split, gates configured)                                                        |
+| Tech-debt visibility      | A                | A (no change; was already exceptional)                                                        |
+| Cohesion / structure      | C+               | B (agent.ts down 110 effective lines + 4 cleanly-separated submodules; cli.ts down 310 lines) |
+| Cyclomatic complexity     | C                | B- (cli.ts:main −73 points, all other gods still over)                                        |
+| (other dimensions)        | unchanged        | unchanged                                                                                     |
+| **Composite**             | **B+ / 84**      | **A- / 88**                                                                                   |
 
 A four-point composite lift from one session of bounded fixes. Real, not theater. Continued fixes (sessions A-F) would push the composite into the A range.
 

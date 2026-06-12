@@ -30,11 +30,7 @@ import type { CapabilityLabel } from '../types';
  * Mutating capability labels — verbs carrying any of these MUST
  * implement `preview` per §8.
  */
-const MUTATING_LABELS: ReadonlyArray<CapabilityLabel> = [
-  'send-on-behalf',
-  'delete-data',
-  'spend-money',
-];
+const MUTATING_LABELS: ReadonlyArray<CapabilityLabel> = ['send-on-behalf', 'delete-data', 'spend-money'];
 
 export interface ContractViolation {
   connector: string;
@@ -182,12 +178,8 @@ export function scoreConnector(c: Connector): ContractScore {
 export function assertContractClean(c: Connector): void {
   const violations = validateConnectorContract(c);
   if (violations.length === 0) return;
-  const lines = violations.map(
-    (v) => `  [${v.rule}] ${v.connector}.${v.action ?? '*'}: ${v.hint}`,
-  );
-  throw new Error(
-    `Connector "${c.name}" has ${violations.length} contract violation(s):\n${lines.join('\n')}`,
-  );
+  const lines = violations.map((v) => `  [${v.rule}] ${v.connector}.${v.action ?? '*'}: ${v.hint}`);
+  throw new Error(`Connector "${c.name}" has ${violations.length} contract violation(s):\n${lines.join('\n')}`);
 }
 
 /** Pretty-print a list of connector scores as a table for test output. */

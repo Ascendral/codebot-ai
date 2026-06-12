@@ -42,7 +42,10 @@ function parseCredential(cred: string): { email: string; token: string } {
   // Credential can be JSON { email, token } or just a token (with GMAIL_ADDRESS env)
   try {
     const parsed = JSON.parse(cred);
-    return { email: parsed.email || parsed.GMAIL_ADDRESS || '', token: parsed.token || parsed.GMAIL_APP_PASSWORD || '' };
+    return {
+      email: parsed.email || parsed.GMAIL_ADDRESS || '',
+      token: parsed.token || parsed.GMAIL_APP_PASSWORD || '',
+    };
   } catch {
     return { email: process.env.GMAIL_ADDRESS || '', token: cred };
   }
@@ -97,7 +100,7 @@ async function gmailFetch(
 
   try {
     const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     };
 
@@ -108,7 +111,7 @@ async function gmailFetch(
       signal: controller.signal,
     });
     clearTimeout(timer);
-    const data = await res.json() as Record<string, unknown>;
+    const data = (await res.json()) as Record<string, unknown>;
     return { status: res.status, data };
   } catch (err: unknown) {
     clearTimeout(timer);
@@ -131,7 +134,10 @@ async function gmailFetchOrReauth(
 ): Promise<{ status: number; data: Record<string, unknown> }> {
   const result = await gmailFetch(endpoint, token, method, body);
   if (isGmailAuthError(result.status, result.data)) {
-    const errMsg = String(((result.data?.error as Record<string, unknown> | undefined)?.message as string | undefined) ?? `HTTP ${result.status}`);
+    const errMsg = String(
+      ((result.data?.error as Record<string, unknown> | undefined)?.message as string | undefined) ??
+        `HTTP ${result.status}`,
+    );
     throw new ConnectorReauthError('gmail', `Gmail auth failed (${result.status}): ${errMsg}`);
   }
   return result;
@@ -154,7 +160,10 @@ const listEmails: ConnectorAction = {
     type: 'object',
     properties: {
       count: { type: 'number', description: 'Number of emails to list (default 10, max 50)' },
-      label: { type: 'string', description: 'Label to filter by (default INBOX). Options: INBOX, SENT, DRAFT, STARRED, UNREAD' },
+      label: {
+        type: 'string',
+        description: 'Label to filter by (default INBOX). Options: INBOX, SENT, DRAFT, STARRED, UNREAD',
+      },
     },
   },
   capabilities: ['read-only', 'account-access', 'net-fetch'],
@@ -178,14 +187,21 @@ const listEmails: ConnectorAction = {
       const results: string[] = [];
       for (const msg of messages.slice(0, count)) {
         try {
-          const { data: detail } = await gmailFetchOrReauth(`/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`, token);
+          const { data: detail } = await gmailFetchOrReauth(
+            `/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
+            token,
+          );
           const headers = (detail.payload as { headers: Array<{ name: string; value: string }> })?.headers || [];
-          const from = headers.find(h => h.name === 'From')?.value || '?';
-          const subject = headers.find(h => h.name === 'Subject')?.value || '(no subject)';
-          const date = headers.find(h => h.name === 'Date')?.value || '';
+          const from = headers.find((h) => h.name === 'From')?.value || '?';
+          const subject = headers.find((h) => h.name === 'Subject')?.value || '(no subject)';
+          const date = headers.find((h) => h.name === 'Date')?.value || '';
           const snippet = (detail.snippet as string) || '';
-          results.push(`  [${msg.id.substring(0, 8)}] ${from}\n    Subject: ${subject}\n    Date: ${date}\n    ${snippet.substring(0, 80)}`);
-        } catch { results.push(`  [${msg.id.substring(0, 8)}] (failed to load)`); }
+          results.push(
+            `  [${msg.id.substring(0, 8)}] ${from}\n    Subject: ${subject}\n    Date: ${date}\n    ${snippet.substring(0, 80)}`,
+          );
+        } catch {
+          results.push(`  [${msg.id.substring(0, 8)}] (failed to load)`);
+        }
       }
 
       return truncate(`Emails in ${label} (${messages.length} total):\n\n${results.join('\n\n')}`);
@@ -221,10 +237,10 @@ const readEmail: ConnectorAction = {
       if (status !== 200) return `Error: Gmail API ${status}: ${JSON.stringify(data).substring(0, 200)}`;
 
       const headers = (data.payload as { headers: Array<{ name: string; value: string }> })?.headers || [];
-      const from = headers.find(h => h.name === 'From')?.value || '?';
-      const to = headers.find(h => h.name === 'To')?.value || '?';
-      const subject = headers.find(h => h.name === 'Subject')?.value || '(no subject)';
-      const date = headers.find(h => h.name === 'Date')?.value || '';
+      const from = headers.find((h) => h.name === 'From')?.value || '?';
+      const to = headers.find((h) => h.name === 'To')?.value || '?';
+      const subject = headers.find((h) => h.name === 'Subject')?.value || '(no subject)';
+      const date = headers.find((h) => h.name === 'Date')?.value || '';
 
       // Extract body text
       let body = '';
@@ -233,7 +249,7 @@ const readEmail: ConnectorAction = {
         body = base64Decode((payload.body as Record<string, string>).data);
       } else if (payload?.parts) {
         const parts = payload.parts as Array<{ mimeType: string; body: { data: string } }>;
-        const textPart = parts.find(p => p.mimeType === 'text/plain') || parts[0];
+        const textPart = parts.find((p) => p.mimeType === 'text/plain') || parts[0];
         if (textPart?.body?.data) {
           body = base64Decode(textPart.body.data);
         }
@@ -283,12 +299,17 @@ const searchEmails: ConnectorAction = {
       const results: string[] = [];
       for (const msg of messages.slice(0, count)) {
         try {
-          const { data: detail } = await gmailFetchOrReauth(`/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`, token);
+          const { data: detail } = await gmailFetchOrReauth(
+            `/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
+            token,
+          );
           const headers = (detail.payload as { headers: Array<{ name: string; value: string }> })?.headers || [];
-          const from = headers.find(h => h.name === 'From')?.value || '?';
-          const subject = headers.find(h => h.name === 'Subject')?.value || '(no subject)';
+          const from = headers.find((h) => h.name === 'From')?.value || '?';
+          const subject = headers.find((h) => h.name === 'Subject')?.value || '(no subject)';
           results.push(`  [${msg.id.substring(0, 8)}] ${from} — ${subject}`);
-        } catch { results.push(`  [${msg.id.substring(0, 8)}] (failed to load)`); }
+        } catch {
+          results.push(`  [${msg.id.substring(0, 8)}] (failed to load)`);
+        }
       }
 
       return truncate(`Search results for "${query}" (${messages.length} matches):\n\n${results.join('\n')}`);
@@ -342,10 +363,7 @@ function previewSendEmail(args: Record<string, unknown>): ConnectorPreview {
   // attachments are added, preview gains an attachment summary in
   // that PR — not here.
 
-  const lines = [
-    `Would send via Gmail:`,
-    `  To:      ${to}`,
-  ];
+  const lines = [`Would send via Gmail:`, `  To:      ${to}`];
   if (cc) lines.push(`  Cc:      ${cc}`);
   lines.push(`  Subject: ${subject}`);
   lines.push(`  Body:    ${bodyDigest.length} chars (sha256:${bodyDigest.hash})`);

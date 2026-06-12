@@ -12,7 +12,11 @@ function makeTempDir(): string {
 }
 
 function cleanup(dir: string) {
-  try { fs.rmSync(dir, { recursive: true }); } catch { /* ok */ }
+  try {
+    fs.rmSync(dir, { recursive: true });
+  } catch {
+    /* ok */
+  }
 }
 
 describe('AuditLogger', () => {
@@ -22,7 +26,7 @@ describe('AuditLogger', () => {
       const logger = new AuditLogger(dir);
       logger.log({ tool: 'read_file', action: 'execute', args: { path: '/foo.ts' }, result: 'success' });
 
-      const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'));
+      const files = fs.readdirSync(dir).filter((f) => f.endsWith('.jsonl'));
       assert.ok(files.length > 0, 'Should create a log file');
 
       const content = fs.readFileSync(path.join(dir, files[0]), 'utf-8');
@@ -40,7 +44,7 @@ describe('AuditLogger', () => {
       const logger = new AuditLogger(dir);
       logger.log({ tool: 'write_file', action: 'execute', args: { path: '/bar.ts' } });
 
-      const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'));
+      const files = fs.readdirSync(dir).filter((f) => f.endsWith('.jsonl'));
       const content = fs.readFileSync(path.join(dir, files[0]), 'utf-8');
       const entry = JSON.parse(content.trim());
 
@@ -68,7 +72,7 @@ describe('AuditLogger', () => {
         args: { path: '/config.ts', content: 'api_key = AKIAIOSFODNN7EXAMPLE' },
       });
 
-      const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'));
+      const files = fs.readdirSync(dir).filter((f) => f.endsWith('.jsonl'));
       const content = fs.readFileSync(path.join(dir, files[0]), 'utf-8');
       assert.ok(!content.includes('AKIAIOSFODNN7EXAMPLE'), 'Full secret should be masked in logs');
       assert.ok(content.includes('****'), 'Should contain mask characters');
@@ -148,8 +152,10 @@ describe('AuditLogger', () => {
 
       const result = AuditLogger.verify(entries);
       assert.strictEqual(result.valid, false, 'Should detect tampering');
-      assert.ok(result.reason?.includes('Hash mismatch') || result.reason?.includes('Chain break'),
-        `Should explain failure: ${result.reason}`);
+      assert.ok(
+        result.reason?.includes('Hash mismatch') || result.reason?.includes('Chain break'),
+        `Should explain failure: ${result.reason}`,
+      );
     } finally {
       cleanup(dir);
     }
@@ -238,14 +244,22 @@ describe('AuditLogger', () => {
       logger.log({ tool: 'execute', action: 'exec_error', args: {}, reason: 'spawn failed' });
       // PR 5 additions
       logger.log({ tool: 'router', action: 'switch', args: { tier: 'reasoning', from: 'sonnet', to: 'opus' } });
-      logger.log({ tool: 'router', action: 'fallback', args: { tier: 'fast', desiredFamily: 'openai' }, reason: 'cross-provider' });
+      logger.log({
+        tool: 'router',
+        action: 'fallback',
+        args: { tier: 'fast', desiredFamily: 'openai' },
+        reason: 'cross-provider',
+      });
       // PR 6 additions
       logger.log({ tool: 'budget', action: 'budget_warning', args: { threshold: 0.5, ratio: 0.6 } });
       logger.log({ tool: 'budget', action: 'budget_block', args: { totalCostUsd: 1.06, effectiveCapUsd: 1.0 } });
 
       const result = logger.verifySession();
-      assert.strictEqual(result.valid, true,
-        `verifier rejected a clean chain across full action union: ${result.reason}`);
+      assert.strictEqual(
+        result.valid,
+        true,
+        `verifier rejected a clean chain across full action union: ${result.reason}`,
+      );
       assert.strictEqual(result.entriesChecked, 14);
     } finally {
       cleanup(dir);
@@ -263,7 +277,7 @@ describe('AuditLogger', () => {
       logger.log({ tool: 'execute', action: 'execute', args: { cmd: 'ls' } });
 
       // Tamper the router entry's args after the fact.
-      const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'));
+      const files = fs.readdirSync(dir).filter((f) => f.endsWith('.jsonl'));
       const file = path.join(dir, files[0]);
       const lines = fs.readFileSync(file, 'utf-8').trim().split('\n');
       const tamperedLine = lines[1].replace('"to":"opus"', '"to":"haiku"');
@@ -272,8 +286,7 @@ describe('AuditLogger', () => {
 
       const reloaded = new AuditLogger(dir);
       const result = reloaded.verifySession(logger.getSessionId());
-      assert.strictEqual(result.valid, false,
-        'verifier must catch tampering on a router:switch entry');
+      assert.strictEqual(result.valid, false, 'verifier must catch tampering on a router:switch entry');
       assert.strictEqual(result.firstInvalidAt, 2);
     } finally {
       cleanup(dir);
@@ -288,7 +301,7 @@ describe('AuditLogger', () => {
       logger.log({ tool: 'budget', action: 'budget_block', args: { totalCostUsd: 1.5, effectiveCapUsd: 1.0 } });
       logger.log({ tool: 'execute', action: 'execute', args: { cmd: 'b' } });
 
-      const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'));
+      const files = fs.readdirSync(dir).filter((f) => f.endsWith('.jsonl'));
       const file = path.join(dir, files[0]);
       const lines = fs.readFileSync(file, 'utf-8').trim().split('\n');
       // Try to make it look like the budget cap was higher than it was
@@ -297,8 +310,7 @@ describe('AuditLogger', () => {
 
       const reloaded = new AuditLogger(dir);
       const result = reloaded.verifySession(logger.getSessionId());
-      assert.strictEqual(result.valid, false,
-        'verifier must catch tampering on a budget_block entry');
+      assert.strictEqual(result.valid, false, 'verifier must catch tampering on a budget_block entry');
     } finally {
       cleanup(dir);
     }
@@ -330,7 +342,7 @@ describe('AuditLogger', () => {
       assert.strictEqual(bBefore.entriesChecked, 2);
 
       // Tamper b's first entry only.
-      const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'));
+      const files = fs.readdirSync(dir).filter((f) => f.endsWith('.jsonl'));
       const file = path.join(dir, files[0]);
       const content = fs.readFileSync(file, 'utf-8');
       const tampered = content.replace('"tool":"edit_file"', '"tool":"write_file"');
@@ -339,10 +351,8 @@ describe('AuditLogger', () => {
       // a should still be valid; b should be invalid.
       const aAfter = new AuditLogger(dir).verifySession(a.getSessionId());
       const bAfter = new AuditLogger(dir).verifySession(b.getSessionId());
-      assert.strictEqual(aAfter.valid, true,
-        'session a is unaffected by tampering in session b');
-      assert.strictEqual(bAfter.valid, false,
-        'session b verifier catches its own tampering');
+      assert.strictEqual(aAfter.valid, true, 'session a is unaffected by tampering in session b');
+      assert.strictEqual(bAfter.valid, false, 'session b verifier catches its own tampering');
     } finally {
       cleanup(dir);
     }
@@ -356,8 +366,22 @@ describe('AuditLogger', () => {
     // killing the whole --verify-audit loop on real user data.
     const sid = 'legacy-session-abc';
     const legacyEntries = [
-      { timestamp: '2026-02-28T10:00:00Z', sessionId: sid, tool: 'read_file', action: 'execute', args: { path: '/a' }, result: 'ok' },
-      { timestamp: '2026-02-28T10:00:01Z', sessionId: sid, tool: 'write_file', action: 'execute', args: { path: '/b' }, result: 'ok' },
+      {
+        timestamp: '2026-02-28T10:00:00Z',
+        sessionId: sid,
+        tool: 'read_file',
+        action: 'execute',
+        args: { path: '/a' },
+        result: 'ok',
+      },
+      {
+        timestamp: '2026-02-28T10:00:01Z',
+        sessionId: sid,
+        tool: 'write_file',
+        action: 'execute',
+        args: { path: '/b' },
+        result: 'ok',
+      },
     ] as unknown as Parameters<typeof AuditLogger.verify>[0];
 
     let result!: ReturnType<typeof AuditLogger.verify>;
@@ -367,10 +391,11 @@ describe('AuditLogger', () => {
 
     assert.strictEqual(result.valid, false);
     assert.strictEqual(result.legacy, true, 'should flag entries as legacy');
-    assert.ok(result.reason && result.reason.includes('legacy unhashed'),
-      `reason should mention legacy unhashed entries, got: ${result.reason}`);
-    assert.ok(result.reason && result.reason.includes(sid),
-      `reason should include sessionId, got: ${result.reason}`);
+    assert.ok(
+      result.reason && result.reason.includes('legacy unhashed'),
+      `reason should mention legacy unhashed entries, got: ${result.reason}`,
+    );
+    assert.ok(result.reason && result.reason.includes(sid), `reason should include sessionId, got: ${result.reason}`);
   });
 
   it('flags mixed chains (some hashed, some not) as corruption, not legacy', () => {
@@ -387,13 +412,15 @@ describe('AuditLogger', () => {
         tool: 'read_file',
         action: 'execute',
         args: {},
-      } as unknown as typeof hashed[0];
+      } as unknown as (typeof hashed)[0];
 
       const result = AuditLogger.verify([...hashed, legacyOrphan]);
       assert.strictEqual(result.valid, false);
       assert.notStrictEqual(result.legacy, true, 'mixed chain must NOT be silently skipped as legacy');
-      assert.ok(result.reason && result.reason.includes('mixed chain'),
-        `reason should mention mixed chain, got: ${result.reason}`);
+      assert.ok(
+        result.reason && result.reason.includes('mixed chain'),
+        `reason should mention mixed chain, got: ${result.reason}`,
+      );
     } finally {
       cleanup(dir);
     }
@@ -407,9 +434,7 @@ describe('AuditLogger', () => {
     const dir = makeTempDir();
     try {
       const logger = new AuditLogger(dir);
-      const actions: Array<'execute' | 'switch' | 'budget_warning'> = [
-        'execute', 'switch', 'budget_warning',
-      ];
+      const actions: Array<'execute' | 'switch' | 'budget_warning'> = ['execute', 'switch', 'budget_warning'];
       for (let i = 0; i < 100; i++) {
         logger.log({
           tool: i % 3 === 0 ? 'router' : i % 3 === 1 ? 'budget' : 'execute',
@@ -430,23 +455,20 @@ describe('AuditLogger', () => {
     try {
       const tokens = {
         github_pat: 'github_pat_AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIIIJJJJKKKKLLLLMMMMNNNNOOOOPPPPQQQQRRRRSSSSTTTT',
-        anthropic:  'sk-ant-api03-' + 'A'.repeat(95),
-        openai_proj:'sk-proj-' + 'B'.repeat(60),
-        google:     'AIza' + 'C'.repeat(35),
-        groq:       'gsk_' + 'D'.repeat(48),
-        ghp:        'ghp_' + 'E'.repeat(40),
+        anthropic: 'sk-ant-api03-' + 'A'.repeat(95),
+        openai_proj: 'sk-proj-' + 'B'.repeat(60),
+        google: 'AIza' + 'C'.repeat(35),
+        groq: 'gsk_' + 'D'.repeat(48),
+        ghp: 'ghp_' + 'E'.repeat(40),
       };
       const logger = new AuditLogger(dir);
       logger.log({ tool: 'sensitive_tool', action: 'execute', args: tokens });
 
-      const files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'));
+      const files = fs.readdirSync(dir).filter((f) => f.endsWith('.jsonl'));
       const content = fs.readFileSync(path.join(dir, files[0]), 'utf-8');
 
       for (const [name, tok] of Object.entries(tokens)) {
-        assert.ok(
-          !content.includes(tok),
-          `Audit JSONL leaked full ${name} token: ${tok.substring(0, 12)}…`
-        );
+        assert.ok(!content.includes(tok), `Audit JSONL leaked full ${name} token: ${tok.substring(0, 12)}…`);
       }
       assert.ok(content.includes('****'), 'Expected masked marker in audit content');
     } finally {

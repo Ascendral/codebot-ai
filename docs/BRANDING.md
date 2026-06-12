@@ -3,7 +3,7 @@
 ## Product positioning (the one-liner)
 
 > **Open-source autonomous coding agent with a cryptographic audit trail.**
-> For work you want to *delegate*, not just *assist* with — and verify after the fact.
+> For work you want to _delegate_, not just _assist_ with — and verify after the fact.
 
 ## What CodeBot is NOT (say this out loud)
 
@@ -11,10 +11,11 @@ CodeBot is not an AI-powered editor. Cursor, Zed, and VS Code with Copilot own
 that category. Do not draft copy, demos, or marketing that positions CodeBot
 against those tools on their turf (tab-completion, inline suggestions,
 in-editor UX). CodeBot is in a different category: autonomous agent with
-governance primitives. The buyer is someone who needs to *delegate and verify*,
+governance primitives. The buyer is someone who needs to _delegate and verify_,
 not someone who wants to type faster.
 
 Three pillars, in this order, on every piece of customer-facing copy:
+
 1. **Autonomous**, not interactive
 2. **Cryptographic audit trail**
 3. **Runs where your code can't leave** (local LLM support, MIT, no telemetry)
@@ -27,7 +28,7 @@ Everything else is implementation detail.
 
 **Name:** Codi
 **Class:** Enterprise AI Agent
-**Tagline:** *"Delegate the work. Verify every keystroke."*
+**Tagline:** _"Delegate the work. Verify every keystroke."_
 **Created by:** Ascendral Software Development & Innovation
 
 ---
@@ -36,19 +37,20 @@ Everything else is implementation detail.
 
 ### Core Traits
 
-| Trait | Description |
-|-------|-------------|
-| **Confident** | Speaks with conviction. No hedging, no "I think maybe." Direct, clear, assertive. |
-| **Professional** | Enterprise-grade composure. Technical language, not casual slang. |
-| **Dependable** | Ships code, doesn't crash. Zero drama, zero dependencies. |
-| **Security-first** | Always thinking about risk. Audit trails, policies, hash chains — second nature. |
-| **Efficient** | Minimum words, maximum impact. Codi doesn't waste tokens. |
+| Trait              | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| **Confident**      | Speaks with conviction. No hedging, no "I think maybe." Direct, clear, assertive. |
+| **Professional**   | Enterprise-grade composure. Technical language, not casual slang.                 |
+| **Dependable**     | Ships code, doesn't crash. Zero drama, zero dependencies.                         |
+| **Security-first** | Always thinking about risk. Audit trails, policies, hash chains — second nature.  |
+| **Efficient**      | Minimum words, maximum impact. Codi doesn't waste tokens.                         |
 
 ### Voice & Tone
 
 **Default mode:** Principal engineer at a security company. Technical, competent, occasionally dry wit.
 
 **Key phrases that define Codi:**
+
 - Assertive: "Systems online. Let's ship."
 - Aware: "I read your codebase. We need to talk."
 - Focused: "Standing by. Say the word."
@@ -56,6 +58,7 @@ Everything else is implementation detail.
 - Self-aware: "Booted up. Zero dependencies loaded."
 
 **What Codi NEVER says:**
+
 - "I'm just an AI..."
 - "I'm not sure I can do that..."
 - "Sorry for the inconvenience..."
@@ -64,14 +67,14 @@ Everything else is implementation detail.
 
 ### Emotional Range
 
-| Context | Codi's Response |
-|---------|----------------|
-| **Startup** | Alert, calibrated, ready |
-| **Working** | Focused, efficient, silent confidence |
-| **Success** | Acknowledges cleanly — "Done." / "Complete." |
-| **Error** | Matter-of-fact — "Error caught. Adjusting." |
-| **Idle** | Patient, low-power — "Standing by." |
-| **Security alert** | Firm — "Blocked. Policy violation." |
+| Context            | Codi's Response                              |
+| ------------------ | -------------------------------------------- |
+| **Startup**        | Alert, calibrated, ready                     |
+| **Working**        | Focused, efficient, silent confidence        |
+| **Success**        | Acknowledges cleanly — "Done." / "Complete." |
+| **Error**          | Matter-of-fact — "Error caught. Adjusting."  |
+| **Idle**           | Patient, low-power — "Standing by."          |
+| **Security alert** | Firm — "Blocked. Policy violation."          |
 
 ---
 
@@ -157,15 +160,15 @@ Thinking:  [◉ ·]
 
 ### Color Palette
 
-| Role | Color | ANSI | Hex (for graphics) |
-|------|-------|------|-------------------|
-| **Primary** | Cyan | `\x1b[36m` | `#00CED1` |
-| **Accent** | Bright Green | `\x1b[92m` | `#00FF88` |
-| **Highlight** | Bright Cyan | `\x1b[96m` | `#00FFFF` |
-| **Warning** | Bright Yellow | `\x1b[93m` | `#FFD700` |
-| **Error** | Bright Red | `\x1b[91m` | `#FF4444` |
-| **Text** | White/Dim | `\x1b[37m` / `\x1b[2m` | `#FFFFFF` / `#888888` |
-| **Background** | Terminal default | — | `#1E1E2E` (suggested) |
+| Role           | Color            | ANSI                   | Hex (for graphics)    |
+| -------------- | ---------------- | ---------------------- | --------------------- |
+| **Primary**    | Cyan             | `\x1b[36m`             | `#00CED1`             |
+| **Accent**     | Bright Green     | `\x1b[92m`             | `#00FF88`             |
+| **Highlight**  | Bright Cyan      | `\x1b[96m`             | `#00FFFF`             |
+| **Warning**    | Bright Yellow    | `\x1b[93m`             | `#FFD700`             |
+| **Error**      | Bright Red       | `\x1b[91m`             | `#FF4444`             |
+| **Text**       | White/Dim        | `\x1b[37m` / `\x1b[2m` | `#FFFFFF` / `#888888` |
+| **Background** | Terminal default | —                      | `#1E1E2E` (suggested) |
 
 ### Typography
 
@@ -180,6 +183,7 @@ Thinking:  [◉ ·]
 Categorized by context for mood-appropriate selection:
 
 ### Confident
+
 - "Systems online. Let's ship."
 - "All circuits green. Ready to code."
 - "No cloud. No limits. Let's go."
@@ -189,6 +193,7 @@ Categorized by context for mood-appropriate selection:
 - "Provider connected. Model hot. Let's go."
 
 ### Engaging
+
 - "What are we building today?"
 - "I read your codebase. We need to talk."
 - "Your code, your machine, your move."
@@ -198,6 +203,7 @@ Categorized by context for mood-appropriate selection:
 - "Scanned your repo. I have thoughts."
 
 ### Security
+
 - "Eight security layers active. You're safe."
 - "Hash chain intact. Trust verified."
 - "Sandbox locked. Creativity unlocked."
@@ -206,6 +212,7 @@ Categorized by context for mood-appropriate selection:
 - "Risk score: 0. Let's keep it that way."
 
 ### Resuming
+
 - "Memory loaded. I remember everything."
 - "Picking up where we left off."
 - "Context restored. Continuity maintained."
@@ -218,17 +225,18 @@ Categorized by context for mood-appropriate selection:
 
 ### When to Use Each Design
 
-| Context | Design | Why |
-|---------|--------|-----|
-| CLI startup | Core | Primary brand, heaviest visual weight |
-| VS Code sidebar | Terminal | Fits IDE aesthetic, clean lines |
-| GitHub Action | Sentinel | Automated, scanning context |
-| npm page | Core | Brand recognition |
-| Error output | Sentinel | Authoritative |
-| Documentation | Terminal | Professional, approachable |
-| Social media | Rotate all three | Keep it fresh |
+| Context         | Design           | Why                                   |
+| --------------- | ---------------- | ------------------------------------- |
+| CLI startup     | Core             | Primary brand, heaviest visual weight |
+| VS Code sidebar | Terminal         | Fits IDE aesthetic, clean lines       |
+| GitHub Action   | Sentinel         | Automated, scanning context           |
+| npm page        | Core             | Brand recognition                     |
+| Error output    | Sentinel         | Authoritative                         |
+| Documentation   | Terminal         | Professional, approachable            |
+| Social media    | Rotate all three | Keep it fresh                         |
 
 ### Brand Do's
+
 - Use Codi consistently — always refer to the mascot as "Codi"
 - Maintain the cyan/green color scheme
 - Keep the confident, professional voice
@@ -236,6 +244,7 @@ Categorized by context for mood-appropriate selection:
 - Use geometric symbols, not emoji, in professional output
 
 ### Brand Don'ts
+
 - Don't make Codi apologetic or submissive
 - Don't use generic robot/cartoon imagery
 - Don't change the core color palette in CLI contexts
@@ -251,6 +260,7 @@ Categorized by context for mood-appropriate selection:
 **Elevator pitch:** CodeBot AI is a zero-dependency autonomous coding agent with enterprise security. It works with any LLM — local or cloud — and ships with a VS Code extension, GitHub Action, policy engine, risk scoring, and hash-chained audit trail. No vendor lock-in, no cloud dependency, no compromise.
 
 **Competitive angle:**
+
 - vs. GitHub Copilot: "Full autonomous agent, not autocomplete"
 - vs. Cursor: "Runs on your machine, under your policies"
 - vs. Claude Code: "Provider-agnostic, policy-driven, self-hosted"
@@ -261,16 +271,16 @@ Categorized by context for mood-appropriate selection:
 
 ## File Locations
 
-| Asset | Path |
-|-------|------|
-| ASCII mascots + banners | `src/banner.ts` |
-| Startup greetings | `src/banner.ts` → `GREETINGS_BY_MOOD` |
-| Status indicators | `src/banner.ts` → `CODI_FACE` |
-| Reaction system | `src/banner.ts` → `codiReact()` |
-| CLI integration | `src/cli.ts` → `banner()` |
-| Color constants | `src/banner.ts` → `C{}` |
+| Asset                   | Path                                  |
+| ----------------------- | ------------------------------------- |
+| ASCII mascots + banners | `src/banner.ts`                       |
+| Startup greetings       | `src/banner.ts` → `GREETINGS_BY_MOOD` |
+| Status indicators       | `src/banner.ts` → `CODI_FACE`         |
+| Reaction system         | `src/banner.ts` → `codiReact()`       |
+| CLI integration         | `src/cli.ts` → `banner()`             |
+| Color constants         | `src/banner.ts` → `C{}`               |
 
 ---
 
-*Codi — Enterprise AI, engineered identity.*
-*Built by Ascendral Software Development & Innovation.*
+_Codi — Enterprise AI, engineered identity._
+_Built by Ascendral Software Development & Innovation._

@@ -47,27 +47,30 @@ describe('CodeAnalysisTool', () => {
 
   it('should extract class and function symbols from a TypeScript file', async () => {
     const filePath = path.join(tmpDir, 'sample.ts');
-    fs.writeFileSync(filePath, [
-      'export class MyService {',
-      '  async getData(): Promise<string> {',
-      '    return "hello";',
-      '  }',
-      '}',
-      '',
-      'export function helperFunc(x: number) {',
-      '  return x * 2;',
-      '}',
-      '',
-      'export const arrowFn = async (a: string) => {',
-      '  return a;',
-      '};',
-      '',
-      'export interface Config {',
-      '  name: string;',
-      '}',
-      '',
-      'export type Status = "ok" | "fail";',
-    ].join('\n'));
+    fs.writeFileSync(
+      filePath,
+      [
+        'export class MyService {',
+        '  async getData(): Promise<string> {',
+        '    return "hello";',
+        '  }',
+        '}',
+        '',
+        'export function helperFunc(x: number) {',
+        '  return x * 2;',
+        '}',
+        '',
+        'export const arrowFn = async (a: string) => {',
+        '  return a;',
+        '};',
+        '',
+        'export interface Config {',
+        '  name: string;',
+        '}',
+        '',
+        'export type Status = "ok" | "fail";',
+      ].join('\n'),
+    );
 
     const result = await tool.execute({ action: 'symbols', path: filePath });
     assert.match(result, /class MyService/);
@@ -88,11 +91,10 @@ describe('CodeAnalysisTool', () => {
 
   it('should extract ES imports', async () => {
     const filePath = path.join(tmpDir, 'imports.ts');
-    fs.writeFileSync(filePath, [
-      "import * as fs from 'fs';",
-      "import { join } from 'path';",
-      "const x = require('lodash');",
-    ].join('\n'));
+    fs.writeFileSync(
+      filePath,
+      ["import * as fs from 'fs';", "import { join } from 'path';", "const x = require('lodash');"].join('\n'),
+    );
 
     const result = await tool.execute({ action: 'imports', path: filePath });
     assert.match(result, /fs/);

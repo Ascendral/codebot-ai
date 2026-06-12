@@ -76,9 +76,13 @@ export class DashboardServer {
   async start(): Promise<{ port: number; url: string }> {
     return new Promise((resolve, reject) => {
       this.server = http.createServer((req, res) => {
-        this.handleRequest(req, res).catch(_err => {
+        this.handleRequest(req, res).catch((_err) => {
           if (!res.writableEnded && !res.destroyed) {
-            try { DashboardServer.error(res, 500, 'Internal Server Error'); } catch { /* gone */ }
+            try {
+              DashboardServer.error(res, 500, 'Internal Server Error');
+            } catch {
+              /* gone */
+            }
           }
         });
       });
@@ -88,30 +92,32 @@ export class DashboardServer {
       this.server.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EADDRINUSE') {
           // Auto-kill stale dashboard process and retry once
-          this.killStaleProcess(this.port).then(killed => {
-            if (killed) {
-              // Retry after killing stale process
-              this.server = http.createServer((req2, res2) => {
-                this.handleRequest(req2, res2).catch(e => {
-                  console.error('Dashboard server error:', e);
-                  DashboardServer.error(res2, 500, 'Internal Server Error');
+          this.killStaleProcess(this.port)
+            .then((killed) => {
+              if (killed) {
+                // Retry after killing stale process
+                this.server = http.createServer((req2, res2) => {
+                  this.handleRequest(req2, res2).catch((e) => {
+                    console.error('Dashboard server error:', e);
+                    DashboardServer.error(res2, 500, 'Internal Server Error');
+                  });
                 });
-              });
-              this.server.on('error', (retryErr: NodeJS.ErrnoException) => {
-                reject(new Error(`Port ${this.port} still in use after killing stale process: ${retryErr.message}`));
-              });
-              this.server.listen(this.port, this.host, () => {
-                this.running = true;
-                const url = `http://${this.host}:${this.port}`;
-                console.log(`Dashboard recovered — killed stale process on port ${this.port}`);
-                resolve({ port: this.port, url });
-              });
-            } else {
-              reject(new Error(`Port ${this.port} is already in use (could not kill stale process)`));
-            }
-          }).catch(() => {
-            reject(new Error(`Port ${this.port} is already in use`));
-          });
+                this.server.on('error', (retryErr: NodeJS.ErrnoException) => {
+                  reject(new Error(`Port ${this.port} still in use after killing stale process: ${retryErr.message}`));
+                });
+                this.server.listen(this.port, this.host, () => {
+                  this.running = true;
+                  const url = `http://${this.host}:${this.port}`;
+                  console.log(`Dashboard recovered — killed stale process on port ${this.port}`);
+                  resolve({ port: this.port, url });
+                });
+              } else {
+                reject(new Error(`Port ${this.port} is already in use (could not kill stale process)`));
+              }
+            })
+            .catch(() => {
+              reject(new Error(`Port ${this.port} is already in use`));
+            });
         } else {
           reject(err);
         }
@@ -133,13 +139,20 @@ export class DashboardServer {
     try {
       const output = execSync(`lsof -ti :${port}`, { encoding: 'utf8', timeout: 3000 }).trim();
       if (!output) return false;
-      const pids = output.split('\n').map(p => parseInt(p, 10)).filter(p => p > 0 && p !== process.pid);
+      const pids = output
+        .split('\n')
+        .map((p) => parseInt(p, 10))
+        .filter((p) => p > 0 && p !== process.pid);
       if (pids.length === 0) return false;
       for (const pid of pids) {
-        try { process.kill(pid, 'SIGTERM'); } catch { /* already dead */ }
+        try {
+          process.kill(pid, 'SIGTERM');
+        } catch {
+          /* already dead */
+        }
       }
       // Wait for port to free
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, 1500));
       return true;
     } catch {
       return false;
@@ -262,7 +275,7 @@ export class DashboardServer {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -273,13 +286,22 @@ export class DashboardServer {
   /** Send a single SSE data event (safe — ignores closed connections) */
   static sseSend(res: http.ServerResponse, data: unknown): void {
     if (res.writableEnded || res.destroyed) return;
-    try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch { /* client gone */ }
+    try {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    } catch {
+      /* client gone */
+    }
   }
 
   /** Close an SSE stream (safe — checks if writable) */
   static sseClose(res: http.ServerResponse): void {
     if (res.writableEnded || res.destroyed) return;
-    try { res.write('data: [DONE]\n\n'); res.end(); } catch { /* client gone */ }
+    try {
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch {
+      /* client gone */
+    }
   }
 
   // ── Private methods ──
