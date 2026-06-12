@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.10.3] — 2026-06-11
+
+### Fixed
+
+- **`autoApprove` actually stops prompts now (CLI).** With `autoApprove: true`, routine actions (file writes, shell commands, fetches) still prompted on every call, because those tools carry capability labels (`write-fs`, `run-cmd`, `net-fetch`) whose gates are immune to `autoApprove` by design — and the only suppressor, `--allow-capability`, was read solely from argv with no way to persist. `resolveCapabilities` now also reads a persistent `allowedCapabilities` array from `~/.codebot/config.json`, merged with the CLI flag. Both are validated through `parseAllowCapabilityFlag`, so the four NEVER_ALLOWABLE labels (`send-on-behalf`, `delete-data`, `spend-money`, `move-money`) are still rejected from config too and always require per-call approval.
+- **Desktop dashboard honored the config setting incorrectly.** The dashboard chat handler read `body.autoApprove === true`, collapsing "field absent" into `false` and flipping the agent's `autoApprove` from true→false on every request — silently overriding `config.json`. It now only overrides when `body.autoApprove` is explicitly a boolean.
+- **Desktop app defaults to no prompts.** The Electron app launches the dashboard subprocess with `--autonomous` by default (opt back into prompts with `CODEBOT_DASHBOARD_PROMPTS=1`), alongside the existing max-trust `--allow-capability` set.
+
 ## [2.10.1] — 2026-05-09
 
 ### Added
