@@ -95,6 +95,31 @@ def find_codebot_binary() -> str:
     )
 
 
+def provider_for_model(model: str) -> Optional[str]:
+    """Map a model id to its codebot provider.
+
+    Without an explicit --provider, codebot falls back to the local Ollama
+    provider (localhost:11434) for any cloud model, which then 404s ("model
+    not found ... via local"). We mirror codebot's own provider registry
+    prefixes so cloud models route to the right API.
+    """
+    m = model.lower()
+    if m.startswith("claude") or m.startswith("anthropic"):
+        return "anthropic"
+    if m.startswith(("gpt", "o1", "o3", "o4")):
+        return "openai"
+    if m.startswith("gemini"):
+        return "gemini"
+    if m.startswith("deepseek"):
+        return "deepseek"
+    if m.startswith(("grok", "xai")):
+        return "xai"
+    if m.startswith("mistral"):
+        return "mistral"
+    # Unknown / local model (e.g. qwen2.5-coder:32b) — let codebot default.
+    return None
+
+
 def run_one_task(
     instance: dict,
     codebot_bin: str,
@@ -169,10 +194,14 @@ def run_one_task(
         # separately via `git diff` after the call. `--max-iterations 75`
         # bumps the agent's per-task budget above the 50-default since
         # SWE-bench tasks routinely need more steps (Tier 2.2).
+        provider = provider_for_model(model)
+        provider_args = ["--provider", provider] if provider else []
+
         def invoke_codebot(prompt: str, label: str) -> int:
-            log(f"invoking codebot --auto --model {model} --max-iterations 75 ({label})")
+            prov_str = f" --provider {provider}" if provider else ""
+            log(f"invoking codebot --auto{prov_str} --model {model} --max-iterations 75 ({label})")
             proc = subprocess.run(
-                [codebot_bin, "--auto", "--model", model, "--max-iterations", "75", prompt],
+                [codebot_bin, "--auto", *provider_args, "--model", model, "--max-iterations", "75", prompt],
                 cwd=str(workdir),
                 capture_output=True,
                 text=True,
