@@ -298,7 +298,23 @@ export function registerApiRoutes(server: DashboardServer, projectRoot?: string)
     config.provider = effectiveProvider;
     if (body.model) config.model = body.model;
     if (body.apiKey) config.apiKey = body.apiKey;
-    if (body.baseUrl) config.baseUrl = body.baseUrl;
+    if (body.baseUrl) {
+      config.baseUrl = body.baseUrl;
+    } else {
+      // BUG FIX: switching models in the dropdown sent {provider, model}
+      // with NO baseUrl, so the old code left config.baseUrl untouched.
+      // Switching from a cloud model (e.g. Groq) to a local Ollama model
+      // therefore kept the cloud URL, and the agent shipped the Ollama
+      // model name to the cloud endpoint → "model not found". Always
+      // re-derive baseUrl from the effective provider when the caller
+      // doesn't pin one explicitly.
+      if (effectiveProvider === 'local' || effectiveProvider === 'ollama') {
+        config.baseUrl = 'http://localhost:11434';
+      } else {
+        const defaults = PROVIDER_DEFAULTS[effectiveProvider];
+        if (defaults?.baseUrl) config.baseUrl = defaults.baseUrl;
+      }
+    }
     saveSetupConfig(config);
 
     const response: Record<string, unknown> = {
