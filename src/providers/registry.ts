@@ -233,6 +233,11 @@ export const MODEL_REGISTRY: Record<string, ModelInfo> = {
   'deepseek-reasoner': { contextWindow: 65536, supportsToolCalling: true, provider: 'deepseek' },
 
   // ── Groq (OpenAI-compatible, fast inference) ───────────────────────────────
+  // gpt-oss fits Groq's free-tier tokens-per-minute budget; the llama/qwen
+  // models 413 on free tier with CodeBot's ~13.5k-token prompt. gpt-oss-120b
+  // is the best free + fast option (~1s answers, verified).
+  'openai/gpt-oss-120b': { contextWindow: 131072, supportsToolCalling: true, provider: 'groq' },
+  'openai/gpt-oss-20b': { contextWindow: 131072, supportsToolCalling: true, provider: 'groq' },
   'llama-3.3-70b-versatile': { contextWindow: 131072, supportsToolCalling: true, provider: 'groq' },
   'llama-3.1-8b-instant': { contextWindow: 131072, supportsToolCalling: true, provider: 'groq' },
   'mixtral-8x7b-32768': { contextWindow: 32768, supportsToolCalling: true, provider: 'groq' },

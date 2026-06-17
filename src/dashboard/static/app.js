@@ -1003,6 +1003,11 @@ const App = {
             var opt = document.createElement('option');
             opt.value = m.model;
             opt.textContent = m.model;
+            // Remember the authoritative provider this model was grouped
+            // under, so changeModel doesn't have to re-guess from the name
+            // (model ids like "openai/gpt-oss-120b" are Groq models but a
+            // name-prefix heuristic would misroute them to OpenAI/local).
+            opt.dataset.provider = provider;
             if (!available) opt.disabled = true;
             if (m.model === currentModel) opt.selected = true;
             group.appendChild(opt);
@@ -1031,6 +1036,19 @@ const App = {
       });
   },
 
+  // Look up the provider the server grouped a model under, by reading the
+  // matching <option>'s data-provider. Returns null if not found.
+  _providerForModel(model) {
+    var sel = document.getElementById('model-select');
+    if (!sel) return null;
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === model) {
+        return sel.options[i].dataset.provider || null;
+      }
+    }
+    return null;
+  },
+
   _detectProvider(model) {
     if (model.startsWith('claude')) return 'anthropic';
     if (model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4'))
@@ -1045,7 +1063,10 @@ const App = {
 
   changeModel(model) {
     if (!model) return;
-    var provider = this._detectProvider(model);
+    // Prefer the provider the server grouped this model under (stored on
+    // the <option> in loadModels). Fall back to name-heuristic detection
+    // only if we can't find the option (e.g. programmatic calls).
+    var provider = this._providerForModel(model) || this._detectProvider(model);
 
     // Check if provider has API key
     if (provider !== 'local' && this._modelProviderAvailable && !this._modelProviderAvailable[provider]) {
