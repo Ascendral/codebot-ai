@@ -53,6 +53,28 @@ export class OpenAIProvider implements LLMProvider {
     this.supportsJsonMode = modelInfo.supportsJsonMode || false;
   }
 
+  /**
+   * Build an API endpoint URL. Most OpenAI-compatible providers
+   * (OpenAI, Groq, Ollama) take a versionless baseUrl and expect us to
+   * append `/v1/<suffix>`. Gemini's OpenAI-compat endpoint is different:
+   * its baseUrl ALREADY carries a version
+   * (`.../v1beta/openai`), so prepending another `/v1` yields
+   * `.../v1beta/openai/v1/chat/completions` → 404. Detect an
+   * already-versioned path and skip the extra `/v1`.
+   */
+  private endpoint(suffix: string): string {
+    let pathname = '';
+    try {
+      pathname = new URL(this.config.baseUrl).pathname;
+    } catch {
+      /* malformed baseUrl — fall back to the default versioned path */
+    }
+    const alreadyVersioned = /\/v\d/.test(pathname);
+    return alreadyVersioned
+      ? `${this.config.baseUrl}${suffix}`
+      : `${this.config.baseUrl}/v1${suffix}`;
+  }
+
   async *chat(messages: Message[], tools?: ToolSchema[]): AsyncGenerator<StreamEvent> {
     const isLocal = this.config.baseUrl.includes('localhost') || this.config.baseUrl.includes('127.0.0.1');
 
@@ -102,7 +124,7 @@ export class OpenAIProvider implements LLMProvider {
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        response = await fetch(`${this.config.baseUrl}/v1/chat/completions`, {
+        response = await fetch(this.endpoint('/chat/completions'), {
           method: 'POST',
           headers,
           body: JSON.stringify(sanitizeForJSON(body)),
@@ -317,7 +339,7 @@ export class OpenAIProvider implements LLMProvider {
       if (this.config.apiKey) {
         headers['Authorization'] = `Bearer ${this.config.apiKey}`;
       }
-      const res = await fetch(`${this.config.baseUrl}/v1/models`, {
+      const res = await fetch(this.endpoint('/models'), {
         headers,
         signal: AbortSignal.timeout(5000),
       });
