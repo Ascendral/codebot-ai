@@ -211,6 +211,13 @@ export interface Config {
   autoApprove: boolean;
   contextBudget?: number;
   projectRoot?: string;
+  /**
+   * Cap on tool tiers advertised to the LLM ('core' | 'standard' | 'all').
+   * Shrinks the request so it fits rate-limited free tiers (Groq free =
+   * 8k tok/min). Auto-set to 'core' for Groq when unset; override via
+   * config.maxToolTier or env CODEBOT_MAX_TOOL_TIER.
+   */
+  maxToolTier?: 'core' | 'standard' | 'all';
   /** Optional router config (PR 5). Absent or `enabled:false` → routing off. */
   router?: ConfigRouterShape;
   /** Optional budget config (PR 6). Absent or `perSessionCapUsd:0` → no user cap. */

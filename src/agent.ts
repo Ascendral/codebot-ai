@@ -53,6 +53,13 @@ export class Agent {
   private maxIterations: number;
   private autoApprove: boolean;
   /**
+   * Cap on which tool tiers are advertised to the LLM. Shrinks the
+   * request for rate-limited free tiers (Groq free = 8k tok/min, but all
+   * 40 tools are ~7.5k tok). 'core' = 12 essential tools only. Undefined
+   * / 'all' = everything (default).
+   */
+  private maxToolTier?: 'core' | 'standard' | 'all';
+  /**
    * PR 11 — capability labels the user has explicitly opted into for
    * unattended bypass via `--allow-capability`. Empty / undefined ⇒ no
    * capability gate is bypassable in this session, i.e. the §7
@@ -111,6 +118,7 @@ export class Agent {
     providerName?: string;
     maxIterations?: number;
     autoApprove?: boolean;
+    maxToolTier?: 'core' | 'standard' | 'all';
     projectRoot?: string;
     askPermission?: AskPermissionFn;
     onMessage?: (message: Message) => void;
@@ -176,6 +184,7 @@ export class Agent {
     // Use policy-defined max iterations as default, CLI overrides
     this.maxIterations = opts.maxIterations || this.policyEnforcer.getMaxIterations();
     this.autoApprove = opts.autoApprove || false;
+    this.maxToolTier = opts.maxToolTier;
     this.allowedCapabilities = opts.allowedCapabilities ?? new Set<CapabilityLabel>();
     this.askPermission = opts.askPermission || defaultAskPermission;
     this.onMessage = opts.onMessage;
@@ -603,7 +612,7 @@ export class Agent {
       }
 
       const supportsTools = getModelInfo(this.model).supportsToolCalling;
-      const toolSchemas = supportsTools ? this.tools.getSchemas() : undefined;
+      const toolSchemas = supportsTools ? this.tools.getSchemas(this.maxToolTier) : undefined;
 
       let fullText = '';
       let toolCalls: ToolCall[] = [];

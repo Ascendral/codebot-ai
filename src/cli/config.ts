@@ -182,6 +182,24 @@ function resolveApiKey(
   }
 }
 
+/**
+ * Resolve the tool-tier cap. Explicit setting (env CODEBOT_MAX_TOOL_TIER
+ * or saved.maxToolTier) always wins. Otherwise auto-lean to 'core' for
+ * Groq: its free tier caps at 8k tokens/min and the full 40-tool schema
+ * set is ~7.5k tokens on its own, so the request 413s before it starts.
+ * Core-only (12 tools) keeps the request ~7.8k → fits.
+ */
+function resolveMaxToolTier(config: Config, saved: SavedConfig): void {
+  const explicit = process.env.CODEBOT_MAX_TOOL_TIER || saved.maxToolTier;
+  if (explicit === 'core' || explicit === 'standard' || explicit === 'all') {
+    config.maxToolTier = explicit;
+    return;
+  }
+  if (config.provider === 'groq') {
+    config.maxToolTier = 'core';
+  }
+}
+
 /** Validate the resolved baseUrl and warn if missing API key. */
 function validateResolved(config: Config): void {
   if (config.baseUrl && !config.baseUrl.startsWith('http://') && !config.baseUrl.startsWith('https://')) {
@@ -228,6 +246,7 @@ export async function resolveConfig(args: Record<string, string | boolean>): Pro
   resolveCapabilities(args, config, saved);
   await resolveBaseUrl(config, saved, explicitProvider);
   resolveApiKey(config, saved, explicitProvider);
+  resolveMaxToolTier(config, saved);
   validateResolved(config);
 
   return config;

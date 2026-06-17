@@ -252,15 +252,31 @@ export class ToolRegistry {
     return this.tools.get(name);
   }
 
-  getSchemas(): ToolSchema[] {
-    return Array.from(this.tools.values()).map((t) => ({
-      type: 'function' as const,
-      function: {
-        name: t.name,
-        description: t.description,
-        parameters: t.parameters,
-      },
-    }));
+  /**
+   * Build the tool schemas sent to the LLM.
+   *
+   * `maxTier` trims the set by tier to shrink the request — critical for
+   * rate-limited free tiers (e.g. Groq free caps at 8k tokens/min, and
+   * all 40 tool schemas are ~7.5k tokens on their own). 'core' ships only
+   * the 12 essential tools (~1.8k tok); 'standard' adds the dev tools;
+   * 'all' (default) ships everything.
+   */
+  getSchemas(maxTier?: 'core' | 'standard' | 'all'): ToolSchema[] {
+    const rank = { core: 0, standard: 1, labs: 2 } as const;
+    const cap = maxTier && maxTier !== 'all' ? rank[maxTier] : rank.labs;
+    return Array.from(this.tools.values())
+      .filter((t) => {
+        const tier = (TOOL_TIERS[t.name] || 'standard') as 'core' | 'standard' | 'labs';
+        return rank[tier] <= cap;
+      })
+      .map((t) => ({
+        type: 'function' as const,
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters,
+        },
+      }));
   }
 
   all(): Tool[] {

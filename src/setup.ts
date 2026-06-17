@@ -58,6 +58,9 @@ export interface SavedConfig {
   mistralApiKey?: string;
   xaiApiKey?: string;
   autoApprove?: boolean;
+  /** Cap on tool tiers sent to the LLM: 'core' | 'standard' | 'all'. Shrinks
+   *  the request for rate-limited free tiers. Auto-'core' for Groq if unset. */
+  maxToolTier?: 'core' | 'standard' | 'all';
   /**
    * Persistent capability allowlist. `autoApprove` bypasses ordinary
    * `prompt`/`always-ask` tool gates, but capability-label gates

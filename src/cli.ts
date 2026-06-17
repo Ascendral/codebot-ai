@@ -326,6 +326,7 @@ export async function main() {
     providerName: config.provider,
     maxIterations: config.maxIterations,
     autoApprove: config.autoApprove,
+    maxToolTier: config.maxToolTier,
     onMessage: (msg: Message) => session.save(msg),
     vaultMode: vaultModeOpts,
     routerConfig: config.router,
