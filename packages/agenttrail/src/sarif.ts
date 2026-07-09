@@ -6,11 +6,11 @@
  * successful executes are excluded.
  *
  * Rule mapping:
- *   security_block  → CB001 / error
- *   policy_block    → CB002 / warning
- *   capability_block → CB003 / warning
- *   error           → CB004 / note
- *   deny            → CB005 / note
+ *   security_block  → AT001 / error
+ *   policy_block    → AT002 / warning
+ *   capability_block → AT003 / warning
+ *   error           → AT004 / note
+ *   deny            → AT005 / note
  *
  * Usage: agenttrail --export-audit sarif [session-id] > results.sarif
  *
@@ -79,31 +79,31 @@ export interface SarifExportOptions {
 
 const RULES: SarifRule[] = [
   {
-    id: 'CB001',
+    id: 'AT001',
     name: 'SecurityBlock',
     shortDescription: { text: 'A tool call was blocked for security reasons' },
     defaultConfiguration: { level: 'error' },
   },
   {
-    id: 'CB002',
+    id: 'AT002',
     name: 'PolicyBlock',
     shortDescription: { text: 'A tool call was blocked by policy configuration' },
     defaultConfiguration: { level: 'warning' },
   },
   {
-    id: 'CB003',
+    id: 'AT003',
     name: 'CapabilityBlock',
     shortDescription: { text: 'A tool call was blocked by capability restrictions' },
     defaultConfiguration: { level: 'warning' },
   },
   {
-    id: 'CB004',
+    id: 'AT004',
     name: 'ToolError',
     shortDescription: { text: 'A tool call resulted in an error' },
     defaultConfiguration: { level: 'note' },
   },
   {
-    id: 'CB005',
+    id: 'AT005',
     name: 'PermissionDenied',
     shortDescription: { text: 'A tool call was denied by the user' },
     defaultConfiguration: { level: 'note' },
@@ -111,11 +111,11 @@ const RULES: SarifRule[] = [
 ];
 
 const ACTION_TO_RULE: Record<string, { ruleId: string; level: 'error' | 'warning' | 'note' }> = {
-  security_block:   { ruleId: 'CB001', level: 'error' },
-  policy_block:     { ruleId: 'CB002', level: 'warning' },
-  capability_block: { ruleId: 'CB003', level: 'warning' },
-  error:            { ruleId: 'CB004', level: 'note' },
-  deny:             { ruleId: 'CB005', level: 'note' },
+  security_block:   { ruleId: 'AT001', level: 'error' },
+  policy_block:     { ruleId: 'AT002', level: 'warning' },
+  capability_block: { ruleId: 'AT003', level: 'warning' },
+  error:            { ruleId: 'AT004', level: 'note' },
+  deny:             { ruleId: 'AT005', level: 'note' },
 };
 
 // ── Export Functions ──

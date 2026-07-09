@@ -80,10 +80,14 @@ export async function main(argv: string[]): Promise<number> {
       }
       let anyInvalid = false;
       for (const sid of sessions) {
+        const total = logger.query({ sessionId: sid }).length;
         const result = logger.verifySession(sid);
         const verdict = result.valid ? 'VALID  ' : 'BROKEN ';
+        const count = result.valid
+          ? `${result.entriesChecked} entries`
+          : `chain broke at entry ${result.firstInvalidAt} of ${total}`;
         console.log(
-          `${verdict} ${sid}  (${result.entriesChecked} entries)${result.valid ? '' : `  ${result.reason}`}`
+          `${verdict} ${sid}  (${count})${result.valid ? '' : `  ${result.reason}`}`
         );
         if (!result.valid) anyInvalid = true;
       }

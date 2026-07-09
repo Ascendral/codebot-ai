@@ -38,11 +38,11 @@ describe('SARIF Export', () => {
     assert.strictEqual(rules.length, 5);
 
     const ruleIds = rules.map(r => r.id);
-    assert.ok(ruleIds.includes('CB001'));
-    assert.ok(ruleIds.includes('CB002'));
-    assert.ok(ruleIds.includes('CB003'));
-    assert.ok(ruleIds.includes('CB004'));
-    assert.ok(ruleIds.includes('CB005'));
+    assert.ok(ruleIds.includes('AT001'));
+    assert.ok(ruleIds.includes('AT002'));
+    assert.ok(ruleIds.includes('AT003'));
+    assert.ok(ruleIds.includes('AT004'));
+    assert.ok(ruleIds.includes('AT005'));
   });
 
   // ── Rule Mapping ──
@@ -50,35 +50,35 @@ describe('SARIF Export', () => {
   it('maps security_block to CB001 error', () => {
     const sarif = exportSarif([makeEntry({ action: 'security_block' })]);
     const result = sarif.runs[0].results[0];
-    assert.strictEqual(result.ruleId, 'CB001');
+    assert.strictEqual(result.ruleId, 'AT001');
     assert.strictEqual(result.level, 'error');
   });
 
   it('maps policy_block to CB002 warning', () => {
     const sarif = exportSarif([makeEntry({ action: 'policy_block' })]);
     const result = sarif.runs[0].results[0];
-    assert.strictEqual(result.ruleId, 'CB002');
+    assert.strictEqual(result.ruleId, 'AT002');
     assert.strictEqual(result.level, 'warning');
   });
 
   it('maps capability_block to CB003 warning', () => {
     const sarif = exportSarif([makeEntry({ action: 'capability_block' })]);
     const result = sarif.runs[0].results[0];
-    assert.strictEqual(result.ruleId, 'CB003');
+    assert.strictEqual(result.ruleId, 'AT003');
     assert.strictEqual(result.level, 'warning');
   });
 
   it('maps error to CB004 note', () => {
     const sarif = exportSarif([makeEntry({ action: 'error' })]);
     const result = sarif.runs[0].results[0];
-    assert.strictEqual(result.ruleId, 'CB004');
+    assert.strictEqual(result.ruleId, 'AT004');
     assert.strictEqual(result.level, 'note');
   });
 
   it('maps deny to CB005 note', () => {
     const sarif = exportSarif([makeEntry({ action: 'deny' })]);
     const result = sarif.runs[0].results[0];
-    assert.strictEqual(result.ruleId, 'CB005');
+    assert.strictEqual(result.ruleId, 'AT005');
     assert.strictEqual(result.level, 'note');
   });
 
@@ -92,7 +92,7 @@ describe('SARIF Export', () => {
     ];
     const sarif = exportSarif(entries);
     assert.strictEqual(sarif.runs[0].results.length, 1);
-    assert.strictEqual(sarif.runs[0].results[0].ruleId, 'CB001');
+    assert.strictEqual(sarif.runs[0].results[0].ruleId, 'AT001');
   });
 
   it('handles empty entries', () => {
