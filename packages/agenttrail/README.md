@@ -9,7 +9,20 @@ SARIF 2.1.0 export feeds CI and SIEM.
 
 Zero runtime dependencies. MIT.
 
-## Status — pre-release (v0.1.0)
+## Status — pre-release (v0.1.0), validated against live Claude Code
+
+First real-world validation 2026-07-09: Claude Code v2.1.34 on macOS
+(arm64), OAuth session, `agenttrail init` + a 4-tool-call task →
+
+```
+$ agenttrail sessions
+cc-f437b8aa-e147-4216-8a8f-e44edbb0496b	4 entries
+$ agenttrail verify
+VALID   cc-f437b8aa-e147-4216-8a8f-e44edbb0496b  (4 entries)
+```
+
+The bin-shim bug that dogfood run caught is fixed and regression-tested
+(`bin.test.ts` spawns the real binary).
 
 Extracted from [codebot-ai](https://github.com/Ascendral/codebot-ai)'s
 production audit/policy layer (shipped across 20 versions, exercised by its
