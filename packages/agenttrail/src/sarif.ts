@@ -1,5 +1,5 @@
 /**
- * SARIF 2.1.0 Export for AgentTrail v1.9.0
+ * SARIF 2.1.0 Export for AgentTrail
  *
  * Converts AuditEntry[] to SARIF 2.1.0 JSON (Static Analysis Results
  * Interchange Format). Only security-relevant entries become results;
@@ -126,7 +126,7 @@ const ACTION_TO_RULE: Record<string, { ruleId: string; level: 'error' | 'warning
  */
 export function exportSarif(entries: AuditEntry[], options?: SarifExportOptions): SarifLog {
   try {
-    const version = options?.version || '1.9.0';
+    const version = options?.version || '0.1.0';
     const results: SarifResult[] = [];
 
     for (const entry of entries) {
@@ -179,7 +179,7 @@ export function exportSarif(entries: AuditEntry[], options?: SarifExportOptions)
           driver: {
             name: 'AgentTrail',
             version,
-            informationUri: 'https://github.com/Ascendral/agenttrail-ai',
+            informationUri: 'https://github.com/Ascendral/codebot-ai/tree/main/packages/agenttrail',
             rules: RULES,
           },
         },
@@ -201,8 +201,8 @@ export function exportSarif(entries: AuditEntry[], options?: SarifExportOptions)
         tool: {
           driver: {
             name: 'AgentTrail',
-            version: options?.version || '1.9.0',
-            informationUri: 'https://github.com/Ascendral/agenttrail-ai',
+            version: options?.version || '0.1.0',
+            informationUri: 'https://github.com/Ascendral/codebot-ai/tree/main/packages/agenttrail',
             rules: RULES,
           },
         },

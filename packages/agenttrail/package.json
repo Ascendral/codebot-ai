@@ -4,6 +4,9 @@
   "description": "Tamper-evident flight recorder + policy gate for AI agents. Hash-chained audit log, policy enforcement, risk scoring, SARIF export. Zero dependencies.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "agenttrail": "bin/agenttrail"
+  },
   "scripts": {
     "build": "tsc",
     "test": "npm run build && node --test dist/*.test.js",
@@ -31,6 +34,7 @@
     "dist/**/*.js",
     "dist/**/*.d.ts",
     "!dist/**/*.test.*",
+    "bin",
     "README.md"
   ],
   "devDependencies": {

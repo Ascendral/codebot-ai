@@ -84,6 +84,16 @@ export {
 } from './encryption';
 export type { EncryptionConfig } from './encryption';
 
+// Claude Code hook adapter (also exposed via the `agenttrail` CLI)
+export {
+  handleHookEvent,
+  decidePreToolUse,
+  labelsForClaudeTool,
+  initClaudeSettings,
+  auditSessionId,
+} from './claude-hooks';
+export type { HookEvent, HookDecision } from './claude-hooks';
+
 // State-dir resolution (AGENTTRAIL_HOME, default ~/.agenttrail)
 export { trailHome, trailPath } from './paths';
 

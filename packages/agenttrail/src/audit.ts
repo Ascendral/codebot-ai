@@ -91,14 +91,33 @@ export class AuditLogger {
   private sequence: number = 0;
   private prevHash: string = GENESIS_HASH;
 
-  constructor(logDir?: string) {
+  constructor(logDir?: string, sessionId?: string) {
     this.logDir = logDir || trailPath('audit');
-    this.sessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    this.sessionId = sessionId || `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     try {
       fs.mkdirSync(this.logDir, { recursive: true });
     } catch (err) {
       warnNonFatal('audit.init', err);
     }
+  }
+
+  /**
+   * Resume an existing session's chain from disk.
+   *
+   * Hook-style integrations run one short-lived process per tool call, so
+   * the in-memory prevHash/sequence state dies between calls. resume()
+   * reloads the session's entries and continues the chain from the last
+   * hash — the resulting log verifies as one unbroken chain.
+   */
+  static resume(sessionId: string, logDir?: string): AuditLogger {
+    const logger = new AuditLogger(logDir, sessionId);
+    const entries = logger.query({ sessionId });
+    if (entries.length > 0) {
+      const last = entries.reduce((a, b) => (b.sequence > a.sequence ? b : a));
+      logger.sequence = last.sequence;
+      logger.prevHash = last.hash;
+    }
+    return logger;
   }
 
   getSessionId(): string {
