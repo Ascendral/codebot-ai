@@ -1,0 +1,43 @@
+{
+  "name": "askahuman",
+  "version": "0.1.0",
+  "description": "Install the Protocol: plain-word rules that stop your AI from claiming 'done' without proof. One command, works with Claude Code, Cursor, and any chat AI. From askahuman.help.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "askahuman": "bin/askahuman"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test dist/*.test.js",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "keywords": [
+    "ai",
+    "claude-code",
+    "cursor",
+    "chatgpt",
+    "prompting",
+    "ai-honesty",
+    "vibe-coding",
+    "no-code",
+    "protocol",
+    "guardrails"
+  ],
+  "author": "Alex Pinkevich (Ascendral)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "!dist/**/*.test.*",
+    "bin",
+    "README.md"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.5.0"
+  }
+}
