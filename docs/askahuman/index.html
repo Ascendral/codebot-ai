@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask a Human — the help line for AI problems</title>
+<style>
+  :root {
+    --paper: #f5f6f4;
+    --ink: #1b2536;
+    --ink-soft: #4c5a70;
+    --line: #d9dcd6;
+    --amber: #e08a2e;
+    --amber-deep: #b96f1d;
+    --bubble-them: #e7e9e4;
+    --bubble-ai: #42526b;
+    --bubble-ai-ink: #eef1f6;
+    --bubble-alex: #e08a2e;
+    --bubble-alex-ink: #241503;
+    --green: #3e7c5b;
+    --card: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #141c29;
+      --ink: #e8e7e2;
+      --ink-soft: #9aa5b5;
+      --line: #2a3547;
+      --amber: #eb9d4a;
+      --amber-deep: #f0b070;
+      --bubble-them: #232e41;
+      --bubble-ai: #33415a;
+      --bubble-ai-ink: #dbe2ec;
+      --bubble-alex: #eb9d4a;
+      --bubble-alex-ink: #241503;
+      --green: #6cbd94;
+      --card: #1b2536;
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #f5f6f4; --ink: #1b2536; --ink-soft: #4c5a70; --line: #d9dcd6;
+    --amber: #e08a2e; --amber-deep: #b96f1d; --bubble-them: #e7e9e4;
+    --bubble-ai: #42526b; --bubble-ai-ink: #eef1f6; --bubble-alex: #e08a2e;
+    --bubble-alex-ink: #241503; --green: #3e7c5b; --card: #ffffff;
+  }
+  :root[data-theme="dark"] {
+    --paper: #141c29; --ink: #e8e7e2; --ink-soft: #9aa5b5; --line: #2a3547;
+    --amber: #eb9d4a; --amber-deep: #f0b070; --bubble-them: #232e41;
+    --bubble-ai: #33415a; --bubble-ai-ink: #dbe2ec; --bubble-alex: #eb9d4a;
+    --bubble-alex-ink: #241503; --green: #6cbd94; --card: #1b2536;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 18px/1.65 Charter, Georgia, 'Times New Roman', serif;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 52px 22px 100px; }
+  .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+
+  .navlink { margin-left: auto; color: var(--amber-deep); font-size: 14px; text-decoration: none; border-bottom: 1px solid var(--amber); }
+  .navlink:hover { color: var(--amber); }
+  header .brand {
+    display: flex; align-items: baseline; gap: 12px; margin-bottom: 44px;
+  }
+  .brand-name { font-size: 20px; font-weight: 700; letter-spacing: 0.01em; }
+  .brand-name .hill { color: var(--amber); }
+  .brand-tag { font-size: 14px; color: var(--ink-soft); font-style: italic; }
+
+  h1 {
+    font-size: clamp(34px, 6vw, 46px); line-height: 1.12; margin: 0 0 18px;
+    font-weight: 700; letter-spacing: -0.015em; text-wrap: balance;
+  }
+  .lede { font-size: 20px; color: var(--ink-soft); margin: 0 0 40px; text-wrap: pretty; }
+  .lede strong { color: var(--ink); }
+
+  /* ── the conversation ─────────────────────────── */
+  .thread {
+    background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+    padding: 26px 22px 22px; margin: 0 0 14px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .stamp {
+    align-self: center; font-size: 12px; color: var(--ink-soft);
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .msg { max-width: 82%; padding: 12px 16px; border-radius: 16px; position: relative; }
+  .msg p { margin: 0; font-size: 16.5px; line-height: 1.5; }
+  .msg .who {
+    display: block; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase;
+    margin-bottom: 5px; opacity: 0.75; font-family: ui-monospace, Menlo, monospace;
+  }
+  .them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 5px; }
+  .ai   { align-self: flex-end; background: var(--bubble-ai); color: var(--bubble-ai-ink); border-bottom-right-radius: 5px; }
+  .alex { align-self: flex-end; background: var(--bubble-alex); color: var(--bubble-alex-ink); border-bottom-right-radius: 5px; }
+  .thread-note { text-align: center; font-size: 14px; color: var(--ink-soft); margin: 0 0 48px; }
+
+  h2 {
+    font-size: 26px; margin: 60px 0 14px; letter-spacing: -0.01em; text-wrap: balance;
+  }
+  p { text-wrap: pretty; }
+  .quiet { color: var(--ink-soft); }
+
+  /* ── prices as an honest list ─────────────────── */
+  .prices { border-top: 1px solid var(--line); margin-top: 28px; }
+  .price-row {
+    display: flex; align-items: baseline; gap: 16px; padding: 20px 2px;
+    border-bottom: 1px solid var(--line);
+  }
+  .price-row .what { flex: 1; }
+  .price-row .what b { font-size: 19px; }
+  .price-row .what p { margin: 4px 0 0; font-size: 15.5px; color: var(--ink-soft); }
+  .price-row .cost {
+    font-family: ui-monospace, Menlo, monospace; font-size: 20px; font-weight: 700;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .price-row .cost small { font-size: 13px; font-weight: 400; color: var(--ink-soft); }
+
+  .cta {
+    display: block; text-align: center; margin: 44px 0 10px;
+    background: var(--amber); color: #241503; text-decoration: none;
+    font-size: 19px; font-weight: 700; padding: 17px 20px; border-radius: 12px;
+    border: 1px solid var(--amber-deep);
+  }
+  .cta:hover { background: var(--amber-deep); color: #fff; }
+  .cta:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .cta-sub { text-align: center; font-size: 14px; color: var(--ink-soft); margin: 0 0 8px; }
+
+  /* ── steps ────────────────────────────────────── */
+  .steps { list-style: none; padding: 0; margin: 22px 0 0; display: flex; flex-direction: column; gap: 18px; }
+  .steps li { display: flex; gap: 16px; align-items: baseline; }
+  .steps .n {
+    font-family: ui-monospace, Menlo, monospace; font-weight: 700; color: var(--amber);
+    font-size: 15px; min-width: 20px;
+  }
+
+  .honest {
+    border-left: 3px solid var(--green); padding: 6px 0 6px 20px; margin: 26px 0;
+  }
+  .honest p { margin: 0 0 12px; }
+  .honest p:last-child { margin: 0; }
+
+  .fill {
+    background: var(--bubble-them); border: 1px dashed var(--amber);
+    border-radius: 6px; padding: 1px 8px; font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.85em; white-space: nowrap;
+  }
+
+  footer {
+    margin-top: 70px; padding-top: 22px; border-top: 1px solid var(--line);
+    font-size: 14px; color: var(--ink-soft);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .msg { animation: rise 0.5s ease both; }
+    .msg:nth-child(3) { animation-delay: 0.15s; }
+    .msg:nth-child(4) { animation-delay: 0.3s; }
+    .msg:nth-child(6) { animation-delay: 0.45s; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <span class="brand-name">Ask a <span class="hill">Human</span></span>
+      <span class="brand-tag">the help line for AI problems</span>
+      <a class="navlink" href="protocol.html">the Protocol →</a>
+      <a class="navlink" href="about.html">meet Alex →</a>
+    </div>
+  </header>
+
+  <h1>Stuck with AI? Text a human who's actually been there.</h1>
+  <p class="lede">Not a programmer. Not a consultant with a slide deck. I'm a regular person who has spent two years making AI actually do things — and falling in every hole you're about to fall in. <strong>Message me any hour. I live on my phone, so you'll usually get me. And if I'm asleep or mid-call, my AI answers you in seconds and alerts me — you are never left on read.</strong></p>
+
+  <div class="thread" role="img" aria-label="A text conversation: a stuck customer gets an instant AI answer, then a personal follow-up from Alex within minutes">
+    <span class="stamp mono">2:47 PM</span>
+    <div class="msg them">
+      <p>ChatGPT built my whole booking page and now it just shows a white screen. Demo is TOMORROW. I don't even know what to ask it anymore</p>
+    </div>
+    <div class="msg ai">
+      <span class="who">AI · instant reply</span>
+      <p>A white screen after AI edits is usually one broken line, not a broken project — nothing is lost. Do this: open the page, press F12, click "Console," and send me a photo of any red text. That red line tells us exactly what to fix.</p>
+    </div>
+    <div class="msg them">
+      <p>ok that worked… it says "unexpected token" something?? sending pic</p>
+    </div>
+    <span class="stamp mono">3:09 PM</span>
+    <div class="msg alex">
+      <span class="who">Alex · human follow-up</span>
+      <p>Just read your whole thread. The AI left a half-finished edit in one file — one prompt fixes it. Hop on a 10-minute call and we'll have it working well before your demo. Also writing you 3 rules so this never happens again.</p>
+    </div>
+  </div>
+  <p class="thread-note">The real shape of how this works: the machine answers in seconds, the human shows up in minutes — never later than the same day.</p>
+
+  <h2>Who this is for</h2>
+  <p>People building real things with AI who can't read the code it writes — founders mid-project with Claude or ChatGPT, small business owners trying to automate the boring parts, anyone whose AI keeps saying "done!" while the thing is clearly not done. If you've ever felt <em>dumb</em> asking an engineer a question — that feeling doesn't exist here. I've asked dumber, at 46, in public.</p>
+
+  <h2>What it costs</h2>
+  <div class="prices">
+    <div class="price-row">
+      <div class="what">
+        <b>Unstick me</b>
+        <p>One problem, handled — message thread plus a call if it needs one. You keep <a href="protocol.html" style="color:var(--amber-deep)">the Protocol</a> installed so it doesn't happen again. If I can't help, you don't pay.</p>
+      </div>
+      <div class="cost mono">$49 <small>once</small></div>
+    </div>
+    <div class="price-row">
+      <div class="what">
+        <b>A person in your corner</b>
+        <p>Unlimited questions, any hour. AI answers instantly, I follow up personally every time — same day.</p>
+      </div>
+      <div class="cost mono">$199 <small>/ month</small></div>
+    </div>
+    <div class="price-row">
+      <div class="what">
+        <b>Your business, covered</b>
+        <p>Everything above for your whole team, plus I set up and maintain your AI tools hands-on. Remote, everywhere.</p>
+      </div>
+      <div class="cost mono">$499 <small>/ month</small></div>
+    </div>
+  </div>
+
+  <a class="cta" href="https://buy.stripe.com/5kQdRa4GFbim5mheACaAw01">Get unstuck now — $49</a>
+  <p class="cta-sub">Secure payment via Stripe. Then message the line — first reply lands fast, any hour, anywhere on Earth.</p>
+
+  <h2>How it works</h2>
+  <ol class="steps">
+    <li><span class="n mono">1</span><span>You message the line — text, voice note, or screenshot. Whatever state you're in.</span></li>
+    <li><span class="n mono">2</span><span>My AI answers immediately with a first fix. It's trained on two years of my own disasters — it's seen your problem.</span></li>
+    <li><span class="n mono">3</span><span>I read every single thread myself and follow up the same day — a plain-English fix, or a 10-minute screen call if it's gnarly.</span></li>
+  </ol>
+
+  <h2>Why trust a guy who can't code?</h2>
+  <div class="honest">
+    <p><strong>Because I can't code — that's the point.</strong> I've shipped working software for two years anyway: twenty versions of a real product, a real test suite, a real benchmark, all by learning how to make AI do the work and how to catch it when it lies. Every trick I'll teach you was paid for with my own money and my own lost nights.</p>
+    <p>Engineers solve your problem in a language you don't speak. I solve it in the one you do.</p>
+  </div>
+
+  <h2>Straight answers</h2>
+  <p><strong>Who actually answers — you or a bot?</strong> Usually me. I'm on my phone more than I'd like to admit. When I can't answer, my AI replies in seconds with a first fix and notifies me the moment it does — so the machine covers the gap, and I'm never more than hours behind. Every thread gets my human eyes, every time.</p>
+  <p><strong>What if my problem is too weird?</strong> Then you don't pay. That's the whole policy.</p>
+  <p><strong>Do you need access to my stuff?</strong> Usually just screenshots. If hands-on help is needed, we screen-share and you stay in the driver's seat — I never hold your passwords or your accounts.</p>
+
+  <a class="cta" href="https://wa.me/19254280026?text=Hi%20Alex%20%E2%80%94%20I%27m%20stuck%20with%20AI%20and%20need%20a%20human.">Ask a Human now</a>
+  <p class="cta-sub">Opens a WhatsApp chat with Alex directly. Real person, fast reply.</p>
+
+  <footer>
+    Ask a Human · askahuman.help · fully remote, everywhere · run by one human and his very patient AI
+  </footer>
+
+</div>
+
+</body>
+</html>

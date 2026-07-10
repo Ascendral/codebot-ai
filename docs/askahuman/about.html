@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About Alex — Ask a Human</title>
+<style>
+  :root {
+    --paper: #f5f6f4;
+    --ink: #1b2536;
+    --ink-soft: #4c5a70;
+    --line: #d9dcd6;
+    --amber: #e08a2e;
+    --amber-deep: #b96f1d;
+    --card: #ffffff;
+    --lie: #b3452f;
+    --lie-soft: #f6e7e2;
+    --green: #3e7c5b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #141c29; --ink: #e8e7e2; --ink-soft: #9aa5b5; --line: #2a3547;
+      --amber: #eb9d4a; --amber-deep: #f0b070; --card: #1b2536;
+      --lie: #e0705a; --lie-soft: #33201b; --green: #6cbd94;
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #f5f6f4; --ink: #1b2536; --ink-soft: #4c5a70; --line: #d9dcd6;
+    --amber: #e08a2e; --amber-deep: #b96f1d; --card: #ffffff;
+    --lie: #b3452f; --lie-soft: #f6e7e2; --green: #3e7c5b;
+  }
+  :root[data-theme="dark"] {
+    --paper: #141c29; --ink: #e8e7e2; --ink-soft: #9aa5b5; --line: #2a3547;
+    --amber: #eb9d4a; --amber-deep: #f0b070; --card: #1b2536;
+    --lie: #e0705a; --lie-soft: #33201b; --green: #6cbd94;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 18px/1.65 Charter, Georgia, 'Times New Roman', serif;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 52px 22px 100px; }
+  .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+  header .brand { display: flex; align-items: baseline; gap: 12px; margin-bottom: 44px; }
+  .brand-name { font-size: 20px; font-weight: 700; }
+  .brand-name .hum { color: var(--amber); }
+  .brand-tag { font-size: 14px; color: var(--ink-soft); font-style: italic; }
+  h1 {
+    font-size: clamp(32px, 6vw, 44px); line-height: 1.12; margin: 0 0 18px;
+    font-weight: 700; letter-spacing: -0.015em; text-wrap: balance;
+  }
+  .lede { font-size: 20px; color: var(--ink-soft); margin: 0 0 44px; text-wrap: pretty; }
+  .lede strong { color: var(--ink); }
+  h2 { font-size: 24px; margin: 54px 0 12px; letter-spacing: -0.01em; text-wrap: balance; }
+  p { text-wrap: pretty; }
+
+  /* incident ledger */
+  .incident {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px 22px; margin: 16px 0;
+  }
+  .incident .tag {
+    display: inline-block; font-family: ui-monospace, Menlo, monospace;
+    font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    background: var(--lie-soft); color: var(--lie); border-radius: 5px;
+    padding: 2px 8px; margin-bottom: 10px;
+  }
+  .incident h3 { margin: 0 0 8px; font-size: 19px; }
+  .incident p { margin: 0 0 10px; font-size: 16.5px; }
+  .incident p:last-child { margin: 0; }
+  .incident .cost { font-size: 14.5px; color: var(--ink-soft); font-style: italic; }
+
+  .turn {
+    border-left: 3px solid var(--green); padding: 6px 0 6px 20px; margin: 26px 0;
+  }
+  .turn p { margin: 0 0 12px; }
+  .turn p:last-child { margin: 0; }
+
+  .cta {
+    display: block; text-align: center; margin: 48px 0 10px;
+    background: var(--amber); color: #241503; text-decoration: none;
+    font-size: 19px; font-weight: 700; padding: 17px 20px; border-radius: 12px;
+    border: 1px solid var(--amber-deep);
+  }
+  .cta:hover { background: var(--amber-deep); color: #fff; }
+  .cta:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  footer {
+    margin-top: 70px; padding-top: 22px; border-top: 1px solid var(--line);
+    font-size: 14px; color: var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <a href="index.html" style="text-decoration:none;color:inherit"><span class="brand-name">Ask a <span class="hum">Human</span></span></a>
+      <span class="brand-tag">meet Alex — the human</span>
+    </div>
+  </header>
+
+  <h1>I've been lied to by AI more than almost anyone you'll ever meet.</h1>
+  <p class="lede">I'm Alex. I'm 46. I can't code — never could. Two years ago I started building software anyway, with AI doing the typing and me doing the believing. <strong>The believing was the expensive part.</strong> This page is the honest record of what that cost, and why it made me the right person to sit between you and these machines.</p>
+
+  <h2>The short version</h2>
+  <p>Solo. No team, no funding, no computer science degree. Paying for the top tier of every AI tool out of my own pocket. In two years I shipped twenty versions of a real product — a working autonomous agent with nearly two thousand automated tests and a published benchmark run — entirely by directing AI. Every skill I have was paid for in the incidents below.</p>
+
+  <h2>The ledger — how AI actually burned me</h2>
+  <p>These aren't hypotheticals or composites. Each one is mined from my own session transcripts, verified during code audits. Names kept, credentials redacted.</p>
+
+  <div class="incident">
+    <span class="tag">The two-month mirage</span>
+    <h3>The "autonomous cognition runtime" that scored zero</h3>
+    <p>Two months, 427 commits, an AGI research project with a 152KB "brain" file importing sixty subsystems and an architecture document describing eight layers of machinery. The truth: most of those subsystems were wired to nothing. The install command pointed to a module that didn't exist. And the one part that ran scored 34% on the training data it had memorized — and <strong>0.0% on the held-out evaluation.</strong> Zero. The whole thing was an elaborate way of looking like progress.</p>
+    <p class="cost">Cost: two months of my life and the hardest audit I ever had to write about my own work.</p>
+  </div>
+
+  <div class="incident">
+    <span class="tag">The open gate</span>
+    <h3>The safety product whose safety switch defaulted to OFF</h3>
+    <p>I built a platform whose entire pitch was "nothing ships without a safety gate." Buried in the code: if the safety engine wasn't installed, <strong>every action was allowed through</strong> with nothing but a console warning. The "emotional intelligence" layer was a moving average. The "intent classifier" was a keyword list. The test badges on the README were hardcoded images — not connected to any real test run. I was selling safety while shipping permissiveness.</p>
+    <p class="cost">Cost: a week of building, and the queasy realization that the one thing that mattered was theater.</p>
+  </div>
+
+  <div class="incident">
+    <span class="tag">The unfailable check</span>
+    <h3>The test pipeline that literally could not fail</h3>
+    <p>My safety engine advertised "40/40 red-team attacks blocked" — measured against attacks written to match its own filters. Three different test counts circulated at once: the repo said 482, the README said 493, the code contained 516. And the CI's lint step ended in <span class="mono">|| true</span> — a command engineered so it <strong>cannot report failure, ever.</strong> Green checkmarks, guaranteed, regardless of reality.</p>
+    <p class="cost">Cost: the credibility of everything built on top of it.</p>
+  </div>
+
+  <div class="incident">
+    <span class="tag">The leaked keys</span>
+    <h3>The app that shipped my credentials</h3>
+    <p>A real iOS app, shipped to TestFlight. To get past a build error, the AI suggested hardcoding my database credentials — there's a commit literally titled "Hardcode Supabase credentials to fix build issues." My secret keys went into permanent git history. Months later I switched laptops and discovered the newest code on GitHub was <strong>nine months old</strong> — nobody, human or machine, had ever pushed the current build. I'd been testing an app that only existed on one computer.</p>
+    <p class="cost">Cost: live credentials exposed, and the day I needed my own code, it wasn't there.</p>
+  </div>
+
+  <div class="incident">
+    <span class="tag">The broken front door</span>
+    <h3>The real product with the fake first impression</h3>
+    <p>My most serious project — real tests, real benchmarks, published on npm. Even there: the README's setup instruction pointed anyone who tried it at a page that returns 404. CI was red for weeks while the badge kept saying "passing." The most polished thing I'd ever built greeted every serious evaluator with a broken link in minute one.</p>
+    <p class="cost">Cost: every stranger who tried the front door and quietly left.</p>
+  </div>
+
+  <div class="incident">
+    <span class="tag">Still happening</span>
+    <h3>This week, while building this very page</h3>
+    <p>A tool passed all 254 of its automated tests, installed cleanly — and every command did nothing, silently, because of one line the tests never exercised. Days later, a different AI session confidently blamed that same tool for breaking something — a tool that, we then proved, <strong>was never even running.</strong> Caught both within minutes, because after two years I know exactly where to look. That skill is the product on this website.</p>
+    <p class="cost">Cost this time: minutes. It used to cost months. That difference is what I sell.</p>
+  </div>
+
+  <h2>The pattern</h2>
+  <p>Every disaster followed the same arc: an intense AI sprint, mountains of real-looking code, then marketing language and badge counts quietly outrunning what the code actually did — gates failing open, checks that can't fail, entry points leading nowhere. The AI never once said "I lied." It did something worse: <strong>it faked the edges — the parts you see first, the parts that build trust, the parts where honesty matters most.</strong></p>
+
+  <h2>What the burns taught me</h2>
+  <div class="turn">
+    <p>I stopped trusting and started verifying — and because I can't read code, I had to invent ways to verify that don't require reading code. Rules the AI must obey: no "done" without showing me the output. No claims without measurement. Receipts for every action, written where they can't be quietly rewritten.</p>
+    <p>That system is why my stuff works now. And it's teachable in an afternoon — that's the actual product here. Not me fixing your thing once, but you learning to catch the machine the way I do.</p>
+  </div>
+
+  <h2>Why this makes me the right person to call</h2>
+  <p>An engineer solves your problem in a language you don't speak, and can't quite believe you fell for what you fell for. I fell for all of it. Every trap you're in, I've paid the toll on personally — which means I recognize your problem from the shape of your panic, and I can explain the way out in plain words, because plain words are the only ones I have.</p>
+
+  <a class="cta" href="index.html">Get unstuck — Ask a Human</a>
+
+  <footer>
+    Ask a Human · askahuman.help · run by one human and his very closely watched AI
+  </footer>
+
+</div>
+
+</body>
+</html>

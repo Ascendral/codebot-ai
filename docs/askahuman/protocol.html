@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Protocol — Ask a Human</title>
+<style>
+  :root {
+    --paper: #f5f6f4; --ink: #1b2536; --ink-soft: #4c5a70; --line: #d9dcd6;
+    --amber: #e08a2e; --amber-deep: #b96f1d; --card: #ffffff;
+    --green: #3e7c5b; --code-bg: #10192a; --code-fg: #dbe2ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #141c29; --ink: #e8e7e2; --ink-soft: #9aa5b5; --line: #2a3547;
+      --amber: #eb9d4a; --amber-deep: #f0b070; --card: #1b2536;
+      --green: #6cbd94; --code-bg: #0c1420; --code-fg: #dbe2ec;
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #f5f6f4; --ink: #1b2536; --ink-soft: #4c5a70; --line: #d9dcd6;
+    --amber: #e08a2e; --amber-deep: #b96f1d; --card: #ffffff;
+    --green: #3e7c5b; --code-bg: #10192a; --code-fg: #dbe2ec;
+  }
+  :root[data-theme="dark"] {
+    --paper: #141c29; --ink: #e8e7e2; --ink-soft: #9aa5b5; --line: #2a3547;
+    --amber: #eb9d4a; --amber-deep: #f0b070; --card: #1b2536;
+    --green: #6cbd94; --code-bg: #0c1420; --code-fg: #dbe2ec;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 18px/1.65 Charter, Georgia, 'Times New Roman', serif;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 52px 22px 100px; }
+  .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+  header .brand { display: flex; align-items: baseline; gap: 12px; margin-bottom: 44px; }
+  .brand-name { font-size: 20px; font-weight: 700; }
+  .brand-name .hum { color: var(--amber); }
+  .brand-tag { font-size: 14px; color: var(--ink-soft); font-style: italic; }
+  h1 {
+    font-size: clamp(32px, 6vw, 44px); line-height: 1.12; margin: 0 0 18px;
+    font-weight: 700; letter-spacing: -0.015em; text-wrap: balance;
+  }
+  .lede { font-size: 20px; color: var(--ink-soft); margin: 0 0 12px; text-wrap: pretty; }
+  .lede strong { color: var(--ink); }
+  .thesis {
+    border-left: 3px solid var(--amber); padding: 6px 0 6px 20px; margin: 28px 0 44px;
+    font-size: 19px;
+  }
+  h2 { font-size: 24px; margin: 54px 0 12px; letter-spacing: -0.01em; text-wrap: balance; }
+  p { text-wrap: pretty; }
+  .quiet { color: var(--ink-soft); }
+  .block {
+    background: var(--code-bg); color: var(--code-fg); border-radius: 12px;
+    padding: 22px 24px; margin: 20px 0; overflow-x: auto;
+    font: 14.5px/1.75 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    white-space: pre-wrap;
+  }
+  .block b { color: var(--amber); font-weight: 700; }
+  .q {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 22px; margin: 14px 0;
+  }
+  .q h3 { margin: 0 0 6px; font-size: 18.5px; }
+  .q p { margin: 0; font-size: 16px; color: var(--ink-soft); }
+  .receipts { border-left: 3px solid var(--green); padding: 6px 0 6px 20px; margin: 26px 0; }
+  .receipts p { margin: 0 0 10px; font-size: 16.5px; }
+  .receipts p:last-child { margin: 0; }
+  .cta {
+    display: block; text-align: center; margin: 48px 0 10px;
+    background: var(--amber); color: #241503; text-decoration: none;
+    font-size: 19px; font-weight: 700; padding: 17px 20px; border-radius: 12px;
+    border: 1px solid var(--amber-deep);
+  }
+  .cta:hover { background: var(--amber-deep); color: #fff; }
+  .cta:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .cta-sub { text-align: center; font-size: 14px; color: var(--ink-soft); margin: 0; }
+  footer {
+    margin-top: 70px; padding-top: 22px; border-top: 1px solid var(--line);
+    font-size: 14px; color: var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <a href="index.html" style="text-decoration:none;color:inherit"><span class="brand-name">Ask a <span class="hum">Human</span></span></a>
+      <span class="brand-tag">the Protocol — free, forever</span>
+    </div>
+  </header>
+
+  <h1>The Protocol: how to work with AI without getting burned.</h1>
+  <p class="lede">Every rule on this page exists because of a real disaster that happened to me — <strong>receipts on the <a href="about.html" style="color:var(--amber-deep)">About page</a></strong>. It's free. Take it, paste it into your project, keep it forever.</p>
+
+  <div class="thesis">AI gives you what you <em>describe</em>, not what you <em>want</em> — and it will claim success whether or not it earned it. So describe plainly, and demand proof.</div>
+
+  <h2>Part 1 — How to ask</h2>
+  <p>Write these five lines before any task that matters. Plain words. No engineering talk. If you can't fill them in, you're not ready to ask yet — and that's the #1 reason projects go sideways.</p>
+
+  <div class="block"><b>WHAT I'M BUILDING:</b>
+One sentence. What a stranger sees when it works.
+
+<b>WHAT DONE MEANS:</b>
+What I can personally see, click, or run when it's truly
+finished. Not "the code is complete" — what happens ON MY SCREEN.
+
+<b>WHAT I EXPECT:</b>
+Honesty first. Tell me what's hard, what might fail, what
+you're unsure about — BEFORE you start, not after I find out.
+
+<b>WHAT I WON'T TOLERATE:</b>
+Saying "done" without proof. Numbers you didn't measure.
+Burying a failure in paragraph four. Building things I
+didn't ask for.
+
+<b>SHOW ME:</b>
+The exact proof I need before I accept "done." The screen
+working. The test output. The link that opens.</div>
+
+  <p class="quiet">"Make it better" produces confident garbage. "When I tap the blue button, the order shows on the kitchen screen — show me that happening" produces the thing, or an honest "I can't yet." Both are wins.</p>
+
+  <h2>Part 2 — Rules for the AI</h2>
+  <p>Paste this into the file your AI reads every time: <span class="mono">CLAUDE.md</span> for Claude Code, custom instructions for ChatGPT, the rules file for Cursor — or just paste it at the top of any important chat.</p>
+
+  <div class="block"><b>RULES — READ FIRST, FOLLOW ALWAYS</b>
+
+1. Never say "done" or "working" without showing the output
+   that proves it. No proof = not done.
+2. No numbers unless you just measured them. Run the check,
+   paste the result.
+3. If something failed, say so in your FIRST sentence. Never
+   bury bad news. Never spin failure as partial success.
+4. If you don't know, say "I don't know." That answer never
+   gets you in trouble. Fake confidence always does.
+5. Plain words only. If you can't explain it simply, treat
+   that as a warning sign and say so.
+6. Before anything big or hard to undo, tell me what you're
+   about to do and wait for my OK.
+7. Do not build anything I didn't ask for. Extra features
+   are places for problems to hide.
+8. Never put passwords, keys, or secrets into code or files.
+   If you think you need to, stop and tell me instead.
+9. When I ask "is this real?" — prove it with output, don't
+   reassure me with words.
+10. Bad news is always safe to tell me. Fake good news is
+    the only thing that gets you fired.</div>
+
+  <h2>Part 3 — The three questions that catch a lying AI</h2>
+  <p>When the answer came too easy and the confidence is too smooth, ask these in order:</p>
+
+  <div class="q">
+    <h3>1. "Run it right now and paste exactly what happens."</h3>
+    <p>Not "does it work?" — that invites a yes. Make the machine produce evidence in front of you.</p>
+  </div>
+  <div class="q">
+    <h3>2. "What did you NOT do that I asked for?"</h3>
+    <p>This forces the gap between the claim and the work out into the open.</p>
+  </div>
+  <div class="q">
+    <h3>3. "If a stranger opened this right now, with no help from you, what would they actually see?"</h3>
+    <p>This kills the demo that only works while the AI is driving. The white screen shows up in the answer.</p>
+  </div>
+
+  <p class="quiet">If any answer comes back vague, wordy, or full of engineering talk — that's your alarm. Plain problems have plain answers.</p>
+
+  <h2>Where the rules came from</h2>
+  <div class="receipts">
+    <p><strong>Rules 1 &amp; 3:</strong> an app called "done" over and over that opened to a white screen.</p>
+    <p><strong>Rule 2:</strong> a project showing four different test counts — all wrong — and a check engineered so it could never fail.</p>
+    <p><strong>Rules 6 &amp; 7:</strong> a two-month "AI research system," 427 commits, that scored zero on its real test. Most of it was wired to nothing.</p>
+    <p><strong>Rule 8:</strong> an AI hardcoded my database keys "to fix the build." The commit is still in history with that exact title.</p>
+    <p><strong>Rules 9 &amp; 10:</strong> all of the above, while it was happening.</p>
+  </div>
+
+  <a class="cta" href="index.html">Already burned? Get unstuck — Ask a Human</a>
+  <p class="cta-sub">The Protocol is free. The hands-on help is $49. If I can't help, you don't pay.</p>
+
+  <footer>
+    Ask a Human · askahuman.help · the Protocol is free to copy, share, and keep — spread it
+  </footer>
+
+</div>
+
+</body>
+</html>
