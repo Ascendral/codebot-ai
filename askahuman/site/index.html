@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ask a Human — the help line for AI problems</title>
+<meta name="description" content="Stuck with AI? Text a human who's been there. Not an engineer — a regular person who shipped software for 2 years by directing AI and getting burned every way it can burn you. $49, no fix no pay.">
+<meta property="og:title" content="Ask a Human — the help line for AI problems">
+<meta property="og:description" content="Stuck with AI? Text a human who's been there. $49 to get unstuck — if I can't help, you don't pay. The Protocol that keeps AI honest is free.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ask a Human">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#e08a2e">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🙋</text></svg>">
 <style>
   :root {
     --paper: #f5f6f4;
@@ -92,7 +100,30 @@
   .them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 5px; }
   .ai   { align-self: flex-end; background: var(--bubble-ai); color: var(--bubble-ai-ink); border-bottom-right-radius: 5px; }
   .alex { align-self: flex-end; background: var(--bubble-alex); color: var(--bubble-alex-ink); border-bottom-right-radius: 5px; }
-  .thread-note { text-align: center; font-size: 14px; color: var(--ink-soft); margin: 0 0 48px; }
+  .thread-note { text-align: center; font-size: 14px; color: var(--ink-soft); margin: 0 0 28px; }
+
+  .receipt-cards { display: flex; flex-direction: column; gap: 12px; margin: 0 0 16px; }
+  .rc {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 20px;
+  }
+  .rc-tag {
+    display: inline-block; font-size: 11px; letter-spacing: 0.1em;
+    color: var(--amber-deep); border: 1px solid var(--amber);
+    border-radius: 5px; padding: 1px 8px; margin-bottom: 8px;
+  }
+  .rc p { margin: 0; font-size: 16px; line-height: 1.55; }
+  .rc b { color: var(--ink); }
+
+  .receipts-strip {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px;
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    padding: 18px 4px; margin: 0 0 48px;
+    font-size: 14.5px; color: var(--ink-soft);
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  .receipts-strip b { color: var(--amber-deep); font-size: 16px; }
+  @media (min-width: 560px) { .receipts-strip { grid-template-columns: repeat(4, auto); justify-content: space-between; } }
 
   h2 {
     font-size: 26px; margin: 60px 0 14px; letter-spacing: -0.01em; text-wrap: balance;
@@ -171,31 +202,34 @@
     </div>
   </header>
 
-  <h1>Stuck with AI? Text a human who's actually been there.</h1>
-  <p class="lede">Not a programmer. Not a consultant with a slide deck. I'm a regular person who has spent two years making AI actually do things — and falling in every hole you're about to fall in. <strong>Message me any hour. I live on my phone, so you'll usually get me. And if I'm asleep or mid-call, my AI answers you in seconds and alerts me — you are never left on read.</strong></p>
+  <h1>Your AI says everything works. Mine said that too.</h1>
+  <p class="lede">I'm Alex. I can't code. For two years I've shipped real software anyway by directing AI — and I've been lied to by it more than almost anyone you'll meet. I wrote every lie down. <strong>Now I'm the person you text when your AI is doing it to you.</strong></p>
 
-  <div class="thread" role="img" aria-label="A text conversation: a stuck customer gets an instant AI answer, then a personal follow-up from Alex within minutes">
-    <span class="stamp mono">2:47 PM</span>
-    <div class="msg them">
-      <p>ChatGPT built my whole booking page and now it just shows a white screen. Demo is TOMORROW. I don't even know what to ask it anymore</p>
+  <div class="receipt-cards">
+    <div class="rc">
+      <span class="rc-tag mono">RECEIPT #1</span>
+      <p>A two-month project. 427 commits. Grand architecture documents. Scored <b>0.0%</b> on its real evaluation. Most of it was wired to nothing.</p>
     </div>
-    <div class="msg ai">
-      <span class="who">AI · instant reply</span>
-      <p>A white screen after AI edits is usually one broken line, not a broken project — nothing is lost. Do this: open the page, press F12, click "Console," and send me a photo of any red text. That red line tells us exactly what to fix.</p>
+    <div class="rc">
+      <span class="rc-tag mono">RECEIPT #4</span>
+      <p>The AI's fix for a build error is still in my git history, titled: <b>"Hardcode Supabase credentials to fix build issues."</b> My keys. In the open.</p>
     </div>
-    <div class="msg them">
-      <p>ok that worked… it says "unexpected token" something?? sending pic</p>
-    </div>
-    <span class="stamp mono">3:09 PM</span>
-    <div class="msg alex">
-      <span class="who">Alex · human follow-up</span>
-      <p>Just read your whole thread. The AI left a half-finished edit in one file — one prompt fixes it. Hop on a 10-minute call and we'll have it working well before your demo. Also writing you 3 rules so this never happens again.</p>
+    <div class="rc">
+      <span class="rc-tag mono">RECEIPT #6</span>
+      <p>A tool passed all <b>254 automated tests</b> and installed cleanly. Every command silently did nothing. Green checkmarks aren't "it works."</p>
     </div>
   </div>
-  <p class="thread-note">The real shape of how this works: the machine answers in seconds, the human shows up in minutes — never later than the same day.</p>
+  <p class="thread-note">Six of these, mined from my own session transcripts, dates and details intact — <a href="about.html" style="color:var(--amber-deep)">read them all</a>. Every rule I'll teach you was paid for by one of them.</p>
+
+  <div class="receipts-strip" aria-label="Track record, all verifiable">
+    <span><b>2 years</b> directing AI daily</span>
+    <span><b>20 versions</b> of real software shipped</span>
+    <span><b>1,979 tests</b> passing, independently run</span>
+    <span><b>6 AI lies</b> documented with receipts</span>
+  </div>
 
   <h2>Who this is for</h2>
-  <p>People building real things with AI who can't read the code it writes — founders mid-project with Claude or ChatGPT, small business owners trying to automate the boring parts, anyone whose AI keeps saying "done!" while the thing is clearly not done. If you've ever felt <em>dumb</em> asking an engineer a question — that feeling doesn't exist here. I've asked dumber, at 46, in public.</p>
+  <p>People building real things with AI who can't read the code it writes — founders mid-project with Claude or ChatGPT, small business owners automating the boring parts, anyone whose AI keeps saying "done" while the thing clearly isn't. You don't need to know the right words. Describe it the way you'd describe it to a friend. That's the language I work in.</p>
 
   <h2>What it costs</h2>
   <div class="prices">
@@ -247,8 +281,7 @@
   <p class="cta-sub">Opens a WhatsApp chat with Alex directly. Real person, fast reply.</p>
 
   <footer>
-    Ask a Human · askahuman.help · fully remote, everywhere · run by one human and his very patient AI ·
-    <span class="fill">YOUR-EMAIL</span>
+    Ask a Human · fully remote, everywhere · every claim on this page has a receipt behind it
   </footer>
 
 </div>
